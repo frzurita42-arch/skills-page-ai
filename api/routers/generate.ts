@@ -15,6 +15,8 @@ import {
   extractJson,
   imageStyleSchema,
   lessonPathSchema,
+  ensureExplanatoryProse,
+  everySlideHasProse,
   levelSchema,
   repairDeckDraft,
   repoRef,
@@ -395,7 +397,7 @@ export const generateRouter = createRouter({
                   content:
                     attempt === 0
                       ? userPrompt
-                      : `${userPrompt}\n\nReminder: STRICT JSON ONLY, exactly the requested shape.`,
+                      : `${userPrompt}\n\nReminder: STRICT JSON ONLY, exactly the requested shape. EVERY slide MUST include a prose component with real explanatory text that explains any image, chart, table, diagram, formula or code on that slide — never a slide that is only a visual and a question.`,
                 },
               ],
               // A full deck is a large JSON; leave generous headroom so the
@@ -409,7 +411,15 @@ export const generateRouter = createRouter({
               imageStyle: input.imageStyle,
               topic,
             });
-            deck = slideDeckSchema.parse(repaired);
+            const parsedDeck = slideDeckSchema.parse(repaired);
+            // A slide that is only a visual + question is a template violation.
+            // Give the model one more attempt to add the explanatory text
+            // before we accept the deck (final fallback fills it in below).
+            if (attempt === 0 && !everySlideHasProse(parsedDeck)) {
+              console.warn("[generate.slides] a slide lacked explanatory text — retrying once");
+              continue;
+            }
+            deck = parsedDeck;
           } catch (err) {
             const detail =
               err instanceof z.ZodError
@@ -440,6 +450,8 @@ export const generateRouter = createRouter({
       }
       // Enforce the requested slide count even if the model drifted
       deck = { ...deck, slides: deck.slides.slice(0, slideCount), level: input.level, imageStyle: input.imageStyle };
+      // Guarantee every slide has explanatory text — no image-only slides ship
+      deck = ensureExplanatoryProse(deck);
 
       // Attach real generated images when an image key is configured.
       // Cheap key check first — without a key this adds zero latency and the

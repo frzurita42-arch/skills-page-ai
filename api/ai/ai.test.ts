@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   extractJson,
   repairDeckDraft,
+  ensureExplanatoryProse,
+  everySlideHasProse,
+  slideHasProse,
   repoRef,
   slugify,
   slideDeckSchema,
@@ -138,6 +141,75 @@ describe("repairDeckDraft", () => {
     };
     const deck = slideDeckSchema.parse(repairDeckDraft(structuredClone(raw), defaults));
     expect(deck).toEqual(raw);
+  });
+});
+
+describe("explanatory-prose guarantees", () => {
+  it("repair salvages prose with blank paragraphs instead of dropping it", () => {
+    const raw = {
+      slides: [
+        {
+          title: "Osmosis",
+          components: [
+            { type: "prose", paragraphs: ["", "Water moves across the membrane.", "  "] },
+            { type: "image", prompt: "a cell", alt: "cell", style: "sketch" },
+          ],
+          quiz: { question: "q", options: ["a", "b", "c", "d"], correctIndex: 0, explanation: "e" },
+        },
+      ],
+      level: "beginner",
+      imageStyle: "sketch",
+      topic: "Cells",
+    };
+    const deck = slideDeckSchema.parse(
+      repairDeckDraft(raw, { level: "beginner", imageStyle: "sketch", topic: "Cells" }),
+    );
+    expect(slideHasProse(deck.slides[0])).toBe(true);
+    const prose = deck.slides[0].components.find((c) => c.type === "prose");
+    expect(prose?.type === "prose" && prose.paragraphs).toEqual(["Water moves across the membrane."]);
+  });
+
+  it("detects a visual-only slide as missing prose", () => {
+    const deck = {
+      slides: [
+        {
+          title: "Just a picture",
+          components: [{ type: "image", prompt: "x", alt: "x", style: "sketch" }],
+          quiz: { question: "q", options: ["a", "b", "c", "d"], correctIndex: 0, explanation: "e" },
+        },
+      ],
+    };
+    expect(everySlideHasProse(deck)).toBe(false);
+  });
+
+  it("ensureExplanatoryProse injects text on a visual-only slide, and it validates", () => {
+    const deck = slideDeckSchema.parse({
+      slides: [
+        {
+          title: "Photosynthesis at a glance",
+          components: [
+            { type: "prose", paragraphs: ["Plants make food from light."] },
+            { type: "prose", paragraphs: ["placeholder"] },
+          ],
+          quiz: { question: "q", options: ["a", "b", "c", "d"], correctIndex: 0, explanation: "e" },
+        },
+      ],
+      level: "beginner",
+      imageStyle: "sketch",
+      topic: "Plants",
+    });
+    // force the first slide to be visual-only, then guarantee prose
+    deck.slides[0].components = [
+      { type: "image", prompt: "a leaf", alt: "leaf", style: "sketch" },
+    ];
+    expect(everySlideHasProse(deck)).toBe(false);
+    const fixed = ensureExplanatoryProse(deck);
+    expect(everySlideHasProse(fixed)).toBe(true);
+    // still a valid deck after injection
+    expect(() => slideDeckSchema.parse(fixed)).not.toThrow();
+    // the injected paragraph references the visual
+    const prose = fixed.slides[0].components.find((c) => c.type === "prose");
+    expect(prose?.type === "prose" && prose.paragraphs[0]).toContain("image");
   });
 });
 

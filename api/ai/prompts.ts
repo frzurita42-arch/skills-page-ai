@@ -155,13 +155,13 @@ ${opts.layoutTemplates.map((t) => `- ${t.name}${t.tags.length ? ` [${t.tags.join
 
 TEACHING RULES (non-negotiable):
 1. NO greeting/welcome/outline slide — start teaching immediately on slide 1.
-2. Each slide is distinct prose paragraphs that build introduce -> develop -> apply. Never restate an earlier point; the deck reads as ONE continuous piece of teaching. Between slides, at most a one-clause stitch to the previous idea.
+2. EVERY slide MUST contain explanatory prose — at least one prose component with real teaching text — at EVERY level, including beginner. NEVER produce a slide that is only an image (or only a chart/table/diagram/formula/code) plus a question. The prose must teach the idea AND explicitly explain, in words, whatever visual or data the slide shows: say what the image/graph/table/diagram/formula depicts, what to notice in it, and what it means, so the student could understand the slide even without seeing the visual. The quiz then tests that explanation. Slides build introduce -> develop -> apply; never restate an earlier point; the deck reads as ONE continuous piece of teaching, with at most a one-clause stitch between slides.
 3. Choose components deliberately per concept from this palette: prose, chart (bar/line/pie/area with real plausible data), latex, svg (a diagram description the app sketches), table (compact, few columns), stickynote (max ONE per deck, for a mnemonic or key warning), image (a vivid visual with an alt text and a generation prompt), code (short snippet).
 4. SUBJECT GATING: latex and code ONLY for math/STEM/technical topics. Humanities, languages, business, food, history -> prose + images + tables + diagrams + sticky notes.
 5. HARD max ONE latex formula per slide. When a formula or graph is present, order components: (1) the formula, (2) its graph/diagram, (3) a short "why it is here" text.
 6. Per-slide MCQ: exactly 4 options, answerable ONLY from that slide's content plus everyday knowledge — one small step past the text (not a verbatim copy). Difficulty matched to level "${opts.level}". Quizzes appear on MOST slides, not necessarily every one. Quiz questions must be direct, closed-form multiple-choice questions with exactly ONE objectively correct option. NEVER phrase them as open-ended prompts such as "in your own words", "explain", "describe", or "what do you think" — the student picks an option, not writes prose.
 7. Images use imageStyle "${opts.imageStyle}"${opts.imageStyle === "none" ? " — style is 'none', so DO NOT emit any image components" : ""}.
-8. Level "${opts.level}": beginner = concrete everyday examples, short sentences, define every term; intermediate = assume basics, connect ideas; advanced = precise, denser, edge cases.
+8. Level "${opts.level}": beginner = a clear, self-contained explanatory paragraph (2-4 plain sentences) that defines every term with concrete everyday examples — beginner means SIMPLE language, NOT less text, and never a bare sentence next to a picture; intermediate = 2-3 paragraphs that assume basics and connect ideas; advanced = 3-4 denser paragraphs with edge cases. Whatever the level, if the slide has a visual it also has the words that explain it.
 ${memory}${templates}
 OUTPUT: STRICT JSON ONLY (no markdown fences, no commentary) matching exactly:
 {"slides":[{"title":"...","components":[...],"quiz":{"question":"...","options":["a","b","c","d"],"correctIndex":0,"explanation":"..."}}],"level":"${opts.level}","imageStyle":"${opts.imageStyle}","topic":"..."}`;
@@ -269,14 +269,21 @@ export function repairDeckDraft(
         const s = slide as Record<string, unknown>;
         if (Array.isArray(s.components)) {
           const kept = s.components.filter((c) => {
-            // images sometimes carry an invented style — snap it to the deck's
             const comp = c as Record<string, unknown> | null;
+            // images sometimes carry an invented style — snap it to the deck's
             if (
               comp &&
               comp.type === "image" &&
               !imageStyleSchema.safeParse(comp.style).success
             ) {
               comp.style = defaults.imageStyle;
+            }
+            // salvage prose whose paragraphs array has empty/blank entries
+            // (dropping it whole is what left slides text-less before)
+            if (comp && comp.type === "prose" && Array.isArray(comp.paragraphs)) {
+              comp.paragraphs = comp.paragraphs.filter(
+                (p) => typeof p === "string" && p.trim().length > 0,
+              );
             }
             const ok = slideComponentSchema.safeParse(c).success;
             if (!ok) console.warn("[ai/repair] dropping invalid slide component:", comp?.type);
@@ -296,6 +303,62 @@ export function repairDeckDraft(
       );
   }
   return draft;
+}
+
+type LooseSlide = {
+  title?: string;
+  components?: Array<{ type?: string; paragraphs?: unknown }>;
+};
+
+/** True when a slide carries at least one prose component with real text. */
+export function slideHasProse(slide: LooseSlide): boolean {
+  return (slide.components ?? []).some(
+    (c) =>
+      c?.type === "prose" &&
+      Array.isArray(c.paragraphs) &&
+      c.paragraphs.some((p) => typeof p === "string" && p.trim().length > 0),
+  );
+}
+
+/** True when EVERY slide in a deck has explanatory prose. */
+export function everySlideHasProse(deck: { slides?: LooseSlide[] }): boolean {
+  const slides = deck?.slides;
+  if (!Array.isArray(slides) || slides.length === 0) return false;
+  return slides.every(slideHasProse);
+}
+
+const VISUAL_LABEL: Record<string, string> = {
+  image: "the image",
+  chart: "the chart",
+  svg: "the diagram",
+  table: "the table",
+  latex: "the formula",
+  code: "the code",
+};
+
+/**
+ * Last-resort safety net: guarantee every slide has explanatory text. If the
+ * model still returns a slide that is only a visual + question, prepend a
+ * short prose paragraph derived from the slide title that names and points at
+ * the visual, so the student always has words to read. The prompt is expected
+ * to do this well; this only prevents a text-less slide from ever shipping.
+ */
+export function ensureExplanatoryProse<T extends { slides?: LooseSlide[] }>(deck: T): T {
+  for (const slide of deck.slides ?? []) {
+    if (slideHasProse(slide)) continue;
+    if (!Array.isArray(slide.components)) slide.components = [];
+    const visual = slide.components.find((c) => c?.type && VISUAL_LABEL[c.type]);
+    const title = (slide.title ?? "this idea").trim();
+    const tail = visual
+      ? ` ${VISUAL_LABEL[visual.type as string]} below shows what that looks like — read it together with this explanation.`
+      : "";
+    console.warn("[ai/prose] slide had no explanatory text — injecting a fallback paragraph:", title);
+    slide.components.unshift({
+      type: "prose",
+      paragraphs: [`Let's look at ${title}.${tail}`],
+    });
+  }
+  return deck;
 }
 
 /** Extract the first JSON object from an LLM response (tolerates fences/prose). */
