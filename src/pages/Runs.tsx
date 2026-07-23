@@ -915,7 +915,7 @@ export default function Runs() {
       render: (r) =>
         r.imageStyle !== 'none' ? (
           <img
-            src={`/style-${r.imageStyle}.jpg`}
+            src={`/style-${r.imageStyle}.svg`}
             alt={`${r.imageStyle} style`}
             title={r.imageStyle}
             className="h-7 w-10 rounded-wobble-sm border-2 border-ink object-cover"

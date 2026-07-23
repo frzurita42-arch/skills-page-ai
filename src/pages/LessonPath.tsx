@@ -27,10 +27,10 @@ const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 const MAX_SLIDES = 15;
 
 const STYLE_THUMBS: { style: Exclude<ImageStyle, 'none'>; label: string; src: string }[] = [
-  { style: 'sketch', label: 'Pencil sketch', src: '/style-sketch.jpg' },
-  { style: 'watercolor', label: 'Watercolor', src: '/style-watercolor.jpg' },
-  { style: 'flat', label: 'Flat vector', src: '/style-flat.jpg' },
-  { style: 'photo', label: 'Photo', src: '/style-photo.jpg' },
+  { style: 'sketch', label: 'Pencil sketch', src: '/style-sketch.svg' },
+  { style: 'watercolor', label: 'Watercolor', src: '/style-watercolor.svg' },
+  { style: 'flat', label: 'Flat vector', src: '/style-flat.svg' },
+  { style: 'photo', label: 'Photo', src: '/style-photo.svg' },
 ];
 
 const LANGUAGES = ['English', 'Español', 'Français', 'Deutsch', 'Português', '中文'];

@@ -500,7 +500,7 @@ function ToolStudio({
                 )}
               >
                 <img
-                  src={`/style-${s}.jpg`}
+                  src={`/style-${s}.svg`}
                   alt={`${s} style preset`}
                   className="h-16 w-24 object-cover"
                 />

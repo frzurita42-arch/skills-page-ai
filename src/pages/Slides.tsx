@@ -238,7 +238,7 @@ export default function Slides() {
           <span className="text-xs text-ink-faint">none</span>
         ) : (
           <img
-            src={`/style-${t.defaultImageStyle}.jpg`}
+            src={`/style-${t.defaultImageStyle}.svg`}
             alt={t.defaultImageStyle}
             title={t.defaultImageStyle}
             className="h-8 w-12 rounded-wobble-sm border-2 border-ink object-cover"
@@ -539,7 +539,7 @@ export default function Slides() {
                         <Chip kind="neutral" className="gap-1.5">
                           {tool.defaultImageStyle !== 'none' && (
                             <img
-                              src={`/style-${tool.defaultImageStyle}.jpg`}
+                              src={`/style-${tool.defaultImageStyle}.svg`}
                               alt=""
                               className="h-4 w-6 rounded-sm border border-ink object-cover"
                             />

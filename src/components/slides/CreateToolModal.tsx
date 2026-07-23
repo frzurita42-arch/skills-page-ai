@@ -195,7 +195,7 @@ export default function CreateToolModal({ open, onClose }: CreateToolModalProps)
                       )}
                     >
                       <img
-                        src={`/style-${s}.jpg`}
+                        src={`/style-${s}.svg`}
                         alt={`${s} style`}
                         className="h-14 w-[84px] object-cover"
                       />

@@ -244,7 +244,7 @@ function ImageView({
       <WashiTape rotate={-3} className="left-1/2 -translate-x-1/2" />
       <div className="overflow-hidden rounded-sm border-2 border-ink">
         <img
-          src={component.imageUrl ?? `/style-${style}.jpg`}
+          src={component.imageUrl ?? `/style-${style}.svg`}
           alt={component.alt}
           className="aspect-[3/2] w-full object-cover"
         />
