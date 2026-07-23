@@ -305,8 +305,15 @@ export function repairDeckDraft(
   return draft;
 }
 
+type LooseQuiz = {
+  question?: string;
+  options?: string[];
+  correctIndex?: number;
+  explanation?: string;
+};
 type LooseSlide = {
   title?: string;
+  quiz?: LooseQuiz | null;
   components?: Array<{ type?: string; paragraphs?: unknown }>;
 };
 
@@ -336,27 +343,45 @@ const VISUAL_LABEL: Record<string, string> = {
   code: "the code",
 };
 
+/** Build an on-topic paragraph for a text-less slide from its own quiz. The
+ *  quiz's correct answer + explanation ARE real teaching content, so this
+ *  yields prose related to the question instead of a generic placeholder. */
+function proseFromQuiz(quiz: LooseQuiz | null | undefined): string | null {
+  if (!quiz) return null;
+  const correct =
+    typeof quiz.correctIndex === "number" ? quiz.options?.[quiz.correctIndex] : undefined;
+  const claim = correct?.trim().replace(/[.!?]+$/, "");
+  const explanation = quiz.explanation?.trim();
+  const parts = [claim ? `${claim}.` : null, explanation || null].filter(Boolean);
+  return parts.length > 0 ? parts.join(" ") : null;
+}
+
 /**
  * Last-resort safety net: guarantee every slide has explanatory text. If the
  * model still returns a slide that is only a visual + question, prepend a
- * short prose paragraph derived from the slide title that names and points at
- * the visual, so the student always has words to read. The prompt is expected
- * to do this well; this only prevents a text-less slide from ever shipping.
+ * prose paragraph. Prefer text built from the slide's own quiz (its correct
+ * answer + explanation), which is real, on-topic teaching content; only fall
+ * back to a title/visual sentence when there is no quiz to draw from. The
+ * prompt is expected to do this well; this just prevents a text-less or
+ * off-topic slide from ever shipping.
  */
 export function ensureExplanatoryProse<T extends { slides?: LooseSlide[] }>(deck: T): T {
   for (const slide of deck.slides ?? []) {
     if (slideHasProse(slide)) continue;
     if (!Array.isArray(slide.components)) slide.components = [];
-    const visual = slide.components.find((c) => c?.type && VISUAL_LABEL[c.type]);
-    const title = (slide.title ?? "this idea").trim();
-    const tail = visual
-      ? ` ${VISUAL_LABEL[visual.type as string]} below shows what that looks like — read it together with this explanation.`
-      : "";
-    console.warn("[ai/prose] slide had no explanatory text — injecting a fallback paragraph:", title);
-    slide.components.unshift({
-      type: "prose",
-      paragraphs: [`Let's look at ${title}.${tail}`],
-    });
+    const fromQuiz = proseFromQuiz(slide.quiz);
+    let paragraph: string;
+    if (fromQuiz) {
+      paragraph = fromQuiz;
+    } else {
+      const visual = slide.components.find((c) => c?.type && VISUAL_LABEL[c.type]);
+      const title = (slide.title ?? "this idea").trim();
+      paragraph = visual
+        ? `Look closely at ${title}: ${VISUAL_LABEL[visual.type as string]} below illustrates it. Study what it shows and how the parts relate.`
+        : `Let's work through ${title}.`;
+    }
+    console.warn("[ai/prose] slide had no explanatory text — injecting a fallback paragraph:", slide.title);
+    slide.components.unshift({ type: "prose", paragraphs: [paragraph] });
   }
   return deck;
 }

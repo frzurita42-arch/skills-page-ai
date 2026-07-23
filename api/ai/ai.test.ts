@@ -209,34 +209,39 @@ describe("explanatory-prose guarantees", () => {
     expect(everySlideHasProse(deck)).toBe(false);
   });
 
-  it("ensureExplanatoryProse injects text on a visual-only slide, and it validates", () => {
+  it("ensureExplanatoryProse fills a visual-only slide with ON-TOPIC text from its quiz", () => {
     const deck = slideDeckSchema.parse({
       slides: [
         {
-          title: "Photosynthesis at a glance",
-          components: [
-            { type: "prose", paragraphs: ["Plants make food from light."] },
-            { type: "prose", paragraphs: ["placeholder"] },
-          ],
-          quiz: { question: "q", options: ["a", "b", "c", "d"], correctIndex: 0, explanation: "e" },
+          title: "The Language of Switches",
+          components: [{ type: "image", prompt: "toggle switches", alt: "switches", style: "photo" }],
+          quiz: {
+            question: "Why do computers use binary (0s and 1s)?",
+            options: [
+              "Hardware components operate on two physical states: OFF (0) and ON (1)",
+              "Binary digits take up less screen space",
+              "Computers only exist in two countries",
+              "Binary needs no electricity",
+            ],
+            correctIndex: 0,
+            explanation: "A switch is either off or on, so two states map directly onto 0 and 1.",
+          },
         },
       ],
       level: "beginner",
-      imageStyle: "sketch",
-      topic: "Plants",
+      imageStyle: "photo",
+      topic: "Binary",
     });
-    // force the first slide to be visual-only, then guarantee prose
-    deck.slides[0].components = [
-      { type: "image", prompt: "a leaf", alt: "leaf", style: "sketch" },
-    ];
     expect(everySlideHasProse(deck)).toBe(false);
     const fixed = ensureExplanatoryProse(deck);
     expect(everySlideHasProse(fixed)).toBe(true);
-    // still a valid deck after injection
     expect(() => slideDeckSchema.parse(fixed)).not.toThrow();
-    // the injected paragraph references the visual
     const prose = fixed.slides[0].components.find((c) => c.type === "prose");
-    expect(prose?.type === "prose" && prose.paragraphs[0]).toContain("image");
+    const text = prose?.type === "prose" ? prose.paragraphs[0] : "";
+    // the injected text teaches the quiz's point, not a generic placeholder
+    expect(text).toContain("OFF (0) and ON (1)");
+    expect(text).toContain("map directly onto 0 and 1");
+    expect(text).not.toContain("Let's look at");
   });
 });
 

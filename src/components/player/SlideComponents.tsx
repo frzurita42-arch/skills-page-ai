@@ -240,17 +240,17 @@ function ImageView({
 }) {
   const style = component.style === 'none' ? 'sketch' : component.style;
   return (
-    <figure className="relative rotate-[-1deg] rounded-wobble-sm border-2 border-ink bg-paper-3 p-3 pb-4 shadow-offset">
+    <figure className="relative mx-auto w-full max-w-sm rotate-[-1deg] rounded-wobble-sm border-2 border-ink bg-paper-3 p-3 pb-4 shadow-offset">
       <WashiTape rotate={-3} className="left-1/2 -translate-x-1/2" />
       <div className="overflow-hidden rounded-sm border-2 border-ink">
         <img
           src={component.imageUrl ?? `/style-${style}.svg`}
           alt={component.alt}
-          className="aspect-[3/2] w-full object-cover"
+          className="mx-auto max-h-64 w-full object-cover"
         />
       </div>
-      <figcaption className="mt-2.5 flex items-start gap-1.5 font-display text-xl leading-snug text-ink">
-        <ImageIcon className="mt-1 h-4 w-4 shrink-0 text-ink-faint" />
+      <figcaption className="mt-2 flex items-start gap-1.5 font-display text-base leading-snug text-ink-soft">
+        <ImageIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-faint" />
         <Kara k={`image:${ci}`} current={current}>
           {component.prompt}
         </Kara>
