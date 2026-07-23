@@ -380,7 +380,10 @@ export const generateRouter = createRouter({
                       : `${userPrompt}\n\nReminder: STRICT JSON ONLY, exactly the requested shape.`,
                 },
               ],
-              maxTokens: 8192,
+              // A full deck is a large JSON; leave generous headroom so the
+              // model's output is never truncated mid-object (providers clamp
+              // this to their own per-model maximums).
+              maxTokens: 16384,
             });
             if (!result) break; // no key configured → mock
             deck = slideDeckSchema.parse(JSON.parse(extractJson(result.text)));

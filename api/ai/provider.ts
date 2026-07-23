@@ -169,6 +169,9 @@ async function callOpenAICompatible(
   maxTokens: number,
 ): Promise<string> {
   const base = (key.baseUrl || DEFAULT_BASE_URLS.openai).replace(/\/$/, "");
+  // DeepSeek/Moonshot reject max_tokens above 8k; gpt-4o-mini tops out at 16k.
+  const cap = /deepseek|moonshot/.test(base) ? 8192 : 16384;
+  maxTokens = Math.min(maxTokens, cap);
   const res = await fetch(`${base}/chat/completions`, {
     method: "POST",
     headers: {
@@ -199,6 +202,7 @@ async function callAnthropic(
   maxTokens: number,
 ): Promise<string> {
   const base = (key.baseUrl || DEFAULT_BASE_URLS.anthropic).replace(/\/$/, "");
+  maxTokens = Math.min(maxTokens, 8192); // haiku's per-request output ceiling
   const system = messages.filter((m) => m.role === "system").map((m) => m.content).join("\n\n");
   const rest = messages.filter((m) => m.role !== "system");
   const res = await fetch(`${base}/messages`, {
@@ -261,9 +265,13 @@ async function callGemini(
     }
     if (!res.ok) throw new Error(`Gemini API ${res.status}: ${(await res.text()).slice(0, 200)}`);
     const data = (await res.json()) as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[];
+      candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[];
     };
-    const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("");
+    const candidate = data.candidates?.[0];
+    if (candidate?.finishReason === "MAX_TOKENS") {
+      console.warn(`[ai/text] gemini ${model} hit MAX_TOKENS — output likely truncated`);
+    }
+    const text = candidate?.content?.parts?.map((p) => p.text ?? "").join("");
     if (!text) throw new Error("Gemini API returned no content");
     return text;
   }
