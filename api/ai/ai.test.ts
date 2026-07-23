@@ -29,6 +29,33 @@ describe("isStemTopic", () => {
     }
   });
 
+  it("classifies data science & computing topics as STEM", () => {
+    for (const t of [
+      "Data science",
+      "Binary and Data Representation",
+      "Bitwise operations",
+      "Boolean logic and truth tables",
+      "Hexadecimal and octal number systems",
+      "Encoding and compression",
+      "Unicode vs ASCII",
+      "Neural networks and deep learning",
+      "Databases and datasets",
+      "Cybersecurity fundamentals",
+    ]) {
+      expect(isStemTopic(t), t).toBe(true);
+    }
+  });
+
+  it("does not misfire on lookalike non-STEM words", () => {
+    for (const t of [
+      "Serving sizes: 250 ml of sauce", // 'ml' must NOT trigger
+      "Classic hash browns", // 'hash' must NOT trigger
+      "A history of Hawaii", // 'ai' inside a word must NOT trigger
+    ]) {
+      expect(isStemTopic(t), t).toBe(false);
+    }
+  });
+
   it("classifies humanities-style topics as non-STEM", () => {
     for (const t of [
       "The history of the Roman Empire",

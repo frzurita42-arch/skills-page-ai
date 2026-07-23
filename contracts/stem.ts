@@ -23,9 +23,16 @@ export const STEM_RE =
       "patholog", "biochem", "epidemiolog", "\\bcell(?:s|ular)?\\b", "enzym", "photosynthe",
       // earth science
       "geolog", "meteorolog", "oceanograph", "seismolog", "mineralog",
-      // computing & engineering
+      // computing, data & engineering
       "program", "\\bcode", "coding", "algorithm", "engineer", "software", "comput", "machine learn",
-      "neural net", "robot", "database", "cryptograph",
+      "neural net", "\\brobot", "database", "cryptograph", "informatic", "cyber", "network",
+      "\\bdata\\b", "dataset", "data scien", "big data",
+      // digital representation / low-level computing
+      "binary", "\\bbit(?:s|wise)?\\b", "\\bbyte", "boolean", "hexadecimal", "\\boctal",
+      "encod", "decod", "\\bascii", "unicode", "\\bpixel", "digital", "compression",
+      "information theory", "logic gate", "hashing", "hash function", "hash table", "\\bqubit",
+      // AI
+      "artificial intelligence", "\\bai\\b", "\\bllm", "deep learning",
       // catch-all: "science", "scientific", "data science", ...
       "\\bscien",
     ].join("|"),
