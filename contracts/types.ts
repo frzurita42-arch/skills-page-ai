@@ -193,6 +193,18 @@ export interface RunDetail extends RunRow {
   slides: RunSlideDetail[];
 }
 
+/** A fully replayable recording of a past play: the exact deck as presented
+ *  (text, images, charts…) plus what the student picked on each quiz. */
+export interface RunReplay extends RunRow {
+  deck: SlideDeck | null;
+  /** per-slide recorded answer, aligned to deck.slides by index */
+  answers: {
+    chosenOption: string | null;
+    correctOption: string | null;
+    correct: boolean | null;
+  }[];
+}
+
 export interface LessonLogSlide {
   title: string;
   summary: string;

@@ -146,7 +146,7 @@ ${opts.previouslyTaught}
   const templates =
     opts.layoutTemplates && opts.layoutTemplates.length > 0
       ? `
-SLIDE LAYOUT TEMPLATES — build each slide by choosing ONE layout from this approved catalog; pick the layout that best fits the concept and vary layouts across the deck. The items in a layout are the components IN ORDER; "Multiple choice" means attach this slide's quiz. A layout with several "Text" steps means that many DISTINCT paragraphs (never repeat one). Prefer STEM layouts (formula/graph/table/code) for technical topics and reading layouts (multiple Text, image) for humanities.
+SLIDE LAYOUT TEMPLATES — build each slide by choosing ONE layout from this approved catalog; pick the layout that best fits the concept and vary layouts across the deck. The items in a layout are the components IN ORDER. A layout with several "Text" steps means that many DISTINCT paragraphs (never repeat one). Any evaluation step ("Multiple choice", "2-option", "Fill blank", "Typed answer") is realized as this slide's quiz object — make the question style match (e.g. "2-option" → a question whose 4 options are two clear choices plus two distractors; "Fill blank" → a cloze sentence; "Typed answer" → a recall question) and keep exactly ONE objectively correct option. These layouts are already chosen for this deck's difficulty level, so honor the text density they imply.
 ${opts.layoutTemplates.map((t) => `- ${t.name}${t.tags.length ? ` [${t.tags.join(", ")}]` : ""}: ${t.components.join(" -> ")}`).join("\n")}
 `
       : "";

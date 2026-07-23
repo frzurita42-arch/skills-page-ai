@@ -7,11 +7,15 @@ import { getDb } from "../queries/connection";
 import { slideTemplates, users } from "@db/schema";
 import {
   BUILTIN_SLIDE_TEMPLATES,
+  GRADABLE_TYPES,
   TEMPLATE_COMPONENT_TYPES,
+  TEMPLATE_LEVELS,
   type SlideTemplate,
+  type TemplateLevel,
 } from "@contracts/slide-templates";
 
 const componentSchema = z.enum(TEMPLATE_COMPONENT_TYPES);
+const levelSchema = z.enum(TEMPLATE_LEVELS as [TemplateLevel, ...TemplateLevel[]]);
 
 /**
  * Full catalog: built-ins (code) + user-added rows (DB). Used by the
@@ -37,6 +41,7 @@ export async function loadTemplateCatalog(): Promise<SlideTemplate[]> {
       out.push({
         id: row.id,
         name: row.name,
+        level: (row.level ?? "beginner") as TemplateLevel,
         components,
         tags: (Array.isArray(row.tagsJson) ? row.tagsJson : []).filter(
           (t): t is string => typeof t === "string",
@@ -62,17 +67,27 @@ export const templatesRouter = createRouter({
     .input(
       z.object({
         name: z.string().min(3).max(120),
+        level: levelSchema.default("beginner"),
         components: z.array(componentSchema).min(1).max(8),
         tags: z.array(z.string().min(1).max(24)).max(6).default([]),
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // every template must be gradable — enforce at least one evaluation step
+      if (!input.components.some((c) => GRADABLE_TYPES.includes(c))) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "A template needs at least one gradable step (Multiple choice, 2-option, Fill blank, or Typed answer) so the slide can be scored.",
+        });
+      }
       const tags = [...new Set(input.tags.map((t) => t.toLowerCase().replace(/^#/, "").trim()))]
         .filter(Boolean);
       const [{ id }] = await getDb()
         .insert(slideTemplates)
         .values({
           name: input.name.trim(),
+          level: input.level,
           componentsJson: input.components,
           tagsJson: tags,
           createdBy: ctx.user.id,

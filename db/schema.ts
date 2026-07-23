@@ -128,6 +128,7 @@ export const slideTemplates = appSchema.table(
   {
     id: serial("id").primaryKey(),
     name: varchar("name", { length: 120 }).notNull(),
+    level: levelEnum("level").notNull().default("beginner"),
     /** ordered component types, e.g. ["prose","table","quiz"] */
     componentsJson: json("componentsJson").notNull(),
     /** lowercase subject hashtags, e.g. ["math","statistics"] */

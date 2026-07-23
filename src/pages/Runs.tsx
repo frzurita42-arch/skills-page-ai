@@ -9,6 +9,7 @@ import {
   Flag,
   FlagOff,
   LibraryBig,
+  PlayCircle,
   Search,
   Target,
   Timer,
@@ -382,6 +383,14 @@ function RunDrawer({
               )}
             </div>
           </div>
+
+          {/* replay — navigate the exact played deck again, read-only */}
+          <Link to={`/runs/${run.id}/replay`} className="mt-4 block no-underline">
+            <SketchButton variant="accent" className="w-full">
+              <PlayCircle className="h-4 w-4" />
+              Replay this presentation
+            </SketchButton>
+          </Link>
 
           {/* facts */}
           <div className="mt-5">

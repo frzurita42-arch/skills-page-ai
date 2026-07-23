@@ -6,7 +6,7 @@ import { authedProcedure, moderatorProcedure } from "../procedures";
 import { getDb } from "../queries/connection";
 import { lessons, repos, runs, slideTools, units, lessonLogs } from "@db/schema";
 import { imageStyleSchema, levelSchema } from "../ai/prompts";
-import type { LessonLogSlide, RunDetail, RunRow, RunSlideDetail, SlideDeck } from "@contracts/types";
+import type { LessonLogSlide, RunDetail, RunReplay, RunRow, RunSlideDetail, SlideDeck } from "@contracts/types";
 
 const perSlideSchema = z.object({
   title: z.string(),
@@ -188,6 +188,61 @@ export const runsRouter = createRouter({
         });
       }
       return { ...row, slides };
+    }),
+
+  /**
+   * Full replay of a past play: the exact stored deck (deckJson) plus the
+   * student's recorded answers, so the played slideshow is navigable again
+   * like a reviewable post. Access is scoped — only the player who made the
+   * run, the repo owner, moderators and admins may replay it.
+   */
+  replay: publicQuery
+    .input(z.object({ runId: z.number().int() }))
+    .query(async ({ ctx, input }): Promise<RunReplay> => {
+      const db = getDb();
+      const r = await db.query.runs.findFirst({ where: eq(runs.id, input.runId) });
+      if (!r) throw new TRPCError({ code: "NOT_FOUND", message: "Run not found" });
+
+      // access control: own run, or repo owner, or moderator/admin
+      let repoOwnerId: number | null = null;
+      if (r.repoId) {
+        const repo = await db.query.repos.findFirst({ where: eq(repos.id, r.repoId) });
+        repoOwnerId = repo?.ownerId ?? null;
+      }
+      const privileged =
+        !!ctx.user &&
+        (r.userId === ctx.user.id ||
+          repoOwnerId === ctx.user.id ||
+          ctx.user.role === "moderator" ||
+          ctx.user.role === "admin");
+      if (!privileged) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only replay your own presentation runs.",
+        });
+      }
+
+      const row = await toRunRow(db, r);
+      const deck = (r.deckJson ?? null) as SlideDeck | null;
+      const log = await db.query.lessonLogs.findFirst({ where: eq(lessonLogs.runId, r.id) });
+      const recorded: LessonLogSlide[] = Array.isArray(log?.perSlideJson)
+        ? (log!.perSlideJson as LessonLogSlide[])
+        : [];
+
+      const slides = deck && Array.isArray(deck.slides) ? deck.slides : [];
+      const answers = slides.map((s, i) => {
+        const a = recorded[i];
+        const correctOption =
+          s.quiz && typeof s.quiz.correctIndex === "number"
+            ? (s.quiz.options[s.quiz.correctIndex] ?? null)
+            : null;
+        return {
+          chosenOption: a?.chosenOption ?? null,
+          correctOption,
+          correct: a?.correct ?? null,
+        };
+      });
+      return { ...row, deck, answers };
     }),
 
   listGlobal: publicQuery

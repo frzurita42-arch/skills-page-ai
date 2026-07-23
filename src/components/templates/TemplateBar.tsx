@@ -9,6 +9,9 @@ import {
   Image as ImageIcon,
   Code2,
   CheckSquare,
+  ToggleLeft,
+  TextCursorInput,
+  Keyboard,
   ArrowRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -27,6 +30,9 @@ const ICONS: Record<TemplateComponentType, typeof AlignLeft> = {
   image: ImageIcon,
   code: Code2,
   quiz: CheckSquare,
+  mcq2: ToggleLeft,
+  fillblank: TextCursorInput,
+  shortanswer: Keyboard,
 };
 
 const TINT: Record<TemplateComponentType, string> = {
@@ -39,6 +45,9 @@ const TINT: Record<TemplateComponentType, string> = {
   image: 'text-green',
   code: 'text-blue',
   quiz: 'text-purple',
+  mcq2: 'text-purple',
+  fillblank: 'text-blue',
+  shortanswer: 'text-green',
 };
 
 /**

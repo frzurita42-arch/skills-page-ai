@@ -8,6 +8,7 @@ import Slides from './pages/Slides';
 import SlideTool from './pages/SlideTool';
 import Templates from './pages/Templates';
 import Runs from './pages/Runs';
+import Replay from './pages/Replay';
 import About from './pages/About';
 import Settings from './pages/Settings';
 import Auth from './pages/Auth';
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/slides/:slug" element={<SlideTool />} />
         <Route path="/templates" element={<Templates />} />
         <Route path="/runs" element={<Runs />} />
+        <Route path="/runs/:runId/replay" element={<Replay />} />
         <Route path="/about" element={<About />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/auth" element={<Auth />} />

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { motion, useReducedMotion } from 'framer-motion';
 import confetti from 'canvas-confetti';
-import { ArrowRight, RotateCcw, TriangleAlert } from 'lucide-react';
+import { ArrowRight, PlayCircle, RotateCcw, TriangleAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/hooks/useAuth';
@@ -250,12 +250,22 @@ export default function FinishScreen({
         </div>
       )}
       {complete.isSuccess && (
-        <p className="mt-6 text-center text-sm text-ink-soft">
-          Run saved ✦{' '}
-          {seed
-            ? 'The lesson log was folded into this repo’s memory.'
-            : 'Find it under Presentation runs.'}
-        </p>
+        <div className="mt-6 flex flex-col items-center gap-2">
+          <p className="text-center text-sm text-ink-soft">
+            Run saved ✦{' '}
+            {seed
+              ? 'The lesson log was folded into this repo’s memory.'
+              : 'Find it under Presentation runs.'}
+          </p>
+          {complete.data?.runId && (
+            <Link to={`/runs/${complete.data.runId}/replay`} className="no-underline">
+              <SketchButton size="sm" variant="secondary">
+                <PlayCircle className="h-4 w-4" />
+                Review this play
+              </SketchButton>
+            </Link>
+          )}
+        </div>
       )}
 
       {/* stats row */}
