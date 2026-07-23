@@ -16,7 +16,6 @@ import {
   imageStyleSchema,
   lessonPathSchema,
   ensureExplanatoryProse,
-  everySlideHasProse,
   levelSchema,
   repairDeckDraft,
   repoRef,
@@ -28,7 +27,11 @@ import { estimateCost } from "../cost";
 import { applyTokenDelta, refundTokens } from "../tokens";
 import { buildPreviouslyTaught } from "../memory";
 import { loadTemplateCatalog } from "./templates";
-import { templatesForSubjectAndLevel, TEMPLATE_COMPONENT_LABELS } from "@contracts/slide-templates";
+import {
+  templatesForSubjectAndLevel,
+  slideConformsToAny,
+  TEMPLATE_COMPONENT_LABELS,
+} from "@contracts/slide-templates";
 import { isStemTopic } from "@contracts/stem";
 import type { CoachReply, SlideDeck } from "@contracts/types";
 
@@ -355,12 +358,16 @@ export const generateRouter = createRouter({
 
       // Offer the AI only the layouts that fit this topic's subject area AND
       // this deck's difficulty level (beginner=lighter text, advanced=denser).
+      // The same filtered set is used to VALIDATE that each generated slide
+      // conforms to an approved configuration (so text is guaranteed because
+      // every template pairs its visuals with a text step).
       const catalog = await loadTemplateCatalog();
-      const layoutTemplates = templatesForSubjectAndLevel(
+      const allowedTemplates = templatesForSubjectAndLevel(
         catalog,
         isStemTopic(topic),
         input.level,
-      ).map((t) => ({
+      );
+      const layoutTemplates = allowedTemplates.map((t) => ({
         name: t.name,
         tags: t.tags,
         components: t.components.map((c) => TEMPLATE_COMPONENT_LABELS[c]),
@@ -397,7 +404,7 @@ export const generateRouter = createRouter({
                   content:
                     attempt === 0
                       ? userPrompt
-                      : `${userPrompt}\n\nReminder: STRICT JSON ONLY, exactly the requested shape. EVERY slide MUST include a prose component with real explanatory text that explains any image, chart, table, diagram, formula or code on that slide — never a slide that is only a visual and a question.`,
+                      : `${userPrompt}\n\nReminder: STRICT JSON ONLY, exactly the requested shape. EVERY slide MUST follow one of the SLIDE LAYOUT TEMPLATES exactly — include all of its steps, so any image/chart/table/diagram/formula/code is paired with the text that explains it. Never a slide that is only a visual and a question.`,
                 },
               ],
               // A full deck is a large JSON; leave generous headroom so the
@@ -412,11 +419,23 @@ export const generateRouter = createRouter({
               topic,
             });
             const parsedDeck = slideDeckSchema.parse(repaired);
-            // A slide that is only a visual + question is a template violation.
-            // Give the model one more attempt to add the explanatory text
-            // before we accept the deck (final fallback fills it in below).
-            if (attempt === 0 && !everySlideHasProse(parsedDeck)) {
-              console.warn("[generate.slides] a slide lacked explanatory text — retrying once");
+            // Each slide must conform to one of the approved layout templates
+            // (a text-less visual+question slide matches none of them). Give
+            // the model one more attempt to follow the catalog before we
+            // accept the deck (final safety net fills any gap below).
+            const nonConforming =
+              allowedTemplates.length > 0 &&
+              parsedDeck.slides.some(
+                (s) =>
+                  !slideConformsToAny(
+                    { componentTypes: s.components.map((c) => c.type), hasQuiz: !!s.quiz },
+                    allowedTemplates,
+                  ),
+              );
+            if (attempt === 0 && nonConforming) {
+              console.warn(
+                "[generate.slides] a slide did not match any approved template — retrying once",
+              );
               continue;
             }
             deck = parsedDeck;

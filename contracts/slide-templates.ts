@@ -262,3 +262,38 @@ export function templatesForSubjectAndLevel(
   const byLevel = bySubject.filter((t) => t.level === level);
   return byLevel.length > 0 ? byLevel : bySubject;
 }
+
+/* ------------------------------------------------------------------ */
+/* Conformance — does a generated slide follow an approved template?    */
+/* A rendered slide's components use the CONTENT vocabulary (prose,      */
+/* latex, chart, svg, table, stickynote, image, code); its evaluation    */
+/* lives in a separate quiz field. A slide CONFORMS to a template when   */
+/* it contains every CONTENT step of that template (a multiset subset,   */
+/* extras allowed) and has a quiz iff the template has a gradable step.  */
+/* Because every template includes a prose step, conforming to any       */
+/* template guarantees the slide has explanatory text.                   */
+/* ------------------------------------------------------------------ */
+
+/** A generated slide reduced to what conformance needs. */
+export interface SlideShape {
+  componentTypes: string[];
+  hasQuiz: boolean;
+}
+
+export function slideConformsToTemplate(shape: SlideShape, t: SlideTemplate): boolean {
+  const needsContent = t.components.filter((c) => !isGradable(c));
+  const needsQuiz = t.components.some((c) => isGradable(c));
+  // template content must be a multiset subset of the slide's content
+  const have = [...shape.componentTypes];
+  for (const step of needsContent) {
+    const idx = have.indexOf(step);
+    if (idx === -1) return false;
+    have.splice(idx, 1);
+  }
+  if (needsQuiz && !shape.hasQuiz) return false;
+  return true;
+}
+
+export function slideConformsToAny(shape: SlideShape, templates: SlideTemplate[]): boolean {
+  return templates.some((t) => slideConformsToTemplate(shape, t));
+}

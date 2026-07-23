@@ -3,6 +3,8 @@ import {
   BUILTIN_SLIDE_TEMPLATES,
   templatesForSubject,
   templatesForSubjectAndLevel,
+  slideConformsToTemplate,
+  slideConformsToAny,
   sectionForTags,
   isGradable,
   GRADABLE_TYPES,
@@ -59,5 +61,40 @@ describe("slide-template catalog", () => {
     expect(new Set(GRADABLE_TYPES)).toEqual(
       new Set(["quiz", "mcq2", "fillblank", "shortanswer"]),
     );
+  });
+});
+
+describe("slide conformance to templates", () => {
+  const beginnerStem = templatesForSubjectAndLevel(BUILTIN_SLIDE_TEMPLATES, true, "beginner");
+
+  it("an image + quiz slide with no text conforms to NO beginner STEM template", () => {
+    // this is exactly the bad slide the user reported
+    const shape = { componentTypes: ["image"], hasQuiz: true };
+    expect(slideConformsToAny(shape, beginnerStem)).toBe(false);
+  });
+
+  it("a text + image + quiz slide conforms to an approved template", () => {
+    const shape = { componentTypes: ["image", "prose"], hasQuiz: true };
+    expect(slideConformsToAny(shape, beginnerStem)).toBe(true);
+  });
+
+  it("a template with a gradable step is not satisfied without a quiz", () => {
+    const t = BUILTIN_SLIDE_TEMPLATES.find((x) => x.name === "Spot it on the graph")!;
+    expect(slideConformsToTemplate({ componentTypes: ["prose", "chart"], hasQuiz: false }, t)).toBe(false);
+    expect(slideConformsToTemplate({ componentTypes: ["prose", "chart"], hasQuiz: true }, t)).toBe(true);
+  });
+
+  it("extra components are allowed (template content is a subset)", () => {
+    const t = BUILTIN_SLIDE_TEMPLATES.find((x) => x.name === "Read the table")!; // prose + table + mcq2
+    const shape = { componentTypes: ["prose", "table", "stickynote"], hasQuiz: true };
+    expect(slideConformsToTemplate(shape, t)).toBe(true);
+  });
+
+  it("every built-in template is self-conforming (its own shape satisfies it)", () => {
+    for (const t of BUILTIN_SLIDE_TEMPLATES) {
+      const content = t.components.filter((c) => !["quiz", "mcq2", "fillblank", "shortanswer"].includes(c));
+      const hasQuiz = t.components.some((c) => ["quiz", "mcq2", "fillblank", "shortanswer"].includes(c));
+      expect(slideConformsToTemplate({ componentTypes: content, hasQuiz }, t), t.name).toBe(true);
+    }
   });
 });
