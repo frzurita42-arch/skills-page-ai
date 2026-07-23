@@ -35,8 +35,19 @@ export interface CompletionResult {
 const DEFAULT_MODELS: Record<AiProvider, string> = {
   openai: "gpt-4o-mini",
   anthropic: "claude-3-5-haiku-latest",
-  gemini: "gemini-2.0-flash",
+  gemini: "gemini-2.5-flash",
 };
+
+/**
+ * Gemini retires model versions over time; when a model name 404s we fall
+ * through this list so the app keeps working without a code change. A
+ * GEMINI_TEXT_MODEL env/BYOK model override is always tried first.
+ */
+const GEMINI_TEXT_MODELS = [
+  "gemini-2.5-flash",
+  "gemini-flash-latest",
+  "gemini-2.0-flash",
+];
 
 const DEFAULT_BASE_URLS: Record<AiProvider, string> = {
   openai: "https://api.openai.com/v1",
@@ -225,26 +236,38 @@ async function callGemini(
       role: m.role === "assistant" ? "model" : "user",
       parts: [{ text: m.content }],
     }));
-  const res = await fetch(
-    `${base}/models/${key.model || DEFAULT_MODELS.gemini}:generateContent?key=${encodeURIComponent(key.apiKey)}`,
-    {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
-        contents,
-        generationConfig: { maxOutputTokens: maxTokens, responseMimeType: "application/json" },
-      }),
-      signal: AbortSignal.timeout(60_000),
-    },
-  );
-  if (!res.ok) throw new Error(`Gemini API ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  const data = (await res.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
-  };
-  const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("");
-  if (!text) throw new Error("Gemini API returned no content");
-  return text;
+  const models = key.model
+    ? [key.model, ...GEMINI_TEXT_MODELS.filter((m) => m !== key.model)]
+    : GEMINI_TEXT_MODELS;
+  let notFound: Error | null = null;
+  for (const model of models) {
+    const res = await fetch(
+      `${base}/models/${model}:generateContent?key=${encodeURIComponent(key.apiKey)}`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
+          contents,
+          generationConfig: { maxOutputTokens: maxTokens, responseMimeType: "application/json" },
+        }),
+        signal: AbortSignal.timeout(60_000),
+      },
+    );
+    if (res.status === 404) {
+      notFound = new Error(`Gemini model ${model} not found (404)`);
+      console.warn(`[ai/text] gemini model ${model} not found, trying next model`);
+      continue;
+    }
+    if (!res.ok) throw new Error(`Gemini API ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const data = (await res.json()) as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
+    };
+    const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("");
+    if (!text) throw new Error("Gemini API returned no content");
+    return text;
+  }
+  throw notFound ?? new Error("No Gemini text model available");
 }
 
 /**
