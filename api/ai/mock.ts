@@ -8,6 +8,7 @@ import type {
   SlideComponent,
 } from "@contracts/types";
 import type { LessonPathDraft } from "./prompts";
+import { isStemTopic } from "@contracts/stem";
 
 /* ------------------------------------------------------------------ */
 /* Deterministic pseudo-generation — the platform is fully demo-able    */
@@ -46,9 +47,6 @@ function titleCase(s: string): string {
   return s.replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1));
 }
 
-const STEM_RE =
-  /(physic|math|algebra|calculus|chem|bio|mechanic|kinemat|dynam|energy|momentum|force|velocity|acceler|newton|quantum|statistic|program|code|algorithm|engineer|electric|circuit)/i;
-
 /** Deterministic mock deck that mentions the topic and obeys the deck rules. */
 export function mockDeck(opts: {
   topic: string;
@@ -64,7 +62,7 @@ export function mockDeck(opts: {
   const rand = mulberry32(hashStr(topic + level + slideCount));
   const kw = words(topic);
   const subject = kw.slice(0, 4).join(" ") || topic;
-  const stem = STEM_RE.test(topic);
+  const stem = isStemTopic(topic);
   const slides: Slide[] = [];
 
   const anglePool = [

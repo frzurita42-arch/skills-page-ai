@@ -7,7 +7,8 @@ import type { AiCapability, AiProvider } from "@contracts/types";
 /* ------------------------------------------------------------------ */
 /* Pluggable text-completion provider layer.                            */
 /* Priority: user's BYOK key for the capability -> platform key from    */
-/* settings -> null (caller falls back to the deterministic mock).      */
+/* settings -> server .env key -> null (caller falls back to the        */
+/* deterministic mock).                                                 */
 /* Server-side only — keys NEVER leave the server.                      */
 /* ------------------------------------------------------------------ */
 
@@ -20,13 +21,15 @@ export interface ResolvedKey {
   provider: AiProvider;
   apiKey: string;
   baseUrl?: string;
-  source: "byok" | "platform";
+  /** Override the provider's default model (e.g. OpenRouter/DeepSeek routes). */
+  model?: string;
+  source: "byok" | "platform" | "env";
 }
 
 export interface CompletionResult {
   text: string;
   provider: AiProvider;
-  source: "byok" | "platform";
+  source: "byok" | "platform" | "env";
 }
 
 const DEFAULT_MODELS: Record<AiProvider, string> = {
@@ -41,7 +44,57 @@ const DEFAULT_BASE_URLS: Record<AiProvider, string> = {
   gemini: "https://generativelanguage.googleapis.com/v1beta",
 };
 
-/** Resolve the key to use for a capability: BYOK first, then platform settings. */
+/**
+ * Resolve a key from server environment variables (.env). This is the final
+ * fallback tier so the platform works out of the box with the keys documented
+ * in .env.example — no admin/settings step required.
+ */
+function envKeyFor(capability: AiCapability): ResolvedKey | null {
+  const e = process.env;
+  const val = (name: string) => (e[name]?.trim() ? e[name]!.trim() : null);
+
+  if (capability === "image") {
+    const gemini = val("GEMINI_API_KEY");
+    if (gemini) {
+      return { provider: "gemini", apiKey: gemini, model: val("GEMINI_IMAGE_MODEL") ?? undefined, source: "env" };
+    }
+    const imageKey = val("IMAGE_API_KEY") ?? val("OPENAI_API_KEY");
+    if (imageKey) {
+      // IMAGE_API_URL may be the full endpoint; callers append /images/generations.
+      const baseUrl = val("IMAGE_API_URL")?.replace(/\/images\/generations\/?$/, "") ?? undefined;
+      return { provider: "openai", apiKey: imageKey, baseUrl, model: val("IMAGE_API_MODEL") ?? undefined, source: "env" };
+    }
+    return null;
+  }
+
+  if (capability === "text") {
+    const gemini = val("GEMINI_API_KEY");
+    if (gemini) {
+      return { provider: "gemini", apiKey: gemini, model: val("GEMINI_TEXT_MODEL") ?? undefined, source: "env" };
+    }
+    const anthropic = val("ANTHROPIC_API_KEY");
+    if (anthropic) {
+      return { provider: "anthropic", apiKey: anthropic, model: val("ANTHROPIC_MODEL") ?? undefined, source: "env" };
+    }
+    const openai = val("OPENAI_API_KEY");
+    if (openai) return { provider: "openai", apiKey: openai, source: "env" };
+    const deepseek = val("DEEPSEEK_API_KEY");
+    if (deepseek) {
+      return { provider: "openai", apiKey: deepseek, baseUrl: "https://api.deepseek.com/v1", model: "deepseek-chat", source: "env" };
+    }
+    const openrouter = val("OPENROUTER_API_KEY");
+    if (openrouter) {
+      return { provider: "openai", apiKey: openrouter, baseUrl: "https://openrouter.ai/api/v1", model: "openai/gpt-4o-mini", source: "env" };
+    }
+    const kimi = val("KIMI_API_KEY");
+    if (kimi) {
+      return { provider: "openai", apiKey: kimi, baseUrl: "https://api.moonshot.ai/v1", model: "moonshot-v1-8k", source: "env" };
+    }
+  }
+  return null;
+}
+
+/** Resolve the key to use for a capability: BYOK first, then platform settings, then .env. */
 export async function resolveKey(
   userId: number | undefined,
   capability: AiCapability,
@@ -69,7 +122,7 @@ export async function resolveKey(
       source: "platform",
     };
   }
-  return null;
+  return envKeyFor(capability);
 }
 
 /** True when the user has any BYOK key for a capability (used by estimate). */
@@ -95,13 +148,13 @@ async function callOpenAICompatible(
       authorization: `Bearer ${key.apiKey}`,
     },
     body: JSON.stringify({
-      model: DEFAULT_MODELS.openai,
+      model: key.model || DEFAULT_MODELS.openai,
       messages,
       max_tokens: maxTokens,
       temperature: 0.7,
       response_format: { type: "json_object" },
     }),
-    signal: AbortSignal.timeout(15_000),
+    signal: AbortSignal.timeout(60_000),
   });
   if (!res.ok) throw new Error(`OpenAI-compatible API ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const data = (await res.json()) as {
@@ -128,12 +181,12 @@ async function callAnthropic(
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: DEFAULT_MODELS.anthropic,
+      model: key.model || DEFAULT_MODELS.anthropic,
       max_tokens: maxTokens,
       system,
       messages: rest.map((m) => ({ role: m.role, content: m.content })),
     }),
-    signal: AbortSignal.timeout(15_000),
+    signal: AbortSignal.timeout(60_000),
   });
   if (!res.ok) throw new Error(`Anthropic API ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const data = (await res.json()) as { content?: { type: string; text?: string }[] };
@@ -156,7 +209,7 @@ async function callGemini(
       parts: [{ text: m.content }],
     }));
   const res = await fetch(
-    `${base}/models/${DEFAULT_MODELS.gemini}:generateContent?key=${encodeURIComponent(key.apiKey)}`,
+    `${base}/models/${key.model || DEFAULT_MODELS.gemini}:generateContent?key=${encodeURIComponent(key.apiKey)}`,
     {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -165,7 +218,7 @@ async function callGemini(
         contents,
         generationConfig: { maxOutputTokens: maxTokens, responseMimeType: "application/json" },
       }),
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(60_000),
     },
   );
   if (!res.ok) throw new Error(`Gemini API ${res.status}: ${(await res.text()).slice(0, 200)}`);
@@ -295,7 +348,8 @@ const GEMINI_IMAGE_MODELS = [
 async function callGeminiImage(key: ResolvedKey, prompt: string): Promise<string> {
   const base = (key.baseUrl || DEFAULT_BASE_URLS.gemini).replace(/\/$/, "");
   let notFound: Error | null = null;
-  for (const model of GEMINI_IMAGE_MODELS) {
+  const models = key.model ? [key.model, ...GEMINI_IMAGE_MODELS] : GEMINI_IMAGE_MODELS;
+  for (const model of models) {
     const res = await fetch(`${base}/models/${model}:generateContent`, {
       method: "POST",
       headers: {
@@ -338,7 +392,7 @@ async function callOpenAIImage(key: ResolvedKey, prompt: string): Promise<string
     });
 
   let res = await request({
-    model: "gpt-image-1",
+    model: key.model || "gpt-image-1",
     prompt,
     size: "1024x1024",
     response_format: "b64_json",

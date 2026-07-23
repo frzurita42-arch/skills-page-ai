@@ -127,6 +127,7 @@ export const generateRouter = createRouter({
       await applyTokenDelta(ctx.user.id, -cost.total, reason);
 
       let draft: import("../ai/prompts").LessonPathDraft;
+      let usedMock = false;
       try {
         const prompt = buildLessonPathPrompt({
           description: input.description,
@@ -157,6 +158,7 @@ export const generateRouter = createRouter({
             console.warn(`[generate.lessonPath] LLM parse attempt ${attempt + 1} failed:`, err);
           }
         }
+        usedMock = parsed === null;
         draft = parsed ?? mockLessonPath({
           description: input.description,
           template: input.template,
@@ -233,6 +235,7 @@ export const generateRouter = createRouter({
           ref: repoRef(repoSlug),
           cost: cost.total,
           balance: fresh?.tokenBalance ?? ctx.user.tokenBalance - cost.total,
+          usedMock,
         };
       } catch (err) {
         await refundTokens(ctx.user.id, cost.total, `refund: ${reason}`);

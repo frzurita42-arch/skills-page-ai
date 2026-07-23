@@ -1,6 +1,36 @@
 import { describe, expect, it } from "vitest";
 import { extractJson, repoRef, slugify, slideDeckSchema, lessonPathSchema } from "./prompts";
 import { mockDeck, mockLessonPath, mockCoachReply } from "./mock";
+import { isStemTopic } from "@contracts/stem";
+
+describe("isStemTopic", () => {
+  it("classifies sciences as STEM", () => {
+    for (const t of [
+      "Mycology",
+      "Particle physics",
+      "Introduction to Astronomy",
+      "Organic chemistry basics",
+      "Geology of volcanoes",
+      "Newton's laws of motion",
+      "Machine learning for beginners",
+      "Cell biology",
+    ]) {
+      expect(isStemTopic(t), t).toBe(true);
+    }
+  });
+
+  it("classifies humanities-style topics as non-STEM", () => {
+    for (const t of [
+      "The history of the Roman Empire",
+      "French cooking",
+      "A biography of Frida Kahlo",
+      "Creative writing workshop",
+      "Philosophy of art",
+    ]) {
+      expect(isStemTopic(t), t).toBe(false);
+    }
+  });
+});
 
 describe("slugify", () => {
   it("makes stable kebab slugs", () => {

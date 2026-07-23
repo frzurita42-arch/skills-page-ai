@@ -33,8 +33,7 @@ import CreateToolModal from '@/components/slides/CreateToolModal';
 import GenerationTheater from '@/components/player/GenerationTheater';
 import DeckPlayer from '@/components/player/DeckPlayer';
 
-const STEM_RE =
-  /(physic|math|algebra|calculus|chem|bio|mechanic|kinemat|dynam|energy|momentum|force|velocity|acceler|newton|quantum|statistic|program|code|algorithm|engineer|electric|circuit)/i;
+import { isStemTopic } from '@contracts/stem';
 
 const STYLE_PRESETS: Exclude<ImageStyle, 'none'>[] = [
   'sketch',
@@ -341,7 +340,7 @@ function ToolStudio({
   }
 
   /* ---------------- State A — config ---------------- */
-  const stem = STEM_RE.test(topic);
+  const stem = isStemTopic(topic);
   return (
     <div className="mx-auto w-full max-w-[960px] px-4 py-8 lg:px-8">
       <Toaster position="bottom-right" />

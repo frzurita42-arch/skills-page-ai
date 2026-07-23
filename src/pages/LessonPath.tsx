@@ -142,6 +142,13 @@ export default function LessonPath() {
           toast.success('Your notebook is ready!', {
             description: `${res.ref} · ${res.cost} 🪙 spent — opening it now`,
           });
+          if (res.usedMock) {
+            toast.warning('This outline used the offline placeholder, not AI', {
+              description:
+                'No AI provider answered — check the server .env key or add your own key in Settings → API Keys, then regenerate for topic-specific lessons.',
+              duration: 10000,
+            });
+          }
           void utils.auth.me.invalidate();
           void utils.repos.list.invalidate();
           navigate(`/repos/${res.repoSlug}`);
