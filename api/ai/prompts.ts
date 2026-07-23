@@ -121,17 +121,35 @@ export type LessonPathDraft = z.infer<typeof lessonPathSchema>;
 /* System prompts                                                       */
 /* ------------------------------------------------------------------ */
 
+export interface LayoutTemplateForPrompt {
+  name: string;
+  tags: string[];
+  components: string[];
+}
+
 export function buildSlidesSystemPrompt(opts: {
   level: string;
   imageStyle: string;
   previouslyTaught: string | null;
+  layoutTemplates?: LayoutTemplateForPrompt[];
 }): string {
   const memory = opts.previouslyTaught
     ? `
-PREVIOUSLY TAUGHT in this course — build on this like a later chapter; assume the learner already knows it; do NOT re-explain it. Reference prior knowledge in at most one short clause when needed; spend all depth on the new topic.
+PREVIOUSLY TAUGHT in this course — treat every item below as slides that already exist earlier in this same course. HARD anti-repetition rules:
+(a) NEVER re-define, re-introduce, or re-explain anything listed below — not even "as a reminder". Reference it by name in at most ONE short clause ("using the hyphal growth from Lesson 2, ...").
+(b) When a prior concept is needed, USE it — apply it, extend it, contrast it with the new material — exactly like a university course refers back to week 1 instead of re-teaching it.
+(c) Every paragraph you write must teach material NOT covered below. If a slide would mostly restate prior material, replace it with the next new idea instead.
 ${opts.previouslyTaught}
 `
     : "";
+
+  const templates =
+    opts.layoutTemplates && opts.layoutTemplates.length > 0
+      ? `
+SLIDE LAYOUT TEMPLATES — build each slide by choosing ONE layout from this approved catalog; pick the layout that best fits the concept and vary layouts across the deck. The items in a layout are the components IN ORDER; "Multiple choice" means attach this slide's quiz. A layout with several "Text" steps means that many DISTINCT paragraphs (never repeat one). Prefer STEM layouts (formula/graph/table/code) for technical topics and reading layouts (multiple Text, image) for humanities.
+${opts.layoutTemplates.map((t) => `- ${t.name}${t.tags.length ? ` [${t.tags.join(", ")}]` : ""}: ${t.components.join(" -> ")}`).join("\n")}
+`
+      : "";
 
   return `You are the SketchLearn teaching engine. You write evaluated slide decks that teach ONE topic deeply.
 
@@ -144,7 +162,7 @@ TEACHING RULES (non-negotiable):
 6. Per-slide MCQ: exactly 4 options, answerable ONLY from that slide's content plus everyday knowledge — one small step past the text (not a verbatim copy). Difficulty matched to level "${opts.level}". Quizzes appear on MOST slides, not necessarily every one. Quiz questions must be direct, closed-form multiple-choice questions with exactly ONE objectively correct option. NEVER phrase them as open-ended prompts such as "in your own words", "explain", "describe", or "what do you think" — the student picks an option, not writes prose.
 7. Images use imageStyle "${opts.imageStyle}"${opts.imageStyle === "none" ? " — style is 'none', so DO NOT emit any image components" : ""}.
 8. Level "${opts.level}": beginner = concrete everyday examples, short sentences, define every term; intermediate = assume basics, connect ideas; advanced = precise, denser, edge cases.
-${memory}
+${memory}${templates}
 OUTPUT: STRICT JSON ONLY (no markdown fences, no commentary) matching exactly:
 {"slides":[{"title":"...","components":[...],"quiz":{"question":"...","options":["a","b","c","d"],"correctIndex":0,"explanation":"..."}}],"level":"${opts.level}","imageStyle":"${opts.imageStyle}","topic":"..."}`;
 }

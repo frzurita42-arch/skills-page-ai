@@ -5,6 +5,7 @@ import {
   Route,
   Presentation,
   LibraryBig,
+  LayoutTemplate,
   PlayCircle,
   Info,
   LayoutDashboard,
@@ -30,6 +31,7 @@ const NAV_ITEMS = [
   { to: '/lesson-path', label: 'Lesson Path', icon: Route },
   { to: '/slides', label: 'Slides', icon: Presentation },
   { to: '/repos', label: 'Repos', icon: LibraryBig },
+  { to: '/templates', label: 'Slide templates', icon: LayoutTemplate },
   { to: '/runs', label: 'Presentation runs', icon: PlayCircle },
   { to: '/about', label: 'About', icon: Info },
 ];

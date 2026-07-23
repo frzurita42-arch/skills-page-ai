@@ -123,6 +123,21 @@ export const slideTools = appSchema.table(
   (t) => [index("slideTools_owner_idx").on(t.ownerId)],
 );
 
+export const slideTemplates = appSchema.table(
+  "slideTemplates",
+  {
+    id: serial("id").primaryKey(),
+    name: varchar("name", { length: 120 }).notNull(),
+    /** ordered component types, e.g. ["prose","table","quiz"] */
+    componentsJson: json("componentsJson").notNull(),
+    /** lowercase subject hashtags, e.g. ["math","statistics"] */
+    tagsJson: json("tagsJson").notNull(),
+    createdBy: fk("createdBy"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("slideTemplates_creator_idx").on(t.createdBy)],
+);
+
 export const runs = appSchema.table(
   "runs",
   {
@@ -234,3 +249,4 @@ export type TokenLedgerEntry = typeof tokenLedger.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
 export type Setting = typeof settings.$inferSelect;
 export type Favorite = typeof favorites.$inferSelect;
+export type SlideTemplate = typeof slideTemplates.$inferSelect;

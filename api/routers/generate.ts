@@ -25,6 +25,9 @@ import {
 import { estimateCost } from "../cost";
 import { applyTokenDelta, refundTokens } from "../tokens";
 import { buildPreviouslyTaught } from "../memory";
+import { loadTemplateCatalog } from "./templates";
+import { templatesForSubject, TEMPLATE_COMPONENT_LABELS } from "@contracts/slide-templates";
+import { isStemTopic } from "@contracts/stem";
 import type { CoachReply, SlideDeck } from "@contracts/types";
 
 const GUEST_MAX_SLIDES = 6;
@@ -348,10 +351,19 @@ export const generateRouter = createRouter({
         await applyTokenDelta(ctx.user.id, -cost, reason);
       }
 
+      // Offer the AI only the layouts that fit this topic's subject area
+      const catalog = await loadTemplateCatalog();
+      const layoutTemplates = templatesForSubject(catalog, isStemTopic(topic)).map((t) => ({
+        name: t.name,
+        tags: t.tags,
+        components: t.components.map((c) => TEMPLATE_COMPONENT_LABELS[c]),
+      }));
+
       const systemPrompt = buildSlidesSystemPrompt({
         level: input.level,
         imageStyle: input.imageStyle,
         previouslyTaught,
+        layoutTemplates,
       });
       const userPrompt = [
         `TOPIC: ${topic}`,
