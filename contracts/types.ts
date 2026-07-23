@@ -101,6 +101,8 @@ export interface RepoSummary {
   unitCount: number;
   lessonCount: number;
   runCount: number;
+  /** Lessons the current viewer has passed in this repo (0 for guests). */
+  myCompletedCount: number;
   isPublic: boolean;
   favorite: boolean;
   ownerName: string | null;
@@ -115,6 +117,15 @@ export interface RepoLesson {
   globalSeq: number;
   parentLessonId: number | null;
   runCount: number;
+  /* Viewer-scoped progress — computed ONLY from the signed-in viewer's own
+     runs, so one user's activity never shows on another user's page.
+     Guests always see zeros / "unplayed". */
+  myAttempts: number;
+  myBestCorrect: number;
+  myBestTotal: number;
+  myLastCorrect: number;
+  myLastTotal: number;
+  myStatus: "unplayed" | "try-again" | "completed";
 }
 
 export interface RepoUnit {

@@ -321,7 +321,7 @@ export const generateRouter = createRouter({
               break;
             }
           }
-          previouslyTaught = await buildPreviouslyTaught(repo.id, input.seed.lessonSeq);
+          previouslyTaught = await buildPreviouslyTaught(repo.id, input.seed.lessonSeq, ctx.user?.id);
         }
       }
 

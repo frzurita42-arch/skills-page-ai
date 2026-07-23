@@ -17,7 +17,45 @@ import {
 } from "@db/schema";
 import { repoRef, slugify, templateSchema } from "../ai/prompts";
 import { courseMemory } from "../memory";
+import { isPassingScore } from "@contracts/progress";
 import type { RepoDetail, RepoLesson, RepoSummary, RepoUnit, LessonRunRow, Level } from "@contracts/types";
+
+type RunLite = Pick<
+  typeof runs.$inferSelect,
+  "id" | "lessonId" | "userId" | "scoreCorrect" | "scoreTotal" | "completedAt"
+>;
+
+/** Viewer-scoped progress fields for one lesson (guests → all-zero/unplayed). */
+function lessonProgress(lessonId: number, viewerRuns: RunLite[]): Pick<
+  RepoLesson,
+  "myAttempts" | "myBestCorrect" | "myBestTotal" | "myLastCorrect" | "myLastTotal" | "myStatus"
+> {
+  const mine = viewerRuns
+    .filter((r) => r.lessonId === lessonId)
+    .sort((a, b) => a.completedAt.getTime() - b.completedAt.getTime());
+  if (mine.length === 0) {
+    return {
+      myAttempts: 0,
+      myBestCorrect: 0,
+      myBestTotal: 0,
+      myLastCorrect: 0,
+      myLastTotal: 0,
+      myStatus: "unplayed",
+    };
+  }
+  const ratio = (r: RunLite) => (r.scoreTotal === 0 ? 1 : r.scoreCorrect / r.scoreTotal);
+  const best = mine.reduce((a, b) => (ratio(b) > ratio(a) ? b : a));
+  const last = mine[mine.length - 1];
+  const passed = mine.some((r) => isPassingScore(r.scoreCorrect, r.scoreTotal));
+  return {
+    myAttempts: mine.length,
+    myBestCorrect: best.scoreCorrect,
+    myBestTotal: best.scoreTotal,
+    myLastCorrect: last.scoreCorrect,
+    myLastTotal: last.scoreTotal,
+    myStatus: passed ? "completed" : "try-again",
+  };
+}
 
 async function favoriteSlugs(userId: number | undefined, targetType: "repo" | "slideTool") {
   if (!userId) return new Set<string>();
@@ -39,7 +77,25 @@ async function repoSummaries(repoRows: Repo[], userId: number | undefined): Prom
       const ls = await db.select({ id: lessons.id }).from(lessons).where(eq(lessons.unitId, u.id));
       lessonCount += ls.length;
     }
-    const repoRuns = await db.select({ id: runs.id }).from(runs).where(eq(runs.repoId, repo.id));
+    const repoRuns = await db
+      .select({
+        id: runs.id,
+        lessonId: runs.lessonId,
+        userId: runs.userId,
+        scoreCorrect: runs.scoreCorrect,
+        scoreTotal: runs.scoreTotal,
+      })
+      .from(runs)
+      .where(eq(runs.repoId, repo.id));
+    // Viewer's own completed lessons — never another user's activity
+    const passedLessonIds = new Set<number>();
+    if (userId) {
+      for (const r of repoRuns) {
+        if (r.userId === userId && r.lessonId && isPassingScore(r.scoreCorrect, r.scoreTotal)) {
+          passedLessonIds.add(r.lessonId);
+        }
+      }
+    }
     let ownerName: string | null = null;
     if (repo.ownerId) {
       const owner = await db.query.users.findFirst({ where: eq(users.id, repo.ownerId) });
@@ -54,6 +110,7 @@ async function repoSummaries(repoRows: Repo[], userId: number | undefined): Prom
       unitCount: repoUnits.length,
       lessonCount,
       runCount: repoRuns.length,
+      myCompletedCount: passedLessonIds.size,
       isPublic: repo.isPublic,
       favorite: favs.has(repo.slug),
       ownerName,
@@ -114,6 +171,11 @@ export const reposRouter = createRouter({
         .where(eq(units.repoId, repo.id))
         .orderBy(units.orderIndex);
       const repoRuns = await db.select().from(runs).where(eq(runs.repoId, repo.id));
+      // Progress fields are computed ONLY from the viewer's own runs so one
+      // user's activity never shows on another user's page (guests: none).
+      const viewerRuns: RunLite[] = ctx.user
+        ? repoRuns.filter((r) => r.userId === ctx.user!.id)
+        : [];
       const unitList: RepoUnit[] = [];
       for (const u of repoUnits) {
         const ls = await db
@@ -129,6 +191,7 @@ export const reposRouter = createRouter({
           globalSeq: l.globalSeq,
           parentLessonId: l.parentLessonId,
           runCount: repoRuns.filter((r) => r.lessonId === l.id).length,
+          ...lessonProgress(l.id, viewerRuns),
         }));
         unitList.push({ id: u.id, title: u.title, orderIndex: u.orderIndex, lessons: lessonList });
       }
@@ -249,14 +312,24 @@ export const reposRouter = createRouter({
 
   lessonRuns: publicQuery
     .input(z.object({ slug: z.string().min(1), limit: z.number().int().min(1).max(200).default(100) }))
-    .query(async ({ input }): Promise<LessonRunRow[]> => {
+    .query(async ({ ctx, input }): Promise<LessonRunRow[]> => {
       const db = getDb();
       const repo = await db.query.repos.findFirst({ where: eq(repos.slug, input.slug) });
       if (!repo) throw new TRPCError({ code: "NOT_FOUND", message: "Repository not found" });
+      // Regular users see ONLY their own runs; the repo owner, moderators and
+      // admins keep the full oversight view. Guests see none.
+      const privileged =
+        !!ctx.user &&
+        (repo.ownerId === ctx.user.id ||
+          ctx.user.role === "moderator" ||
+          ctx.user.role === "admin");
+      const scope = privileged
+        ? eq(runs.repoId, repo.id)
+        : and(eq(runs.repoId, repo.id), eq(runs.userId, ctx.user?.id ?? -1));
       const repoRuns = await db
         .select()
         .from(runs)
-        .where(eq(runs.repoId, repo.id))
+        .where(scope)
         .orderBy(desc(runs.completedAt))
         .limit(input.limit);
       const repoUnits = await db.select().from(units).where(eq(units.repoId, repo.id));
@@ -281,10 +354,11 @@ export const reposRouter = createRouter({
 
   courseMemory: publicQuery
     .input(z.object({ slug: z.string().min(1) }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       const db = getDb();
       const repo = await db.query.repos.findFirst({ where: eq(repos.slug, input.slug) });
       if (!repo) throw new TRPCError({ code: "NOT_FOUND", message: "Repository not found" });
-      return courseMemory(repo.id);
+      // Memory is the viewer's own learning history, never another user's.
+      return courseMemory(repo.id, ctx.user?.id);
     }),
 });

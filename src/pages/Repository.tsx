@@ -70,8 +70,10 @@ export default function Repository() {
       }
       flat.sort((a, b) => a.lesson.globalSeq - b.lesson.globalSeq || a.lesson.orderIndex - b.lesson.orderIndex);
     }
-    const next = flat.find((f) => f.lesson.runCount === 0) ?? null;
-    const played = flat.filter((f) => f.lesson.runCount > 0).length;
+    // Next up = the viewer's first lesson not yet PASSED — a failed lesson
+    // stays "next up" (shown as try-again) until it is completed.
+    const next = flat.find((f) => f.lesson.myStatus !== 'completed') ?? null;
+    const played = flat.filter((f) => f.lesson.myStatus === 'completed').length;
     return { flatLessons: flat, nextUp: next, unitByLessonId: unitMap, playedCount: played };
   }, [data]);
 

@@ -21,7 +21,8 @@ export interface RepoCardProps {
  */
 function RepoCardInner({ repo, index, onToggleFavorite }: RepoCardProps) {
   const utils = trpc.useUtils();
-  const played = Math.min(repo.runCount, repo.lessonCount);
+  // progress strip shows the viewer's OWN completed lessons, not global runs
+  const played = Math.min(repo.myCompletedCount, repo.lessonCount);
 
   return (
     <motion.div

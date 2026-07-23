@@ -8,6 +8,7 @@ import {
   Hourglass,
   Pencil,
   Plus,
+  RotateCcw,
   Square,
   Trash2,
   X,
@@ -450,7 +451,9 @@ function LessonCard({
   const [editingObjective, setEditingObjective] = useState(false);
   const [objectiveDraft, setObjectiveDraft] = useState(lesson.objective);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const played = lesson.runCount > 0;
+  // Progress chips reflect ONLY the signed-in viewer's own runs
+  const completed = lesson.myStatus === 'completed';
+  const tryAgain = lesson.myStatus === 'try-again';
 
   const studyTitle =
     playedCount > 0
@@ -491,10 +494,30 @@ function LessonCard({
         <Chip kind="repo-ref" className="font-normal">
           {badge}
         </Chip>
-        {played ? (
-          <span title="Played" className="flex items-center gap-1 text-green">
+        {completed ? (
+          <span
+            title={
+              lesson.myBestTotal > 0
+                ? `Completed — best score ${lesson.myBestCorrect}/${lesson.myBestTotal}`
+                : 'Completed'
+            }
+            className="flex items-center gap-1 text-green"
+          >
             <DoodleCheck className="h-4 w-4" />
-            <span className="micro text-[0.6rem]">played</span>
+            <span className="micro text-[0.6rem]">
+              completed
+              {lesson.myBestTotal > 0 && ` · ${lesson.myBestCorrect}/${lesson.myBestTotal}`}
+            </span>
+          </span>
+        ) : tryAgain ? (
+          <span
+            title={`Last score ${lesson.myLastCorrect}/${lesson.myLastTotal} — pass to mark this lesson completed`}
+            className="flex animate-low-pulse items-center gap-1 text-red"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            <span className="micro text-[0.6rem]">
+              try again · {lesson.myLastCorrect}/{lesson.myLastTotal}
+            </span>
           </span>
         ) : isNextUp ? (
           <span title="Next up" className="flex animate-low-pulse items-center gap-1 text-[#b8860b]">

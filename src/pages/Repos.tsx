@@ -179,7 +179,7 @@ export default function Repos() {
       header: 'Progress',
       render: (row) => (
         <ProgressStrip
-          played={Math.min(row.runCount, row.lessonCount)}
+          played={Math.min(row.myCompletedCount, row.lessonCount)}
           total={row.lessonCount}
           className="min-w-[140px]"
         />

@@ -6,6 +6,7 @@ import { ArrowRight, RotateCcw, TriangleAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/hooks/useAuth';
+import { isPassingScore, PASS_THRESHOLD } from '@contracts/progress';
 import type { LessonSeed, SlideDeck } from '@contracts/types';
 import SketchButton from '../sketch/SketchButton';
 import Chip from '../sketch/Chip';
@@ -65,14 +66,27 @@ export default function FinishScreen({
 }: FinishScreenProps) {
   const reduced = useReducedMotion();
   const { user } = useAuth();
+  const utils = trpc.useUtils();
   const firedRef = useRef(false);
 
   const answered = Object.values(answers);
   const scoreTotal = answered.length;
   const scoreCorrect = answered.filter((a) => a.firstCorrect).length;
   const displayScore = useCountUp(scoreCorrect);
+  const passed = isPassingScore(scoreCorrect, scoreTotal);
 
-  const complete = trpc.runs.complete.useMutation();
+  const complete = trpc.runs.complete.useMutation({
+    onSuccess: () => {
+      // refresh the repo page so the lesson chip (completed / try again)
+      // and next-up marker reflect this run when the player goes back
+      if (seed) {
+        void utils.repos.getBySlug.invalidate({ slug: seed.repoSlug });
+        void utils.repos.lessonRuns.invalidate({ slug: seed.repoSlug, limit: 100 });
+        void utils.repos.courseMemory.invalidate({ slug: seed.repoSlug });
+        void utils.repos.list.invalidate();
+      }
+    },
+  });
 
   const save = () => {
     const perSlide = deck.slides.map((slide, i) => {
@@ -163,7 +177,7 @@ export default function FinishScreen({
       ? 'Deck complete — no quizzes this time.'
       : scoreCorrect === scoreTotal
         ? "Chef's kiss!"
-        : scoreCorrect / scoreTotal >= 0.7
+        : passed
           ? "Solid — one review and it's yours."
           : 'Worth a replay — the notebook is patient.';
   const avgPerSlide =
@@ -199,6 +213,25 @@ export default function FinishScreen({
           )}
         </h1>
         <p className="mt-2 font-display text-3xl text-ink-soft">{verdict}</p>
+        {seed && scoreTotal > 0 && (
+          <span
+            className={cn(
+              'mt-3 inline-flex items-center gap-1.5 rounded-wobble-sm border-2 px-3 py-1 font-heading text-sm font-bold shadow-offset',
+              passed ? 'border-green bg-green-soft text-green' : 'border-red bg-red-soft text-red',
+            )}
+          >
+            {passed ? (
+              <>
+                <DoodleCheck className="h-4 w-4" /> Lesson completed
+              </>
+            ) : (
+              <>
+                <RotateCcw className="h-4 w-4" /> Below {Math.round(PASS_THRESHOLD * 100)}% — marked
+                try again
+              </>
+            )}
+          </span>
+        )}
       </motion.div>
 
       {/* save status — never lose the log silently (§C6) */}
@@ -316,7 +349,41 @@ export default function FinishScreen({
         animate="show"
         variants={{ show: { transition: { staggerChildren: 0.1 } } }}
       >
-        {hasNextLesson && seed ? (
+        {seed && !passed ? (
+          <>
+            <motion.div
+              className="flex-1"
+              variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
+            >
+              <button
+                type="button"
+                onClick={onReplay}
+                className="flex h-full w-full flex-col gap-1 rounded-wobble-2 border-2 border-ink bg-yellow p-5 text-left shadow-offset transition-transform hover:-translate-y-1"
+              >
+                <Chip kind="repo-ref" className="w-fit">
+                  Lesson {seed.lessonSeq} of {seed.lessonSeqTotal}
+                </Chip>
+                <span className="mt-1 flex items-center gap-2 font-heading text-lg font-bold text-ink">
+                  Try this lesson again
+                  <RotateCcw className="h-5 w-5" />
+                </span>
+                <span className="text-sm text-ink-soft">
+                  Score {Math.round(PASS_THRESHOLD * 100)}% or more to mark it completed and
+                  unlock the next one.
+                </span>
+              </button>
+            </motion.div>
+            <motion.div
+              variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
+            >
+              <Link to={`/repos/${seed.repoSlug}`}>
+                <SketchButton variant="secondary" size="lg">
+                  Back to repository
+                </SketchButton>
+              </Link>
+            </motion.div>
+          </>
+        ) : hasNextLesson && seed ? (
           <>
             <motion.div
               className="flex-1"
@@ -369,7 +436,7 @@ export default function FinishScreen({
             </motion.div>
           </>
         )}
-        {seed && !hasNextLesson && (
+        {seed && !hasNextLesson && passed && (
           <motion.div
             variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
           >

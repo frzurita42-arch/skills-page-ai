@@ -7,11 +7,17 @@ import type { CourseMemoryEntry, LessonLogSlide } from "@contracts/types";
  * Build the "PREVIOUSLY TAUGHT" block for a repo lesson: titles, taught
  * summaries and student scores from lessonLogs of lessons with
  * globalSeq < lessonSeq (design.md §9 cross-lesson memory).
+ *
+ * Memory is PER STUDENT: only the given user's own logs count, so one
+ * learner's progress never changes what another learner is taught.
+ * Guests (no userId) get no memory — every deck starts fresh.
  */
 export async function buildPreviouslyTaught(
   repoId: number,
   lessonSeq: number,
+  userId: number | undefined,
 ): Promise<string | null> {
+  if (!userId) return null;
   const db = getDb();
   const repoUnits = await db.select().from(units).where(eq(units.repoId, repoId));
   const unitIds = repoUnits.map((u) => u.id);
@@ -25,7 +31,13 @@ export async function buildPreviouslyTaught(
   const logs = await db
     .select()
     .from(lessonLogs)
-    .where(and(eq(lessonLogs.repoId, repoId), inArray(lessonLogs.lessonId, priorIds)));
+    .where(
+      and(
+        eq(lessonLogs.repoId, repoId),
+        eq(lessonLogs.userId, userId),
+        inArray(lessonLogs.lessonId, priorIds),
+      ),
+    );
 
   const lines: string[] = [];
   const sorted = [...priorLessons].sort((a, b) => a.globalSeq - b.globalSeq);
@@ -50,15 +62,25 @@ export async function buildPreviouslyTaught(
   return lines.length > 0 ? lines.join("\n") : null;
 }
 
-/** Folded memory for the repo page "Course memory" panel. */
-export async function courseMemory(repoId: number): Promise<CourseMemoryEntry[]> {
+/**
+ * Folded memory for the repo page "Course memory" panel — scoped to the
+ * viewing user's own logs (guests see an empty panel).
+ */
+export async function courseMemory(
+  repoId: number,
+  userId: number | undefined,
+): Promise<CourseMemoryEntry[]> {
+  if (!userId) return [];
   const db = getDb();
   const repoUnits = await db.select().from(units).where(eq(units.repoId, repoId));
   const unitById = new Map(repoUnits.map((u) => [u.id, u]));
   const unitIds = repoUnits.map((u) => u.id);
   if (unitIds.length === 0) return [];
   const repoLessons = await db.select().from(lessons).where(inArray(lessons.unitId, unitIds));
-  const logs = await db.select().from(lessonLogs).where(eq(lessonLogs.repoId, repoId));
+  const logs = await db
+    .select()
+    .from(lessonLogs)
+    .where(and(eq(lessonLogs.repoId, repoId), eq(lessonLogs.userId, userId)));
 
   const entries: CourseMemoryEntry[] = [];
   for (const lesson of repoLessons.sort((a, b) => a.globalSeq - b.globalSeq)) {
