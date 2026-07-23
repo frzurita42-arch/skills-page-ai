@@ -160,6 +160,13 @@ export default function LessonPath() {
             toast.error('Not enough tokens for this plan', {
               action: { label: 'Top up →', onClick: () => navigate('/settings?tab=tokens') },
             });
+          } else if (err.message.startsWith('AI_UNAVAILABLE')) {
+            toast.error('AI provider not responding — nothing was generated', {
+              description:
+                'Tokens refunded. Check the server .env AI keys (e.g. GEMINI_API_KEY) or add your own key in Settings → API Keys, then try again.',
+              duration: 12000,
+              action: { label: 'Retry', onClick: onGenerate },
+            });
           } else {
             toast.error(err.message || 'Generation failed — tokens refunded', {
               action: { label: 'Retry', onClick: onGenerate },

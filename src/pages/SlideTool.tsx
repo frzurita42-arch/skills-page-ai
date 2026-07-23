@@ -286,7 +286,15 @@ function ToolStudio({
         onError: (err) => {
           if (canceledRef.current) return;
           setMode('config');
-          toast.error(err.message);
+          if (err.message.startsWith('AI_UNAVAILABLE')) {
+            toast.error('AI provider not responding — no deck was generated', {
+              description:
+                'Tokens refunded. Check the server .env AI keys or add your own key in Settings → API Keys, then try again.',
+              duration: 12000,
+            });
+          } else {
+            toast.error(err.message);
+          }
         },
       },
     );

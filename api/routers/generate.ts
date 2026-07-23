@@ -29,6 +29,17 @@ import type { CoachReply, SlideDeck } from "@contracts/types";
 const GUEST_MAX_SLIDES = 6;
 const MAX_SLIDES = 15;
 
+/**
+ * Offline demo content (mock decks/lesson paths) is opt-in. By default a
+ * failed or unconfigured AI provider is a hard error: nothing is created,
+ * tokens are refunded, and the client shows what went wrong — instead of
+ * silently saving placeholder content that looks like a real plan.
+ */
+const mockAiAllowed = () => process.env.SKETCHLEARN_ALLOW_MOCK_AI === "1";
+
+const AI_UNAVAILABLE_MSG =
+  "AI_UNAVAILABLE: no AI provider produced content — nothing was saved and any tokens were refunded. Check the server .env AI keys (e.g. GEMINI_API_KEY) or add your own key in Settings → API Keys, then try again.";
+
 /** Naive in-memory rate limiter (per key, per window) — for the public coach. */
 const buckets = new Map<string, { count: number; resetAt: number }>();
 function rateLimit(key: string, limit: number, windowMs: number) {
@@ -159,6 +170,10 @@ export const generateRouter = createRouter({
           }
         }
         usedMock = parsed === null;
+        if (parsed === null && !mockAiAllowed()) {
+          await refundTokens(ctx.user.id, cost.total, `refund: ${reason}`);
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: AI_UNAVAILABLE_MSG });
+        }
         draft = parsed ?? mockLessonPath({
           description: input.description,
           template: input.template,
@@ -166,6 +181,7 @@ export const generateRouter = createRouter({
           lessonsPerUnit: input.lessonsPerUnit,
         });
       } catch (err) {
+        if (err instanceof TRPCError) throw err; // already refunded above
         await refundTokens(ctx.user.id, cost.total, `refund: ${reason}`);
         console.error("[generate.lessonPath] generation failed, refunded:", err);
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Generation failed — tokens refunded" });
@@ -377,6 +393,10 @@ export const generateRouter = createRouter({
       }
 
       if (!deck) {
+        if (!mockAiAllowed()) {
+          if (ctx.user && cost > 0) await refundTokens(ctx.user.id, cost, `refund: ${reason}`);
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: AI_UNAVAILABLE_MSG });
+        }
         usedMock = true;
         deck = mockDeck({
           topic,
