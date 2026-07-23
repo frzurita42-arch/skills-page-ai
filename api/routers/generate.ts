@@ -16,6 +16,7 @@ import {
   imageStyleSchema,
   lessonPathSchema,
   levelSchema,
+  repairDeckDraft,
   repoRef,
   slideDeckSchema,
   slugify,
@@ -386,9 +387,20 @@ export const generateRouter = createRouter({
               maxTokens: 16384,
             });
             if (!result) break; // no key configured → mock
-            deck = slideDeckSchema.parse(JSON.parse(extractJson(result.text)));
+            const repaired = repairDeckDraft(JSON.parse(extractJson(result.text)), {
+              level: input.level,
+              imageStyle: input.imageStyle,
+              topic,
+            });
+            deck = slideDeckSchema.parse(repaired);
           } catch (err) {
-            console.warn(`[generate.slides] LLM parse attempt ${attempt + 1} failed:`, err);
+            const detail =
+              err instanceof z.ZodError
+                ? JSON.stringify(err.issues.slice(0, 5))
+                : err instanceof Error
+                  ? err.message
+                  : String(err);
+            console.warn(`[generate.slides] LLM parse attempt ${attempt + 1} failed:`, detail);
           }
         }
       } catch (err) {

@@ -226,6 +226,60 @@ export function repoRef(slug: string): string {
   return out;
 }
 
+/**
+ * Salvage an LLM deck draft before strict validation. Real model output is
+ * imperfect in small ways — a quiz with 3 options, a chart with string data,
+ * an image with a made-up style — and rejecting the WHOLE deck for one bad
+ * piece wastes an otherwise good generation. Drop invalid components and
+ * quizzes individually, drop slides left with no components, and fill the
+ * top-level level/imageStyle/topic fields the caller already knows.
+ */
+export function repairDeckDraft(
+  raw: unknown,
+  defaults: { level: string; imageStyle: string; topic: string },
+): unknown {
+  if (!raw || typeof raw !== "object") return raw;
+  const draft = raw as Record<string, unknown>;
+  if (!levelSchema.safeParse(draft.level).success) draft.level = defaults.level;
+  if (!imageStyleSchema.safeParse(draft.imageStyle).success) draft.imageStyle = defaults.imageStyle;
+  if (typeof draft.topic !== "string" || !draft.topic.trim()) draft.topic = defaults.topic;
+
+  if (Array.isArray(draft.slides)) {
+    draft.slides = draft.slides
+      .map((slide) => {
+        if (!slide || typeof slide !== "object") return null;
+        const s = slide as Record<string, unknown>;
+        if (Array.isArray(s.components)) {
+          const kept = s.components.filter((c) => {
+            // images sometimes carry an invented style — snap it to the deck's
+            const comp = c as Record<string, unknown> | null;
+            if (
+              comp &&
+              comp.type === "image" &&
+              !imageStyleSchema.safeParse(comp.style).success
+            ) {
+              comp.style = defaults.imageStyle;
+            }
+            const ok = slideComponentSchema.safeParse(c).success;
+            if (!ok) console.warn("[ai/repair] dropping invalid slide component:", comp?.type);
+            return ok;
+          });
+          s.components = kept;
+        }
+        if (s.quiz !== undefined && !slideQuizSchema.safeParse(s.quiz).success) {
+          console.warn("[ai/repair] dropping invalid quiz on slide:", s.title);
+          delete s.quiz;
+        }
+        return s;
+      })
+      .filter(
+        (s) =>
+          s !== null && Array.isArray(s.components) && s.components.length > 0,
+      );
+  }
+  return draft;
+}
+
 /** Extract the first JSON object from an LLM response (tolerates fences/prose). */
 export function extractJson(raw: string): string {
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/);

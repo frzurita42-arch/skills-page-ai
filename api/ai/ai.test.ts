@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { extractJson, repoRef, slugify, slideDeckSchema, lessonPathSchema } from "./prompts";
+import {
+  extractJson,
+  repairDeckDraft,
+  repoRef,
+  slugify,
+  slideDeckSchema,
+  lessonPathSchema,
+} from "./prompts";
 import { mockDeck, mockLessonPath, mockCoachReply } from "./mock";
 import { isStemTopic } from "@contracts/stem";
 
@@ -56,6 +63,81 @@ describe("extractJson", () => {
     expect(extractJson('```json\n{"a":1}\n```')).toBe('{"a":1}');
     expect(extractJson('sure! {"a":{"b":2}} hope that helps')).toBe('{"a":{"b":2}}');
     expect(() => extractJson("no json here")).toThrow();
+  });
+});
+
+describe("repairDeckDraft", () => {
+  const defaults = { level: "beginner", imageStyle: "sketch", topic: "Fungi" };
+
+  it("salvages a deck with one bad component and a bad quiz", () => {
+    const raw = {
+      slides: [
+        {
+          title: "Good slide",
+          components: [
+            { type: "prose", paragraphs: ["Fungi are neither plants nor animals."] },
+            { type: "chart", chartType: "bar", title: "bad", labels: ["a"], series: [] }, // invalid
+          ],
+          quiz: {
+            question: "Pick one",
+            options: ["a", "b", "c"], // only 3 — invalid
+            correctIndex: 0,
+            explanation: "x",
+          },
+        },
+        { title: "Empty slide", components: [] }, // dropped entirely
+      ],
+      // level/imageStyle/topic missing — filled from defaults
+    };
+    const deck = slideDeckSchema.parse(repairDeckDraft(raw, defaults));
+    expect(deck.slides).toHaveLength(1);
+    expect(deck.slides[0].components).toHaveLength(1);
+    expect(deck.slides[0].quiz).toBeUndefined();
+    expect(deck.level).toBe("beginner");
+    expect(deck.imageStyle).toBe("sketch");
+    expect(deck.topic).toBe("Fungi");
+  });
+
+  it("snaps invented image styles to the deck style", () => {
+    const raw = {
+      slides: [
+        {
+          title: "s",
+          components: [
+            { type: "image", prompt: "a mushroom", alt: "mushroom", style: "hand-drawn" },
+          ],
+        },
+      ],
+      level: "beginner",
+      imageStyle: "sketch",
+      topic: "Fungi",
+    };
+    const deck = slideDeckSchema.parse(repairDeckDraft(raw, defaults));
+    const img = deck.slides[0].components[0];
+    expect(img.type).toBe("image");
+    if (img.type === "image") expect(img.style).toBe("sketch");
+  });
+
+  it("leaves a fully valid deck untouched", () => {
+    const raw = {
+      slides: [
+        {
+          title: "s",
+          components: [{ type: "prose", paragraphs: ["p"] }],
+          quiz: {
+            question: "q?",
+            options: ["a", "b", "c", "d"],
+            correctIndex: 1,
+            explanation: "e",
+          },
+        },
+      ],
+      level: "advanced",
+      imageStyle: "none",
+      topic: "Spores",
+    };
+    const deck = slideDeckSchema.parse(repairDeckDraft(structuredClone(raw), defaults));
+    expect(deck).toEqual(raw);
   });
 });
 
