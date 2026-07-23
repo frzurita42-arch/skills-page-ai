@@ -45,84 +45,101 @@ const DEFAULT_BASE_URLS: Record<AiProvider, string> = {
 };
 
 /**
- * Resolve a key from server environment variables (.env). This is the final
- * fallback tier so the platform works out of the box with the keys documented
- * in .env.example — no admin/settings step required.
+ * All usable keys from server environment variables (.env), in priority
+ * order. This is the final fallback tier so the platform works out of the
+ * box with the keys documented in .env.example — no admin/settings step
+ * required. Returning every candidate (not just the first) lets callers
+ * cascade to the next provider when one key is invalid or its API is down.
  */
-function envKeyFor(capability: AiCapability): ResolvedKey | null {
+function envKeyCandidates(capability: AiCapability): ResolvedKey[] {
   const e = process.env;
   const val = (name: string) => (e[name]?.trim() ? e[name]!.trim() : null);
+  const out: ResolvedKey[] = [];
 
   if (capability === "image") {
     const gemini = val("GEMINI_API_KEY");
     if (gemini) {
-      return { provider: "gemini", apiKey: gemini, model: val("GEMINI_IMAGE_MODEL") ?? undefined, source: "env" };
+      out.push({ provider: "gemini", apiKey: gemini, model: val("GEMINI_IMAGE_MODEL") ?? undefined, source: "env" });
     }
     const imageKey = val("IMAGE_API_KEY") ?? val("OPENAI_API_KEY");
     if (imageKey) {
       // IMAGE_API_URL may be the full endpoint; callers append /images/generations.
       const baseUrl = val("IMAGE_API_URL")?.replace(/\/images\/generations\/?$/, "") ?? undefined;
-      return { provider: "openai", apiKey: imageKey, baseUrl, model: val("IMAGE_API_MODEL") ?? undefined, source: "env" };
+      out.push({ provider: "openai", apiKey: imageKey, baseUrl, model: val("IMAGE_API_MODEL") ?? undefined, source: "env" });
     }
-    return null;
+    return out;
   }
 
   if (capability === "text") {
     const gemini = val("GEMINI_API_KEY");
     if (gemini) {
-      return { provider: "gemini", apiKey: gemini, model: val("GEMINI_TEXT_MODEL") ?? undefined, source: "env" };
+      out.push({ provider: "gemini", apiKey: gemini, model: val("GEMINI_TEXT_MODEL") ?? undefined, source: "env" });
     }
     const anthropic = val("ANTHROPIC_API_KEY");
     if (anthropic) {
-      return { provider: "anthropic", apiKey: anthropic, model: val("ANTHROPIC_MODEL") ?? undefined, source: "env" };
+      out.push({ provider: "anthropic", apiKey: anthropic, model: val("ANTHROPIC_MODEL") ?? undefined, source: "env" });
     }
     const openai = val("OPENAI_API_KEY");
-    if (openai) return { provider: "openai", apiKey: openai, source: "env" };
+    if (openai) out.push({ provider: "openai", apiKey: openai, source: "env" });
     const deepseek = val("DEEPSEEK_API_KEY");
     if (deepseek) {
-      return { provider: "openai", apiKey: deepseek, baseUrl: "https://api.deepseek.com/v1", model: "deepseek-chat", source: "env" };
+      out.push({ provider: "openai", apiKey: deepseek, baseUrl: "https://api.deepseek.com/v1", model: "deepseek-chat", source: "env" });
     }
     const openrouter = val("OPENROUTER_API_KEY");
     if (openrouter) {
-      return { provider: "openai", apiKey: openrouter, baseUrl: "https://openrouter.ai/api/v1", model: "openai/gpt-4o-mini", source: "env" };
+      out.push({ provider: "openai", apiKey: openrouter, baseUrl: "https://openrouter.ai/api/v1", model: "openai/gpt-4o-mini", source: "env" });
     }
     const kimi = val("KIMI_API_KEY");
     if (kimi) {
-      return { provider: "openai", apiKey: kimi, baseUrl: "https://api.moonshot.ai/v1", model: "moonshot-v1-8k", source: "env" };
+      out.push({ provider: "openai", apiKey: kimi, baseUrl: "https://api.moonshot.ai/v1", model: "moonshot-v1-8k", source: "env" });
     }
   }
-  return null;
+  return out;
 }
 
-/** Resolve the key to use for a capability: BYOK first, then platform settings, then .env. */
-export async function resolveKey(
+/**
+ * Every key candidate for a capability in priority order:
+ * user BYOK -> platform settings -> each .env key.
+ */
+async function resolveKeyCandidates(
   userId: number | undefined,
   capability: AiCapability,
-): Promise<ResolvedKey | null> {
+): Promise<ResolvedKey[]> {
+  const out: ResolvedKey[] = [];
   if (userId) {
     const rows = await getDb()
       .select()
       .from(apiKeys)
       .where(and(eq(apiKeys.userId, userId), eq(apiKeys.capability, capability)));
     if (rows.length > 0 && rows[0].apiKey.trim()) {
-      return {
+      out.push({
         provider: rows[0].provider,
         apiKey: rows[0].apiKey.trim(),
         source: "byok",
-      };
+      });
     }
   }
   const settings = await getSettings();
   const platform = settings.platformAiKeys[capability];
   if (platform?.apiKey?.trim()) {
-    return {
+    out.push({
       provider: platform.provider,
       apiKey: platform.apiKey.trim(),
       baseUrl: platform.baseUrl,
       source: "platform",
-    };
+    });
   }
-  return envKeyFor(capability);
+  out.push(...envKeyCandidates(capability));
+  return out;
+}
+
+/** Resolve the highest-priority key for a capability (BYOK -> platform -> .env). */
+export async function resolveKey(
+  userId: number | undefined,
+  capability: AiCapability,
+): Promise<ResolvedKey | null> {
+  const candidates = await resolveKeyCandidates(userId, capability);
+  return candidates[0] ?? null;
 }
 
 /** True when the user has any BYOK key for a capability (used by estimate). */
@@ -231,8 +248,11 @@ async function callGemini(
 }
 
 /**
- * Run a text completion. Returns null when no key is configured at all —
- * the caller then uses the deterministic mock so the platform stays demo-able.
+ * Run a text completion. Tries every configured key in priority order
+ * (BYOK -> platform -> each .env key) and returns the first success, so one
+ * invalid key or one provider outage doesn't take generation down. Returns
+ * null only when no key is configured at all or every candidate failed —
+ * callers decide whether that is a hard error or a mock fallback.
  */
 export async function completeText(opts: {
   userId?: number;
@@ -241,33 +261,38 @@ export async function completeText(opts: {
   maxTokens?: number;
 }): Promise<CompletionResult | null> {
   const capability = opts.capability ?? "text";
-  const key = await resolveKey(opts.userId, capability);
-  if (!key) return null;
-
-  const maxTokens = opts.maxTokens ?? 4096;
-  let text: string;
-  try {
-    switch (key.provider) {
-      case "openai":
-        text = await callOpenAICompatible(key, opts.messages, maxTokens);
-        break;
-      case "anthropic":
-        text = await callAnthropic(key, opts.messages, maxTokens);
-        break;
-      case "gemini":
-        text = await callGemini(key, opts.messages, maxTokens);
-        break;
-    }
-  } catch (err) {
-    // Network/provider failures (unreachable host, timeout, bad key, quota)
-    // must never bubble up to the client as a 500 — fall back to the mock.
-    console.warn(
-      `[ai/text] ${key.provider} completion failed, using mock fallback:`,
-      err instanceof Error ? err.message : err,
-    );
+  const candidates = await resolveKeyCandidates(opts.userId, capability);
+  if (candidates.length === 0) {
+    console.warn(`[ai/text] no ${capability} key configured (BYOK, platform, or .env)`);
     return null;
   }
-  return { text, provider: key.provider, source: key.source };
+
+  const maxTokens = opts.maxTokens ?? 4096;
+  for (const key of candidates) {
+    try {
+      let text: string;
+      switch (key.provider) {
+        case "openai":
+          text = await callOpenAICompatible(key, opts.messages, maxTokens);
+          break;
+        case "anthropic":
+          text = await callAnthropic(key, opts.messages, maxTokens);
+          break;
+        case "gemini":
+          text = await callGemini(key, opts.messages, maxTokens);
+          break;
+      }
+      return { text, provider: key.provider, source: key.source };
+    } catch (err) {
+      // Bad key, quota, timeout, unreachable host — log and try the next key.
+      console.warn(
+        `[ai/text] ${key.provider} (${key.source}${key.model ? `, ${key.model}` : ""}) failed, trying next candidate:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
+  console.warn(`[ai/text] all ${candidates.length} ${capability} key candidate(s) failed`);
+  return null;
 }
 
 /**
@@ -426,22 +451,27 @@ export async function generateImage(opts: {
   prompt: string;
   style?: string;
 }): Promise<string | null> {
-  try {
-    const key = await resolveKey(opts.userId, "image");
-    if (!key) return null;
-    const directive = opts.style ? IMAGE_STYLE_DIRECTIVES[opts.style] : undefined;
-    const prompt = directive ? `${opts.prompt}\n\nStyle: ${directive}.` : opts.prompt;
-    switch (key.provider) {
-      case "gemini":
-        return await callGeminiImage(key, prompt);
-      case "openai":
-        return await callOpenAIImage(key, prompt);
-      case "anthropic":
-        console.warn("[ai/image] Anthropic has no image generation API — skipping");
-        return null;
+  const candidates = await resolveKeyCandidates(opts.userId, "image").catch(() => [] as ResolvedKey[]);
+  if (candidates.length === 0) return null;
+  const directive = opts.style ? IMAGE_STYLE_DIRECTIVES[opts.style] : undefined;
+  const prompt = directive ? `${opts.prompt}\n\nStyle: ${directive}.` : opts.prompt;
+  for (const key of candidates) {
+    try {
+      switch (key.provider) {
+        case "gemini":
+          return await callGeminiImage(key, prompt);
+        case "openai":
+          return await callOpenAIImage(key, prompt);
+        case "anthropic":
+          console.warn("[ai/image] Anthropic has no image generation API — skipping");
+          continue;
+      }
+    } catch (err) {
+      console.warn(
+        `[ai/image] ${key.provider} (${key.source}) failed, trying next candidate:`,
+        err instanceof Error ? err.message : err,
+      );
     }
-  } catch (err) {
-    console.warn("[ai/image] generation failed:", err instanceof Error ? err.message : err);
-    return null;
   }
+  return null;
 }
