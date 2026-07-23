@@ -1,0 +1,236 @@
+import {
+  pgSchema,
+  serial,
+  varchar,
+  text,
+  timestamp,
+  integer,
+  boolean,
+  json,
+  uniqueIndex,
+  index,
+} from "drizzle-orm/pg-core";
+
+/* ------------------------------------------------------------------ */
+/* SketchLearn schema. */
+/* (FK constraints intentionally omitted to keep compatibility with      */
+/*  relationships are declared in db/relations.ts.)                     */
+/* ------------------------------------------------------------------ */
+
+const createdAt = () => timestamp("createdAt").defaultNow().notNull();
+const updatedAt = () =>
+  timestamp("updatedAt").defaultNow().notNull();
+const fk = (name: string) => integer(name);
+const appSchema = pgSchema("sketchlearn");
+
+const roleEnum = appSchema.enum("role", ["user", "moderator", "admin"]);
+const providerEnum = appSchema.enum("provider", ["openai", "anthropic", "gemini"]);
+const capabilityEnum = appSchema.enum("capability", ["text", "image", "tts"]);
+const templateEnum = appSchema.enum("template", ["course", "restaurant", "service", "shop", "other"]);
+const levelEnum = appSchema.enum("level", ["beginner", "intermediate", "advanced"]);
+const imageStyleEnum = appSchema.enum("imageStyle", ["sketch", "watercolor", "flat", "photo", "none"]);
+const paymentStatusEnum = appSchema.enum("status", ["pending", "credited", "rejected"]);
+const targetTypeEnum = appSchema.enum("targetType", ["repo", "slideTool"]);
+
+export const users = appSchema.table(
+  "users",
+  {
+    id: serial("id").primaryKey(),
+    email: varchar("email", { length: 320 }).notNull().unique(),
+    passwordHash: varchar("passwordHash", { length: 255 }).notNull(),
+    name: varchar("name", { length: 255 }).notNull(),
+    role: roleEnum("role").notNull().default("user"),
+    tokenBalance: integer("tokenBalance").notNull().default(50),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("users_role_idx").on(t.role)],
+);
+
+export const apiKeys = appSchema.table(
+  "apiKeys",
+  {
+    id: serial("id").primaryKey(),
+    userId: fk("userId").notNull(),
+    provider: providerEnum("provider").notNull(),
+    capability: capabilityEnum("capability").notNull(),
+    apiKey: text("apiKey").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("apiKeys_user_provider_capability").on(t.userId, t.provider, t.capability)],
+);
+
+export const repos = appSchema.table(
+  "repos",
+  {
+    id: serial("id").primaryKey(),
+    slug: varchar("slug", { length: 191 }).notNull().unique(),
+    ref: varchar("ref", { length: 5 }).notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    description: text("description").notNull(),
+    template: templateEnum("template").notNull().default("course"),
+    ownerId: fk("ownerId"),
+    studyToolSlug: varchar("studyToolSlug", { length: 191 }),
+    isPublic: boolean("isPublic").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("repos_template_idx").on(t.template), index("repos_owner_idx").on(t.ownerId)],
+);
+
+export const units = appSchema.table(
+  "units",
+  {
+    id: serial("id").primaryKey(),
+    repoId: fk("repoId").notNull(),
+    title: varchar("title", { length: 255 }).notNull(),
+    orderIndex: integer("orderIndex").notNull(),
+  },
+  (t) => [index("units_repo_idx").on(t.repoId)],
+);
+
+export const lessons = appSchema.table(
+  "lessons",
+  {
+    id: serial("id").primaryKey(),
+    unitId: fk("unitId").notNull(),
+    parentLessonId: fk("parentLessonId"),
+    title: varchar("title", { length: 255 }).notNull(),
+    objective: text("objective").notNull(),
+    orderIndex: integer("orderIndex").notNull(),
+    globalSeq: integer("globalSeq").notNull(),
+  },
+  (t) => [index("lessons_unit_idx").on(t.unitId)],
+);
+
+export const slideTools = appSchema.table(
+  "slideTools",
+  {
+    id: serial("id").primaryKey(),
+    slug: varchar("slug", { length: 191 }).notNull().unique(),
+    name: varchar("name", { length: 255 }).notNull(),
+    description: text("description").notNull(),
+    ownerId: fk("ownerId"),
+    topic: text("topic").notNull(),
+    instructions: text("instructions").notNull(),
+    defaultLevel: levelEnum("defaultLevel").notNull().default("beginner"),
+    defaultSlideCount: integer("defaultSlideCount").notNull().default(8),
+    defaultImageStyle: imageStyleEnum("defaultImageStyle").notNull().default("sketch"),
+    isPublic: boolean("isPublic").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("slideTools_owner_idx").on(t.ownerId)],
+);
+
+export const runs = appSchema.table(
+  "runs",
+  {
+    id: serial("id").primaryKey(),
+    slideToolId: fk("slideToolId").notNull(),
+    repoId: fk("repoId"),
+    lessonId: fk("lessonId"),
+    userId: fk("userId"),
+    playerName: varchar("playerName", { length: 255 }).notNull().default("Guest"),
+    seedJson: json("seedJson"),
+    level: levelEnum("level").notNull(),
+    imageStyle: imageStyleEnum("imageStyle").notNull(),
+    slideCount: integer("slideCount").notNull(),
+    scoreCorrect: integer("scoreCorrect").notNull().default(0),
+    scoreTotal: integer("scoreTotal").notNull().default(0),
+    elapsedSec: integer("elapsedSec").notNull().default(0),
+    deckJson: json("deckJson"),
+    flagged: boolean("flagged").notNull().default(false),
+    completedAt: timestamp("completedAt").defaultNow().notNull(),
+  },
+  (t) => [
+    index("runs_tool_idx").on(t.slideToolId),
+    index("runs_repo_idx").on(t.repoId),
+    index("runs_user_idx").on(t.userId),
+    index("runs_completed_idx").on(t.completedAt),
+  ],
+);
+
+export const lessonLogs = appSchema.table(
+  "lessonLogs",
+  {
+    id: serial("id").primaryKey(),
+    repoId: fk("repoId").notNull(),
+    lessonId: fk("lessonId").notNull(),
+    runId: fk("runId").notNull(),
+    userId: fk("userId"),
+    level: levelEnum("level").notNull(),
+    scoreCorrect: integer("scoreCorrect").notNull().default(0),
+    scoreTotal: integer("scoreTotal").notNull().default(0),
+    elapsedSec: integer("elapsedSec").notNull().default(0),
+    perSlideJson: json("perSlideJson").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("lessonLogs_repo_idx").on(t.repoId),
+    index("lessonLogs_lesson_idx").on(t.lessonId),
+  ],
+);
+
+export const tokenLedger = appSchema.table(
+  "tokenLedger",
+  {
+    id: serial("id").primaryKey(),
+    userId: fk("userId").notNull(),
+    delta: integer("delta").notNull(),
+    reason: varchar("reason", { length: 255 }).notNull(),
+    balanceAfter: integer("balanceAfter").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("tokenLedger_user_idx").on(t.userId), index("tokenLedger_created_idx").on(t.createdAt)],
+);
+
+export const payments = appSchema.table(
+  "payments",
+  {
+    id: serial("id").primaryKey(),
+    userId: fk("userId").notNull(),
+    packId: varchar("packId", { length: 64 }).notNull(),
+    packTokens: integer("packTokens").notNull(),
+    amountCents: integer("amountCents").notNull(),
+    note: text("note"),
+    status: paymentStatusEnum("status").notNull().default("pending"),
+    resolvedBy: fk("resolvedBy"),
+    createdAt: createdAt(),
+    resolvedAt: timestamp("resolvedAt"),
+  },
+  (t) => [index("payments_status_idx").on(t.status), index("payments_user_idx").on(t.userId)],
+);
+
+export const settings = appSchema.table("settings", {
+  key: varchar("key", { length: 64 }).primaryKey(),
+  valueJson: json("valueJson").notNull(),
+});
+
+export const favorites = appSchema.table(
+  "favorites",
+  {
+    id: serial("id").primaryKey(),
+    userId: fk("userId").notNull(),
+    targetType: targetTypeEnum("targetType").notNull(),
+    targetSlug: varchar("targetSlug", { length: 191 }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("favorites_user_target").on(t.userId, t.targetType, t.targetSlug),
+  ],
+);
+
+/* Inferred types */
+export type User = typeof users.$inferSelect;
+export type ApiKey = typeof apiKeys.$inferSelect;
+export type Repo = typeof repos.$inferSelect;
+export type Unit = typeof units.$inferSelect;
+export type Lesson = typeof lessons.$inferSelect;
+export type SlideTool = typeof slideTools.$inferSelect;
+export type Run = typeof runs.$inferSelect;
+export type LessonLog = typeof lessonLogs.$inferSelect;
+export type TokenLedgerEntry = typeof tokenLedger.$inferSelect;
+export type Payment = typeof payments.$inferSelect;
+export type Setting = typeof settings.$inferSelect;
+export type Favorite = typeof favorites.$inferSelect;
