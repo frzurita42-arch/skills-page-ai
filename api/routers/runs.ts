@@ -125,6 +125,7 @@ export const runsRouter = createRouter({
         playerName: z.string().max(255).optional(),
         deck: z.unknown().optional(), // full generated deck snapshot
         perSlide: z.array(perSlideSchema).max(30).default([]),
+        annotations: z.unknown().optional(), // DeckAnnotations (freehand marks)
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -177,6 +178,7 @@ export const runsRouter = createRouter({
             scoreTotal,
             elapsedSec: input.elapsedSec,
             deckJson: input.deck ?? null,
+            annotationsJson: input.annotations ?? null,
           })
           .returning({ id: runs.id });
 
@@ -291,7 +293,8 @@ export const runsRouter = createRouter({
           correct: a?.correct ?? null,
         };
       });
-      return { ...row, deck, answers };
+      const annotations = (r.annotationsJson ?? null) as RunReplay["annotations"];
+      return { ...row, deck, answers, annotations };
     }),
 
   listGlobal: publicQuery

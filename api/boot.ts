@@ -6,6 +6,7 @@ import { appRouter } from "./router";
 import { createContext } from "./context";
 import { env } from "./lib/env";
 import { ensureCefrLevelEnum } from "./lib/migrate-levels";
+import { ensureRunAnnotationsColumn } from "./lib/migrate-annotations";
 
 // Best-effort schema catch-up on boot so an existing database accepts CEFR
 // levels (otherwise new runs/decks silently fail to save). Never blocks boot.
@@ -14,6 +15,14 @@ void ensureCefrLevelEnum().catch((err) =>
     "[migrate] CEFR level enum auto-migration skipped:",
     err instanceof Error ? err.message : err,
     "— run `npx tsx scripts/migrate-cefr-levels.ts` manually if new runs fail to save.",
+  ),
+);
+
+// Best-effort: add the runs.annotationsJson column on older databases.
+void ensureRunAnnotationsColumn().catch((err) =>
+  console.warn(
+    "[migrate] run annotations column auto-migration skipped:",
+    err instanceof Error ? err.message : err,
   ),
 );
 

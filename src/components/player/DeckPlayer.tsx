@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Flag } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Flag, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/hooks/useAuth';
-import type { LessonSeed, SlideDeck, SlidePlanInfo } from '@contracts/types';
+import type { LessonSeed, SlideDeck, SlidePlanInfo, SlideAnnotation, DeckAnnotations } from '@contracts/types';
 import SketchButton from '../sketch/SketchButton';
 import WashiTape from '../sketch/WashiTape';
 import { DoodleSparkle, DoodleStar, DoodleSpiral } from '../sketch/DoodleIcons';
@@ -12,6 +12,8 @@ import PlayerHeader from './PlayerHeader';
 import SlideComponentView, { Kara } from './SlideComponents';
 import QuizCard, { type QuizAnswer } from './QuizCard';
 import FinishScreen from './FinishScreen';
+import AnnotationLayer, { type AnnTool } from './AnnotationLayer';
+import AnnotationToolbar from './AnnotationToolbar';
 import { buildNarration } from './narration';
 import { useReadAloud } from './useReadAloud';
 
@@ -62,6 +64,18 @@ export default function DeckPlayer({
   const [replayKey, setReplayKey] = useState(0);
   const startRef = useRef(Date.now());
   const [elapsedFinal, setElapsedFinal] = useState(0);
+
+  /* -------- freehand annotations (pencil / eraser / text notes) -------- */
+  const [annotateOn, setAnnotateOn] = useState(false);
+  const [annTool, setAnnTool] = useState<AnnTool>('pen');
+  const [annColor, setAnnColor] = useState('#2E2820');
+  const [annWidth, setAnnWidth] = useState(4);
+  const [annotations, setAnnotations] = useState<Record<number, SlideAnnotation[]>>({});
+  const [captureW, setCaptureW] = useState(0);
+  const deckAnnotations = useMemo<DeckAnnotations>(
+    () => ({ w: captureW || 1, slides: annotations }),
+    [captureW, annotations],
+  );
 
   const total = deck.slides.length;
   const viewingIdx = reviewIdx ?? index;
@@ -193,6 +207,8 @@ export default function DeckPlayer({
 
   const replay = () => {
     setAnswers({});
+    setAnnotations({});
+    setAnnotateOn(false);
     setIndex(0);
     setDir(1);
     setFinished(false);
@@ -246,6 +262,7 @@ export default function DeckPlayer({
             toolSlug={toolSlug}
             seed={seed}
             answers={answers}
+            annotations={deckAnnotations}
             elapsedSec={elapsedFinal}
             nextLessonTitle={nextLessonTitle}
             onReplay={replay}
@@ -262,19 +279,23 @@ export default function DeckPlayer({
               animate="center"
               exit="exit"
               transition={{ duration: 0.35, ease: EASE }}
-              drag={reduced ? false : 'x'}
+              drag={reduced || annotateOn ? false : 'x'}
               dragConstraints={{ left: 0, right: 0 }}
               dragElastic={0.15}
               onDragEnd={(_, info) => {
                 if (info.offset.x < -80) goNext();
                 else if (info.offset.x > 80) goBack();
               }}
-              className="relative mx-auto max-w-[1080px] cursor-grab px-5 pb-32 pt-8 active:cursor-grabbing sm:px-8"
+              className={cn(
+                'relative mx-auto max-w-[1080px] px-5 pb-32 pt-8 sm:px-8',
+                annotateOn ? '' : 'cursor-grab active:cursor-grabbing',
+              )}
             >
               {/* margin doodles (slide-tool.md §C2) — hidden on mobile */}
               <DoodleStar className="pointer-events-none absolute right-2 top-24 hidden h-6 w-6 text-ink/50 lg:block" />
               <DoodleSpiral className="pointer-events-none absolute right-4 top-1/2 hidden h-7 w-7 text-ink/40 lg:block" />
 
+              <div className="relative">
               <motion.div
                 initial="hidden"
                 animate="show"
@@ -346,10 +367,59 @@ export default function DeckPlayer({
                   </motion.div>
                 )}
               </motion.div>
+
+                {/* freehand annotation overlay — anchored to this slide's
+                    content so marks scroll with it and stay in place */}
+                <AnnotationLayer
+                  annotations={annotations[viewingIdx] ?? []}
+                  editable
+                  active={annotateOn}
+                  tool={annTool}
+                  color={annColor}
+                  width={annWidth}
+                  onChange={(next) =>
+                    setAnnotations((prev) => ({ ...prev, [viewingIdx]: next }))
+                  }
+                  onReportWidth={(w) =>
+                    setCaptureW((prev) => (prev === Math.round(w) ? prev : Math.round(w)))
+                  }
+                />
+              </div>
             </motion.div>
           </AnimatePresence>
         )}
       </div>
+
+      {/* annotation toolbar / toggle — slide player only, top-centre */}
+      {!finished && (
+        <div className="pointer-events-none fixed left-1/2 top-[58px] z-[70] flex -translate-x-1/2 justify-center px-2">
+          {annotateOn ? (
+            <AnnotationToolbar
+              tool={annTool}
+              color={annColor}
+              width={annWidth}
+              onTool={setAnnTool}
+              onColor={setAnnColor}
+              onWidth={setAnnWidth}
+              onClear={() =>
+                setAnnotations((prev) => ({ ...prev, [viewingIdx]: [] }))
+              }
+              onClose={() => setAnnotateOn(false)}
+              hasMarks={(annotations[viewingIdx]?.length ?? 0) > 0}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setAnnotateOn(true)}
+              className="pointer-events-auto flex items-center gap-1.5 rounded-wobble-sm border-2 border-ink bg-paper-3 px-3 py-1.5 font-heading text-sm font-semibold text-ink shadow-offset transition-transform hover:-translate-y-0.5"
+              title="Draw, highlight and add notes on this slide"
+            >
+              <Pencil className="h-4 w-4" strokeWidth={2} />
+              Annotate
+            </button>
+          )}
+        </div>
+      )}
 
       {/* bottom navigation (slide-tool.md §C4) */}
       {!finished && !inReview && (

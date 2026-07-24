@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/hooks/useAuth';
 import { isPassingScore, PASS_THRESHOLD } from '@contracts/progress';
-import type { LessonSeed, SlideDeck } from '@contracts/types';
+import type { LessonSeed, SlideDeck, DeckAnnotations } from '@contracts/types';
 import SketchButton from '../sketch/SketchButton';
 import Chip from '../sketch/Chip';
 import { DoodleCheck } from '../sketch/DoodleIcons';
@@ -18,6 +18,8 @@ export interface FinishScreenProps {
   toolSlug: string;
   seed: LessonSeed | null;
   answers: Record<number, QuizAnswer>;
+  /** freehand marks the player left on the slides, saved with the run */
+  annotations?: DeckAnnotations;
   elapsedSec: number;
   nextLessonTitle: string | null;
   onReplay: () => void;
@@ -58,6 +60,7 @@ export default function FinishScreen({
   toolSlug,
   seed,
   answers,
+  annotations,
   elapsedSec,
   nextLessonTitle,
   onReplay,
@@ -116,6 +119,9 @@ export default function FinishScreen({
         correct: slide.quiz && ans ? ans.firstCorrect : null,
       };
     });
+    // only send annotations if the player actually drew something
+    const hasMarks =
+      !!annotations && Object.values(annotations.slides).some((list) => list.length > 0);
     complete.mutate({
       toolSlug,
       seed: seed ?? undefined,
@@ -126,6 +132,7 @@ export default function FinishScreen({
       playerName: user?.name,
       deck,
       perSlide,
+      annotations: hasMarks ? annotations : undefined,
     });
   };
   const saveRef = useRef(save);

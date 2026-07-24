@@ -8,6 +8,7 @@ import SketchButton from '@/components/sketch/SketchButton';
 import Chip from '@/components/sketch/Chip';
 import WashiTape from '@/components/sketch/WashiTape';
 import SlideComponentView from '@/components/player/SlideComponents';
+import AnnotationLayer from '@/components/player/AnnotationLayer';
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number];
 
@@ -116,6 +117,7 @@ export default function Replay() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.3, ease: EASE }}
+            className="relative"
           >
             <div className="micro mb-1 text-ink-faint">
               Slide {safeIdx + 1} of {slides.length}
@@ -126,6 +128,15 @@ export default function Replay() {
                 <SlideComponentView key={ci} component={c} ci={ci} current={null} />
               ))}
             </div>
+
+            {/* the freehand marks the player left on this slide (read-only) */}
+            {data.annotations && (
+              <AnnotationLayer
+                annotations={data.annotations.slides[safeIdx] ?? []}
+                editable={false}
+                captureWidth={data.annotations.w}
+              />
+            )}
 
             {/* recorded quiz answer */}
             {hasQuiz && slide.quiz && (

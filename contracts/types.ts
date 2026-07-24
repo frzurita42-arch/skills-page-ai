@@ -293,6 +293,37 @@ export interface RunDetail extends RunRow {
   slides: RunSlideDetail[];
 }
 
+/* ---------------- Freehand annotations (slide player only) ---------
+ * A learner (or reviewer) can draw and drop text notes on top of a slide
+ * in the player. Annotations are anchored to the slide content (they scroll
+ * with it), stored per slide index, and saved with the run so a completed
+ * play can be replayed with its markings — for the learner's own notes or a
+ * moderator reviewing what a user did.                                       */
+export interface AnnStroke {
+  kind: "stroke";
+  color: string;
+  width: number;
+  /** flat [x0,y0,x1,y1,…] in capture-space pixels */
+  points: number[];
+}
+export interface AnnText {
+  kind: "text";
+  color: string;
+  size: number;
+  x: number;
+  y: number;
+  text: string;
+}
+export type SlideAnnotation = AnnStroke | AnnText;
+
+/** All annotations for a deck: the capture width they were drawn at (so a
+ *  replay at a different width can scale them proportionally) + per-slide
+ *  lists keyed by slide index. */
+export interface DeckAnnotations {
+  w: number;
+  slides: Record<number, SlideAnnotation[]>;
+}
+
 /** A fully replayable recording of a past play: the exact deck as presented
  *  (text, images, charts…) plus what the student picked on each quiz. */
 export interface RunReplay extends RunRow {
@@ -303,6 +334,8 @@ export interface RunReplay extends RunRow {
     correctOption: string | null;
     correct: boolean | null;
   }[];
+  /** freehand drawings + text notes the player left on the slides */
+  annotations: DeckAnnotations | null;
 }
 
 export interface LessonLogSlide {

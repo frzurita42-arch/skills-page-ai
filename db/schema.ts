@@ -156,6 +156,8 @@ export const runs = appSchema.table(
     scoreTotal: integer("scoreTotal").notNull().default(0),
     elapsedSec: integer("elapsedSec").notNull().default(0),
     deckJson: json("deckJson"),
+    // freehand annotations the player left on the slides (DeckAnnotations)
+    annotationsJson: json("annotationsJson"),
     flagged: boolean("flagged").notNull().default(false),
     completedAt: timestamp("completedAt").defaultNow().notNull(),
   },
