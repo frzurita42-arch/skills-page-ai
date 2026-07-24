@@ -161,6 +161,21 @@ export function sectionForTags(tags: string[]): TemplateSection {
   return "general";
 }
 
+/** Tags that mark a slide as MATH-flavoured (maths, physics, worked problems)
+ *  — used to badge these templates so they're easy to spot. */
+export const MATH_TAGS = [
+  "math",
+  "algebra",
+  "calculus",
+  "geometry",
+  "physics",
+  "problem-solving",
+  "worked-example",
+];
+export function isMathTemplate(tags: string[]): boolean {
+  return tags.some((t) => MATH_TAGS.includes(t));
+}
+
 /* ------------------------------------------------------------------ */
 /* Built-in catalog                                                     */
 /* Density by level: beginner = 1 short text; intermediate = 2-3 texts; */
@@ -203,6 +218,11 @@ const STEM_TEMPLATES: SlideTemplate[] = [
   bi("Compare methods", "B1", ["prose", "table", "prose", "shortanswer"], ["stem"]),
   bi("Formula + graph", "B1", ["prose", "latex", "chart", "quiz"], ["physics", "math"]),
   bi("Cause and effect", "B1", ["prose", "prose", "svg", "quiz"], ["science", "chemistry"]),
+  // EXPLAINERS: a fully worked solution walked through step by step (like a
+  // solver showing its work), then an MCQ about a step — see it solved first
+  bi("Solution walkthrough", "B1", ["prose", "latex", "prose", "quiz"], ["math", "physics", "worked-example"]),
+  bi("Step-by-step solved", "B1", ["prose", "latex", "latex", "quiz"], ["math", "algebra", "worked-example"]),
+  bi("Worked on a graph", "B1", ["prose", "chart", "prose", "quiz"], ["math", "physics", "worked-example"]),
   // problem-solving: a statement to work out on a paginated scratchpad
   bi("Solve the problem", "B1", ["prose", "solve"], ["math", "physics", "problem-solving"]),
   bi("Solve with a graph", "B1", ["prose", "chart", "solve"], ["math", "physics", "problem-solving"]),
@@ -220,6 +240,8 @@ const STEM_TEMPLATES: SlideTemplate[] = [
   bi("Contrast two models", "C1", ["prose", "prose", "table", "prose", "shortanswer"], ["stem", "science"]),
   bi("Edge cases", "C1", ["prose", "prose", "prose", "code", "quiz"], ["cs", "programming"]),
   bi("Quantitative deep dive", "C1", ["prose", "latex", "chart", "prose", "fillblank"], ["physics", "math"]),
+  // EXPLAINER: a full worked solution developed on screen, then an MCQ
+  bi("Full solution explained", "C1", ["prose", "latex", "prose", "prose", "quiz"], ["math", "physics", "worked-example"]),
   // problem-solving: a full statement worked out on a paginated scratchpad
   bi("Work the problem", "C1", ["prose", "prose", "solve"], ["math", "physics", "problem-solving"]),
   bi("Model & solve on a graph", "C1", ["prose", "chart", "prose", "solve"], ["math", "physics", "problem-solving"]),
@@ -306,6 +328,34 @@ export const BUILTIN_SLIDE_TEMPLATES: SlideTemplate[] = [
   ...STEM_TEMPLATES,
   ...HUMANITIES_TEMPLATES,
   ...GENERAL_TEMPLATES,
+];
+
+/* ------------------------------------------------------------------ */
+/* Lesson packets — recommended template plans for an activity.        */
+/* Applying one pins its templates onto the first slides so the deck    */
+/* follows a proven shape (e.g. "see it solved, then solve it").        */
+/* ------------------------------------------------------------------ */
+export interface LessonPacket {
+  id: string;
+  name: string;
+  description: string;
+  /** built-in template NAMES, in order, pinned onto slides 1..N */
+  templates: string[];
+}
+
+export const LESSON_PACKETS: LessonPacket[] = [
+  {
+    id: "math-practice",
+    name: "Math practice",
+    description:
+      "See it solved, then solve it: two worked solutions each ending in a step-check question, then two problems you solve yourself on the scratchpad.",
+    templates: [
+      "Solution walkthrough",
+      "Step-by-step solved",
+      "Solve the problem",
+      "Solve with a diagram",
+    ],
+  },
 ];
 
 /**

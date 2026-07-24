@@ -26,11 +26,13 @@ import {
   TEMPLATE_LEVELS,
   GRADABLE_TYPES,
   sectionForTags,
+  isMathTemplate,
   type TemplateComponentType,
   type TemplateLevel,
   type TemplateSection,
   type SlideTemplate,
 } from '@contracts/slide-templates';
+import { MathBadge } from '@/components/templates/TemplatePicker';
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number];
 const PAGE_SIZE = 6;
@@ -233,7 +235,10 @@ function TemplateSection({
               <WashiTape rotate={i % 2 === 0 ? -3 : 2} className="left-6" />
               <div className="mb-2 flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <h3 className="font-heading text-lg font-bold text-ink">{t.name}</h3>
+                  <h3 className="font-heading text-lg font-bold text-ink">
+                    {isMathTemplate(t.tags) && <MathBadge />}
+                    {t.name}
+                  </h3>
                   <Chip
                     kind={t.level}
                     className="mt-0.5 text-[0.58rem] capitalize"

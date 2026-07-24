@@ -3,12 +3,25 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Check, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
+  isMathTemplate,
   sectionForTags,
   templateSequenceLabel,
   TEMPLATE_SECTION_LABEL,
   type SlideTemplate,
   type TemplateSection,
 } from '@contracts/slide-templates';
+
+/** Small red π badge marking a math/physics/worked-problem template. */
+export function MathBadge() {
+  return (
+    <span
+      title="Math / physics slide"
+      className="mr-1 inline-flex h-4 w-4 items-center justify-center rounded-full border border-red bg-red-soft align-[-1px] font-display text-[0.7rem] font-bold leading-none text-red"
+    >
+      π
+    </span>
+  );
+}
 
 /** Category colour so the section reads at a glance in the picker. */
 const SECTION_COLOR: Record<TemplateSection, string> = {
@@ -27,10 +40,11 @@ function SectionTag({ t }: { t: SlideTemplate }) {
   );
 }
 
-/** Full option label: name · <coloured section> (level) — Text · Table · … */
+/** Full option label: [π] name · <coloured section> (level) — Text · Table · … */
 function OptionLabel({ t, withSequence }: { t: SlideTemplate; withSequence: boolean }) {
   return (
     <>
+      {isMathTemplate(t.tags) && <MathBadge />}
       {t.name} · <SectionTag t={t} /> ({t.level})
       {withSequence ? ` — ${templateSequenceLabel(t.components)}` : ''}
     </>
@@ -103,7 +117,14 @@ export default function TemplatePicker({
         )}
       >
         <span className="truncate">
-          {selected ? <OptionLabel t={selected} withSequence={false} /> : 'Auto (AI chooses)'}
+          {selected ? (
+            <OptionLabel t={selected} withSequence={false} />
+          ) : value ? (
+            // pinned to a template not in this filtered list (e.g. a packet)
+            value
+          ) : (
+            'Auto (AI chooses)'
+          )}
         </span>
         <ChevronDown
           className={cn('h-4 w-4 shrink-0 text-ink-soft transition-transform', open && 'rotate-180')}

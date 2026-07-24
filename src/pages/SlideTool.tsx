@@ -38,7 +38,7 @@ import TemplateBar from '@/components/templates/TemplateBar';
 import TemplatePicker from '@/components/templates/TemplatePicker';
 
 import { isStemTopic } from '@contracts/stem';
-import { templatesForSubjectAndLevel } from '@contracts/slide-templates';
+import { templatesForSubjectAndLevel, LESSON_PACKETS, type LessonPacket } from '@contracts/slide-templates';
 
 const STYLE_PRESETS: Exclude<ImageStyle, 'none'>[] = [
   'sketch',
@@ -211,6 +211,14 @@ function ToolStudio({
   const [tone, setTone] = useState<Tone>('neutral');
   // Advanced: pinned layout template per slide (name | null = auto). Index i → slide i+1.
   const [templatePlan, setTemplatePlan] = useState<(string | null)[]>([]);
+  // Apply a lesson packet: pin its templates onto the first slides (growing
+  // the slide count if the packet needs more), leaving the rest on Auto.
+  const applyPacket = (p: LessonPacket) => {
+    const n = Math.max(slideCount, p.templates.length);
+    setSlideCount(n);
+    setTemplatePlan(Array.from({ length: n }, (_, i) => p.templates[i] ?? null));
+    setAdvancedOpen(true);
+  };
   const [theaterDone, setTheaterDone] = useState(false);
   const [result, setResult] = useState<{
     deck: SlideDeck;
@@ -682,6 +690,34 @@ function ToolStudio({
                     ))}
                   </div>
                   <p className="micro mt-1.5 text-ink-faint">{TONE_HINT[tone]}</p>
+                </div>
+
+                <div className="mb-3 border-t-2 border-dashed border-pencil" />
+
+                {/* Lesson packets — one-click recommended template plans */}
+                <div className="mb-4">
+                  <span className="micro mb-1 block font-semibold text-ink-soft">
+                    Lesson packet — a recommended set of slides for an activity
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {LESSON_PACKETS.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => applyPacket(p)}
+                        title={p.description}
+                        className="rounded-wobble-sm border-2 border-dashed border-pencil px-3 py-1.5 text-left font-heading text-sm text-ink-soft transition-colors hover:border-ink hover:bg-paper-2 hover:text-ink"
+                      >
+                        <span className="font-bold text-ink">{p.name}</span>
+                        <span className="ml-1 text-[0.68rem] text-ink-faint">
+                          · {p.templates.length} slides
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="micro mt-1.5 text-ink-faint">
+                    Applying a packet pins its slides below — you can still tweak any of them.
+                  </p>
                 </div>
 
                 <div className="mb-3 border-t-2 border-dashed border-pencil" />
