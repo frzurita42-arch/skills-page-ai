@@ -97,6 +97,13 @@ export const TEMPLATE_LEVELS: TemplateLevel[] = LEVELS;
 
 export type TemplateSection = "stem" | "humanities" | "general";
 
+/** Human label for a template's subject section (UI). */
+export const TEMPLATE_SECTION_LABEL: Record<TemplateSection, string> = {
+  stem: "STEM",
+  humanities: "Humanities",
+  general: "General",
+};
+
 export interface SlideTemplate {
   /** builtin templates use string ids ("bi-…"); custom rows use DB numeric ids */
   id: string | number;
@@ -296,7 +303,13 @@ export function templatesForSubject(all: SlideTemplate[], stem: boolean): SlideT
   return all.filter((t) => {
     const section = sectionForTags(t.tags);
     if (section === "general") return true;
-    return section === (stem ? "stem" : "humanities");
+    // A STEM deck may ALSO draw on humanities layouts (text-rich reads,
+    // image + explanation, key-term cards) for variety — a science lesson
+    // often wants a discursive or visual slide. A humanities deck stays
+    // within humanities + general so STEM-only steps (formulas, code) don't
+    // intrude on a subject that never calls for them.
+    if (stem) return true;
+    return section === "humanities";
   });
 }
 

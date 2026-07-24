@@ -46,17 +46,21 @@ describe("slide-template catalog", () => {
     expect(avgProse("dense")).toBeGreaterThan(avgProse("light"));
   });
 
-  it("STEM subjects get STEM+general layouts; humanities-only ones are dropped", () => {
+  it("STEM subjects get STEM + humanities + general (variety); humanities subjects exclude STEM", () => {
+    // STEM decks may also pull text/image-rich humanities layouts for variety.
     const stem = templatesForSubject(BUILTIN_SLIDE_TEMPLATES, true);
-    for (const t of stem) expect(sectionForTags(t.tags)).not.toBe("humanities");
+    expect(stem.some((t) => sectionForTags(t.tags) === "stem")).toBe(true);
+    expect(stem.some((t) => sectionForTags(t.tags) === "humanities")).toBe(true);
     expect(stem.some((t) => sectionForTags(t.tags) === "general")).toBe(true);
+    // Humanities decks still exclude STEM-only layouts (formulas, code).
+    const hum = templatesForSubject(BUILTIN_SLIDE_TEMPLATES, false);
+    for (const t of hum) expect(sectionForTags(t.tags)).not.toBe("stem");
   });
 
   it("subject+level filtering returns only that level (when non-empty)", () => {
     const advStem = templatesForSubjectAndLevel(BUILTIN_SLIDE_TEMPLATES, true, "C1");
     expect(advStem.length).toBeGreaterThan(0);
     for (const t of advStem) expect(t.level).toBe("C1");
-    for (const t of advStem) expect(sectionForTags(t.tags)).not.toBe("humanities");
   });
 
   it("gradable set is exactly the four evaluation types", () => {
