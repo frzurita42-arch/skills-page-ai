@@ -3,7 +3,8 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Flag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { trpc } from '@/providers/trpc';
-import type { LessonSeed, SlideDeck } from '@contracts/types';
+import { useAuth } from '@/hooks/useAuth';
+import type { LessonSeed, SlideDeck, SlidePlanInfo } from '@contracts/types';
 import SketchButton from '../sketch/SketchButton';
 import WashiTape from '../sketch/WashiTape';
 import { DoodleSparkle, DoodleStar, DoodleSpiral } from '../sketch/DoodleIcons';
@@ -21,6 +22,8 @@ export interface DeckPlayerProps {
   toolSlug: string;
   seed: LessonSeed | null;
   previouslyTaught: string | null;
+  /** per-slide layout info for the admin diagnostic badge */
+  slidePlan?: SlidePlanInfo[];
   voiceURI: string | null;
   nextLessonTitle: string | null;
   onExit: () => void;
@@ -42,11 +45,14 @@ export default function DeckPlayer({
   toolSlug,
   seed,
   previouslyTaught,
+  slidePlan,
   voiceURI,
   nextLessonTitle,
   onExit,
 }: DeckPlayerProps) {
   const reduced = useReducedMotion();
+  const { role } = useAuth();
+  const isAdmin = role === 'admin';
   const [index, setIndex] = useState(0);
   const [dir, setDir] = useState(1);
   const [answers, setAnswers] = useState<Record<number, QuizAnswer>>({});
@@ -221,6 +227,8 @@ export default function DeckPlayer({
         index={index}
         total={total}
         readAloud={readAloud}
+        isAdmin={isAdmin}
+        layout={slidePlan?.[viewingIdx] ?? null}
         onExit={() => (finished ? onExit() : setExitConfirm(true))}
       />
 

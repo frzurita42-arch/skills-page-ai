@@ -148,6 +148,7 @@ ${opts.previouslyTaught}
       ? `
 SLIDE LAYOUT TEMPLATES — this is the ONLY set of slide configurations you may use. Build each slide as one of these layouts, following its component types IN ORDER and including ALL of its steps; pick the layout that best fits the concept and vary layouts across the deck. A layout with several "Text" steps means that many DISTINCT paragraphs (never repeat one). Any evaluation step ("Multiple choice", "2-option", "Fill blank", "Typed answer") is realized as this slide's quiz object — make the question style match (e.g. "2-option" → a question whose 4 options are two clear choices plus two distractors; "Fill blank" → a cloze sentence; "Typed answer" → a recall question) and keep exactly ONE objectively correct option. These layouts are already chosen for this deck's difficulty level, so honor the text density they imply.
 ${opts.layoutTemplates.map((t) => `- ${t.name}${t.tags.length ? ` [${t.tags.join(", ")}]` : ""}: ${t.components.join(" -> ")}`).join("\n")}
+When a layout calls for a Table, emit a valid table component with real rows, e.g. {"type":"table","columns":["Rule","Example"],"rows":[["Add -ed for past tense","walk -> walked"],["Double the consonant","stop -> stopped"]]}. When it calls for a Graph, emit a chart component, e.g. {"type":"chart","chartType":"bar","title":"...","labels":["A","B","C"],"series":[{"name":"...","data":[3,5,2]}]}. A malformed table/chart is dropped, which breaks the layout — always give columns+rows / labels+series.
 `
       : "";
 

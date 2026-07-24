@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronDown, Volume2, VolumeX, X } from 'lucide-react';
+import { ChevronDown, LayoutTemplate, Volume2, VolumeX, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { LessonSeed } from '@contracts/types';
+import type { LessonSeed, SlidePlanInfo } from '@contracts/types';
+import { TEMPLATE_COMPONENT_LABELS, type TemplateComponentType } from '@contracts/slide-templates';
 import Chip from '../sketch/Chip';
+import TemplateBar from '../templates/TemplateBar';
 import { DoodleSparkle } from '../sketch/DoodleIcons';
 import type { ReadAloudStatus } from './useReadAloud';
 
@@ -19,6 +21,9 @@ export interface PlayerHeaderProps {
     status: ReadAloudStatus;
     toggle: () => void;
   };
+  /** admin-only diagnostics: the current slide's layout + the memory badge */
+  isAdmin?: boolean;
+  layout?: SlidePlanInfo | null;
   onExit: () => void;
 }
 
@@ -50,9 +55,12 @@ export default function PlayerHeader({
   index,
   total,
   readAloud,
+  isAdmin = false,
+  layout = null,
   onExit,
 }: PlayerHeaderProps) {
   const [memoryOpen, setMemoryOpen] = useState(false);
+  const [layoutOpen, setLayoutOpen] = useState(false);
   const pct = total > 0 ? ((index + 1) / total) * 100 : 0;
   const memoryLines = previouslyTaught
     ? previouslyTaught.split('\n').filter(Boolean)
@@ -71,7 +79,8 @@ export default function PlayerHeader({
           </Chip>
         )}
 
-        {seed && seed.lessonSeq > 1 && (
+        {/* admin-only: prior-lessons memory badge */}
+        {isAdmin && seed && seed.lessonSeq > 1 && (
           <button
             onClick={() => setMemoryOpen((o) => !o)}
             className={cn(
@@ -86,6 +95,27 @@ export default function PlayerHeader({
             Building on L1–{seed.lessonSeq - 1}
             <ChevronDown
               className={cn('h-3 w-3 transition-transform', memoryOpen && 'rotate-180')}
+            />
+          </button>
+        )}
+
+        {/* admin-only: which layout template this slide uses */}
+        {isAdmin && layout && (
+          <button
+            onClick={() => setLayoutOpen((o) => !o)}
+            className={cn(
+              'flex shrink-0 items-center gap-1 rounded-wobble-sm border-2 px-2 py-0.5 text-xs font-bold transition-colors',
+              layoutOpen
+                ? 'border-ink bg-blue-soft text-ink'
+                : 'border-dashed border-blue text-blue hover:bg-blue-soft',
+            )}
+            aria-expanded={layoutOpen}
+            title="Which layout template the AI used for this slide"
+          >
+            <LayoutTemplate className="h-3.5 w-3.5" />
+            {layout.pinned ? 'Pinned' : 'Layout'}: {layout.template ?? 'custom'}
+            <ChevronDown
+              className={cn('h-3 w-3 transition-transform', layoutOpen && 'rotate-180')}
             />
           </button>
         )}
@@ -162,6 +192,37 @@ export default function PlayerHeader({
               )}
               <p className="micro mt-2 text-ink-faint">
                 This deck references that material — it doesn't re-teach it.
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* admin-only: layout diagnostic drawer */}
+      <AnimatePresence>
+        {layoutOpen && layout && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="overflow-hidden border-t-2 border-dashed border-pencil bg-blue-soft/40"
+          >
+            <div className="mx-auto max-w-[1080px] px-4 py-3">
+              <p className="mb-2 text-xs font-bold text-ink">
+                {layout.pinned
+                  ? `You pinned "${layout.template}" for this slide — the AI was told to build exactly this configuration:`
+                  : `The AI composed this slide as "${layout.template ?? 'a custom layout'}" (closest matching template):`}
+              </p>
+              <TemplateBar components={layout.components as TemplateComponentType[]} />
+              <p className="micro mt-2 text-ink-faint">
+                {layout.pinned
+                  ? 'Recipe: ' +
+                    layout.components
+                      .map((c) => TEMPLATE_COMPONENT_LABELS[c as TemplateComponentType] ?? c)
+                      .join(' → ') +
+                    '. If a piece is missing here, the model failed to follow the pin — regenerate.'
+                  : 'This is inferred from the slide’s components, not a pin. Use Advanced options on the setup screen to pin a layout.'}
               </p>
             </div>
           </motion.div>

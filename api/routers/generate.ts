@@ -32,6 +32,7 @@ import {
   templatesForSubjectAndLevel,
   slideConformsToAny,
   slideConformsToTemplate,
+  bestMatchingTemplate,
   GRADABLE_TYPES,
   TEMPLATE_COMPONENT_LABELS,
 } from "@contracts/slide-templates";
@@ -305,6 +306,7 @@ export const generateRouter = createRouter({
       cost: number;
       balance: number | null;
       previouslyTaught: string | null;
+      slidePlan: import("@contracts/types").SlidePlanInfo[];
     }> => {
       const db = getDb();
       const tool = await db.query.slideTools.findFirst({
@@ -564,12 +566,29 @@ export const generateRouter = createRouter({
       // the learner advances (current + next prefetched). Until an image
       // arrives the player shows the style thumbnail, so nothing looks broken.
 
+      // Per-slide layout info for the admin diagnostic badge: the pinned
+      // template (what the AI was told to use) or the best-matching layout the
+      // AI actually produced.
+      const slidePlan = deck.slides.map((s, i) => {
+        const shape = { componentTypes: s.components.map((c) => c.type), hasQuiz: !!s.quiz };
+        const pinned = pinnedPlan[i];
+        if (pinned) {
+          return { template: pinned.name, pinned: true, components: pinned.components as string[] };
+        }
+        const match = bestMatchingTemplate(shape, allowedTemplates);
+        return {
+          template: match?.name ?? null,
+          pinned: false,
+          components: (match?.components ?? shape.componentTypes) as string[],
+        };
+      });
+
       let balance: number | null = null;
       if (ctx.user) {
         const fresh = await db.query.users.findFirst({ where: eq(users.id, ctx.user.id) });
         balance = fresh?.tokenBalance ?? null;
       }
-      return { deck, usedMock, cost, balance, previouslyTaught };
+      return { deck, usedMock, cost, balance, previouslyTaught, slidePlan };
     }),
 
   /**

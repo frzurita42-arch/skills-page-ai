@@ -153,6 +153,15 @@ export interface RepoLesson {
   myStatus: "unplayed" | "try-again" | "completed";
 }
 
+/** Per-slide layout info surfaced in the player (admin diagnostics): which
+ *  template the slide uses (pinned by the user, or the best match the AI
+ *  produced) and its component recipe. */
+export interface SlidePlanInfo {
+  template: string | null;
+  pinned: boolean;
+  components: string[];
+}
+
 export interface RepoUnit {
   id: number;
   title: string;

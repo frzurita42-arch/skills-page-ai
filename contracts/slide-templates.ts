@@ -328,3 +328,14 @@ export function slideConformsToTemplate(shape: SlideShape, t: SlideTemplate): bo
 export function slideConformsToAny(shape: SlideShape, templates: SlideTemplate[]): boolean {
   return templates.some((t) => slideConformsToTemplate(shape, t));
 }
+
+/** The most specific template a slide conforms to (most component steps), or
+ *  null — used to label which layout a non-pinned slide ended up matching. */
+export function bestMatchingTemplate(
+  shape: SlideShape,
+  templates: SlideTemplate[],
+): SlideTemplate | null {
+  const matches = templates.filter((t) => slideConformsToTemplate(shape, t));
+  if (matches.length === 0) return null;
+  return matches.reduce((a, b) => (b.components.length > a.components.length ? b : a));
+}

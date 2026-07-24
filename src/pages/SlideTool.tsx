@@ -18,6 +18,7 @@ import type {
   LessonSeed,
   Level,
   SlideDeck,
+  SlidePlanInfo,
   SlideToolSummary,
 } from '@contracts/types';
 import { LEVELS, LEVEL_LABEL, levelTier } from '@contracts/types';
@@ -211,6 +212,7 @@ function ToolStudio({
     deck: SlideDeck;
     previouslyTaught: string | null;
     usedMock: boolean;
+    slidePlan: SlidePlanInfo[];
   } | null>(null);
   const canceledRef = useRef(false);
 
@@ -299,6 +301,7 @@ function ToolStudio({
             deck: res.deck,
             previouslyTaught: res.previouslyTaught,
             usedMock: res.usedMock,
+            slidePlan: res.slidePlan,
           });
           setTheaterDone(true);
           if (!isGuest) void utils.auth.me.invalidate();
@@ -346,6 +349,7 @@ function ToolStudio({
         toolSlug={tool.slug}
         seed={seed}
         previouslyTaught={result.previouslyTaught}
+        slidePlan={result.slidePlan}
         voiceURI={voiceURI}
         nextLessonTitle={nextLessonTitle}
         onExit={() => {
