@@ -216,12 +216,23 @@ export default function DeckPlayer({
 
   const proseIdxs: number[] = [];
   const visualIdxs: number[] = [];
+  const orderedIdxs: number[] = []; // all non-sticky components, in document order
   let stickyIdx = -1;
   slide.components.forEach((c, ci) => {
     if (c.type === 'prose') proseIdxs.push(ci);
-    else if (c.type === 'stickynote') stickyIdx = ci;
-    else visualIdxs.push(ci);
+    else if (c.type === 'stickynote') {
+      stickyIdx = ci;
+      return;
+    } else visualIdxs.push(ci);
+    orderedIdxs.push(ci);
   });
+  // The two-column (text left / visual right) layout only makes sense when the
+  // sole visual is an IMAGE. When the slide has a table/chart/code/formula/
+  // diagram — or several — render everything in DOCUMENT ORDER so a
+  // "text → table → text" layout flows top-to-bottom (the 2nd paragraph lands
+  // below the table) instead of collapsing both texts into the left column.
+  const onlyImageVisual =
+    visualIdxs.length > 0 && visualIdxs.every((i) => slide.components[i].type === 'image');
 
   return (
     <div
@@ -295,24 +306,19 @@ export default function DeckPlayer({
                   </Kara>
                 </motion.h1>
 
-                {/* prose + component zone: two-column 55/45 at ≥1024px */}
-                <div
-                  className={cn(
-                    'mt-6 gap-8',
-                    visualIdxs.length > 0 && 'lg:grid lg:grid-cols-[55fr_45fr]',
-                  )}
-                >
-                  <motion.div variants={item} className="flex flex-col gap-5">
-                    {proseIdxs.map((ci) => (
-                      <SlideComponentView
-                        key={ci}
-                        component={slide.components[ci]}
-                        ci={ci}
-                        current={readAloud.currentKey}
-                      />
-                    ))}
-                  </motion.div>
-                  {visualIdxs.length > 0 && (
+                {onlyImageVisual ? (
+                  /* simple text + image slide → pleasant two-column 55/45 */
+                  <div className="mt-6 gap-8 lg:grid lg:grid-cols-[55fr_45fr]">
+                    <motion.div variants={item} className="flex flex-col gap-5">
+                      {proseIdxs.map((ci) => (
+                        <SlideComponentView
+                          key={ci}
+                          component={slide.components[ci]}
+                          ci={ci}
+                          current={readAloud.currentKey}
+                        />
+                      ))}
+                    </motion.div>
                     <motion.div
                       variants={{
                         hidden: { opacity: 0, scale: 0.96 },
@@ -333,8 +339,21 @@ export default function DeckPlayer({
                         />
                       ))}
                     </motion.div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  /* structured slide (table/chart/…) → render in document order
+                     so text → table → text flows top-to-bottom */
+                  <motion.div variants={item} className="mt-6 flex flex-col gap-5">
+                    {orderedIdxs.map((ci) => (
+                      <SlideComponentView
+                        key={ci}
+                        component={slide.components[ci]}
+                        ci={ci}
+                        current={readAloud.currentKey}
+                      />
+                    ))}
+                  </motion.div>
+                )}
 
                 {/* sticky note peels in last (design.md §6) */}
                 {stickyIdx >= 0 && (

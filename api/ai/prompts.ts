@@ -205,6 +205,7 @@ TEACHING RULES (non-negotiable):
    - C1 (advanced): complex, nuanced prose, dense information, edge cases, field-specific terms assumed.
    - C2 (mastery): near-native academic register, sophisticated argument, subtlety and exceptions, no hand-holding.
    Match sentence length and word choice to the level: a low level means SIMPLER language, not shallower coverage; a high level means denser, more sophisticated language.
+   LENGTH scales with level too: higher levels get LONGER text in general — A0/A1 prose paragraphs are 1-2 short sentences; A2/B1 are ~2-4 sentences; B2 are full multi-sentence paragraphs; C1/C2 prose paragraphs are substantial and challenging (roughly 4-7 dense sentences each), giving the advanced reader more to work through. This is a general rule, not absolute: a genuinely simple point may still be stated briefly at any level — don't pad — but by default a higher-level reader should get more, lengthier, more demanding text.
 ${memory}${templates}
 OUTPUT: STRICT JSON ONLY (no markdown fences, no commentary) matching exactly:
 {"slides":[{"title":"...","components":[...],"quiz":{"kind":"mcq","question":"...","options":["a","b","c","d"],"correctIndex":0,"explanation":"..."}}],"level":"${opts.level}","imageStyle":"${opts.imageStyle}","topic":"..."}
