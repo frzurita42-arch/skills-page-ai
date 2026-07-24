@@ -6,7 +6,7 @@ import { appRouter } from "./router";
 import { createContext } from "./context";
 import { env } from "./lib/env";
 import { ensureCefrLevelEnum } from "./lib/migrate-levels";
-import { ensureRunAnnotationsColumn } from "./lib/migrate-annotations";
+import { ensureRunAnnotationsColumn, ensureCommercialSchema } from "./lib/migrate-annotations";
 
 // Best-effort schema catch-up on boot so an existing database accepts CEFR
 // levels (otherwise new runs/decks silently fail to save). Never blocks boot.
@@ -22,6 +22,14 @@ void ensureCefrLevelEnum().catch((err) =>
 void ensureRunAnnotationsColumn().catch((err) =>
   console.warn(
     "[migrate] run annotations column auto-migration skipped:",
+    err instanceof Error ? err.message : err,
+  ),
+);
+
+// Best-effort: add commercial contact columns + the orders table.
+void ensureCommercialSchema().catch((err) =>
+  console.warn(
+    "[migrate] commercial schema auto-migration skipped:",
     err instanceof Error ? err.message : err,
   ),
 );

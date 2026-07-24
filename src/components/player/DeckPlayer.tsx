@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight, Flag, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/hooks/useAuth';
-import type { LessonSeed, SlideDeck, SlidePlanInfo, SlideAnnotation, DeckAnnotations } from '@contracts/types';
+import type { LessonSeed, SlideDeck, SlidePlanInfo, SlideAnnotation, DeckAnnotations, CommercialInfo } from '@contracts/types';
 import SketchButton from '../sketch/SketchButton';
 import WashiTape from '../sketch/WashiTape';
 import { DoodleSparkle, DoodleStar, DoodleSpiral } from '../sketch/DoodleIcons';
@@ -12,6 +12,7 @@ import PlayerHeader from './PlayerHeader';
 import SlideComponentView, { Kara } from './SlideComponents';
 import QuizCard, { type QuizAnswer } from './QuizCard';
 import FinishScreen from './FinishScreen';
+import CommercialFinish from './CommercialFinish';
 import AnnotationLayer, { type AnnTool } from './AnnotationLayer';
 import AnnotationToolbar from './AnnotationToolbar';
 import { buildNarration } from './narration';
@@ -30,6 +31,8 @@ export interface DeckPlayerProps {
   nextLessonTitle: string | null;
   /** solve slides use the freehand scratchpad (true) or a plain answer box */
   scratchpadEnabled?: boolean;
+  /** set for menu/service/shop decks — ends on a contact/order screen */
+  commercial?: CommercialInfo | null;
   onExit: () => void;
 }
 
@@ -53,6 +56,7 @@ export default function DeckPlayer({
   voiceURI,
   nextLessonTitle,
   scratchpadEnabled = true,
+  commercial = null,
   onExit,
 }: DeckPlayerProps) {
   const reduced = useReducedMotion();
@@ -264,7 +268,9 @@ export default function DeckPlayer({
       />
 
       <div className="flex-1 overflow-y-auto" data-lenis-prevent>
-        {finished && !inReview ? (
+        {finished && !inReview && commercial ? (
+          <CommercialFinish commercial={commercial} onExit={onExit} />
+        ) : finished && !inReview ? (
           <FinishScreen
             deck={deck}
             toolSlug={toolSlug}

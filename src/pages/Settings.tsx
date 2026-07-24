@@ -81,6 +81,9 @@ const CAPABILITIES: { id: AiCapability; label: string }[] = [
 function ProfileTab() {
   const { user, refetch } = useAuth();
   const [name, setName] = useState(user?.name ?? '');
+  const [whatsapp, setWhatsapp] = useState(user?.whatsapp ?? '');
+  const [contactNote, setContactNote] = useState(user?.contactNote ?? '');
+  const [socials, setSocials] = useState((user?.socials ?? []).join('\n'));
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -129,6 +132,13 @@ function ProfileTab() {
     }
     update.mutate({
       name: name.trim(),
+      whatsapp: whatsapp.trim(),
+      contactNote: contactNote.trim(),
+      socials: socials
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .slice(0, 6),
       ...(wantsPasswordChange ? { currentPassword, newPassword } : {}),
     });
   };
@@ -177,6 +187,40 @@ function ProfileTab() {
           <LabeledField label="Email" helper="Email is your sign-in — it can't be changed yet.">
             <SketchInput value={user.email} disabled className="opacity-60" />
           </LabeledField>
+        </div>
+
+        <div className="mt-6 border-t-2 border-dashed border-pencil pt-5">
+          <p className="micro mb-1 text-ink-soft">Contact details (shown on your menu / service / shop presentations)</p>
+          <p className="micro mb-3 text-[0.68rem] text-ink-faint">
+            These appear at the end of a commercial presentation so viewers can reach you. Leave blank to hide.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <LabeledField label="WhatsApp number" helper="With country code, e.g. +1 555 123 4567">
+              <SketchInput
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(e.target.value)}
+                placeholder="+1 555 123 4567"
+              />
+            </LabeledField>
+            <LabeledField label="Contact note" helper="A short line, e.g. 'DM to order · ships Mon–Fri'">
+              <SketchInput
+                value={contactNote}
+                onChange={(e) => setContactNote(e.target.value)}
+                placeholder="DM to order…"
+              />
+            </LabeledField>
+          </div>
+          <div className="mt-4">
+            <LabeledField label="Social / web links" helper="One per line — full URLs or @handles">
+              <textarea
+                value={socials}
+                onChange={(e) => setSocials(e.target.value)}
+                rows={3}
+                placeholder={'https://instagram.com/yourshop\n@yourhandle'}
+                className="w-full resize-y rounded-wobble-sm border-2 border-ink bg-paper-3 px-3 py-2 text-sm text-ink shadow-offset outline-none focus:border-blue"
+              />
+            </LabeledField>
+          </div>
         </div>
 
         <div className="mt-6 border-t-2 border-dashed border-pencil pt-5">

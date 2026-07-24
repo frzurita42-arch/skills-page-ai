@@ -41,6 +41,11 @@ export const users = appSchema.table(
     name: varchar("name", { length: 255 }).notNull(),
     role: roleEnum("role").notNull().default("user"),
     tokenBalance: integer("tokenBalance").notNull().default(50),
+    // Public contact details a poster shows at the end of a commercial
+    // (menu/service/shop) presentation so viewers can reach out to order/hire.
+    whatsapp: varchar("whatsapp", { length: 40 }),
+    contactNote: varchar("contactNote", { length: 500 }),
+    socials: json("socials"), // string[] of URLs/handles
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -190,6 +195,32 @@ export const lessonLogs = appSchema.table(
   ],
 );
 
+/**
+ * Order / interest signals from a commercial (menu/service/shop) presentation.
+ * When a viewer taps "I'm interested" at the end of a showcase, a row lands
+ * here so the poster (repo owner) sees the interest — like a run, but a lead.
+ */
+export const orders = appSchema.table(
+  "orders",
+  {
+    id: serial("id").primaryKey(),
+    repoId: fk("repoId").notNull(),
+    lessonId: fk("lessonId"),
+    ownerId: fk("ownerId"), // repo owner who receives the lead
+    buyerUserId: fk("buyerUserId"), // null for guests
+    buyerName: varchar("buyerName", { length: 255 }).notNull().default("Guest"),
+    itemTitle: varchar("itemTitle", { length: 255 }),
+    note: varchar("note", { length: 1000 }),
+    seen: boolean("seen").notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("orders_repo_idx").on(t.repoId),
+    index("orders_owner_idx").on(t.ownerId),
+    index("orders_created_idx").on(t.createdAt),
+  ],
+);
+
 export const tokenLedger = appSchema.table(
   "tokenLedger",
   {
@@ -248,6 +279,7 @@ export type Lesson = typeof lessons.$inferSelect;
 export type SlideTool = typeof slideTools.$inferSelect;
 export type Run = typeof runs.$inferSelect;
 export type LessonLog = typeof lessonLogs.$inferSelect;
+export type Order = typeof orders.$inferSelect;
 export type TokenLedgerEntry = typeof tokenLedger.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
 export type Setting = typeof settings.$inferSelect;

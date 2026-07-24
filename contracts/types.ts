@@ -181,6 +181,10 @@ export interface SessionUser {
   role: Role;
   tokenBalance: number;
   createdAt: Date;
+  /** public contact shown at the end of a commercial showcase */
+  whatsapp: string | null;
+  socials: string[];
+  contactNote: string | null;
 }
 
 /* ---------------- Repos / slide tools ------------------------------ */
@@ -340,6 +344,36 @@ export interface DeckAnnotations {
       ordered list of pages, each page its own list of marks. Saved so a
       learner (or moderator) can review the work they showed. */
   scratch?: Record<number, SlideAnnotation[][]>;
+}
+
+/* ---------------- Commercial (menu/service/shop) contact + orders --- */
+
+/** Public contact details a poster shows at the end of a showcase. */
+export interface OwnerContact {
+  name: string;
+  whatsapp: string | null;
+  socials: string[];
+  contactNote: string | null;
+}
+
+/** Info the player needs to end a commercial presentation on a contact/order
+ *  step instead of a score screen. Null for education decks. */
+export interface CommercialInfo {
+  owner: OwnerContact;
+  itemTitle: string;
+  repoSlug: string | null;
+  lessonSeq: number | null;
+}
+
+/** A lead: a viewer expressed interest / placed an order from a showcase. */
+export interface OrderLead {
+  id: number;
+  repoSlug: string | null;
+  itemTitle: string | null;
+  buyerName: string;
+  note: string | null;
+  seen: boolean;
+  createdAt: Date;
 }
 
 /** A fully replayable recording of a past play: the exact deck as presented

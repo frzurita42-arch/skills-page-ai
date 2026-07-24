@@ -11,6 +11,7 @@ import { paymentsRouter } from "./routers/payments";
 import { usersRouter } from "./routers/users";
 import { adminRouter } from "./routers/admin";
 import { templatesRouter } from "./routers/templates";
+import { ordersRouter } from "./routers/orders";
 
 export const appRouter = createRouter({
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),
@@ -29,6 +30,7 @@ export const appRouter = createRouter({
   users: usersRouter,
   admin: adminRouter,
   templates: templatesRouter,
+  orders: ordersRouter,
 });
 
 export type AppRouter = typeof appRouter;

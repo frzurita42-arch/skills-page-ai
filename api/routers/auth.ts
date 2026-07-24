@@ -16,6 +16,9 @@ function toSessionUser(u: User): SessionUser {
     role: u.role,
     tokenBalance: u.tokenBalance,
     createdAt: u.createdAt,
+    whatsapp: u.whatsapp ?? null,
+    socials: Array.isArray(u.socials) ? (u.socials as string[]) : [],
+    contactNote: u.contactNote ?? null,
   };
 }
 
@@ -97,12 +100,19 @@ export const authRouter = createRouter({
         name: z.string().min(1).max(255).optional(),
         currentPassword: z.string().min(1).optional(),
         newPassword: z.string().min(8).max(128).optional(),
+        // public contact for commercial showcases
+        whatsapp: z.string().max(40).optional(),
+        contactNote: z.string().max(500).optional(),
+        socials: z.array(z.string().max(200)).max(6).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const db = getDb();
-      const set: Partial<Pick<User, "name" | "passwordHash">> = {};
+      const set: Partial<Pick<User, "name" | "passwordHash" | "whatsapp" | "contactNote" | "socials">> = {};
       if (input.name) set.name = input.name.trim();
+      if (input.whatsapp !== undefined) set.whatsapp = input.whatsapp.trim() || null;
+      if (input.contactNote !== undefined) set.contactNote = input.contactNote.trim() || null;
+      if (input.socials !== undefined) set.socials = input.socials.map((s) => s.trim()).filter(Boolean);
       if (input.newPassword) {
         if (!input.currentPassword || !verifyPassword(input.currentPassword, ctx.user.passwordHash)) {
           throw new TRPCError({ code: "FORBIDDEN", message: "Current password doesn't match" });

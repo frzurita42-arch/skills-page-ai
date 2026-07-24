@@ -25,6 +25,8 @@ import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/hooks/useAuth';
 import type { LessonSeed, RepoLesson } from '@contracts/types';
 import CourseMemoryPanel from '@/components/repo/CourseMemoryPanel';
+import RepoLeadsPanel from '@/components/repo/RepoLeadsPanel';
+import { repoPurpose } from '@contracts/types';
 import LessonRunsTable from '@/components/repo/LessonRunsTable';
 import UnitCard from '@/components/repo/UnitCard';
 import {
@@ -384,6 +386,13 @@ export default function Repository() {
             </div>
           </div>
         </motion.section>
+      )}
+
+      {/* owner leads (commercial repos only) */}
+      {canEdit && repoPurpose(data.template) === 'commercial' && (
+        <div className="mt-6">
+          <RepoLeadsPanel slug={data.slug} />
+        </div>
       )}
 
       {/* course memory */}

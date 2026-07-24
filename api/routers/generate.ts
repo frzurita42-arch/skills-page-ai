@@ -314,6 +314,7 @@ export const generateRouter = createRouter({
       balance: number | null;
       previouslyTaught: string | null;
       slidePlan: import("@contracts/types").SlidePlanInfo[];
+      commercial: import("@contracts/types").CommercialInfo | null;
     }> => {
       const db = getDb();
       const tool = await db.query.slideTools.findFirst({
@@ -330,10 +331,27 @@ export const generateRouter = createRouter({
       let instructions = input.instructions ?? tool.instructions;
       let previouslyTaught: string | null = null;
       let purpose: import("@contracts/types").RepoPurpose = "education";
+      let commercial: import("@contracts/types").CommercialInfo | null = null;
       if (input.seed) {
         const repo = await db.query.repos.findFirst({ where: eq(repos.slug, input.seed.repoSlug) });
         if (repo) {
           purpose = repoPurpose(repo.template);
+          if (purpose === "commercial" && repo.ownerId) {
+            const owner = await db.query.users.findFirst({ where: eq(users.id, repo.ownerId) });
+            if (owner) {
+              commercial = {
+                owner: {
+                  name: owner.name,
+                  whatsapp: owner.whatsapp ?? null,
+                  socials: Array.isArray(owner.socials) ? (owner.socials as string[]) : [],
+                  contactNote: owner.contactNote ?? null,
+                },
+                itemTitle: input.seed.lessonTitle || repo.title,
+                repoSlug: input.seed.repoSlug,
+                lessonSeq: input.seed.lessonSeq,
+              };
+            }
+          }
           const repoUnits = await db.select().from(units).where(eq(units.repoId, repo.id));
           const unitIds = repoUnits.map((u) => u.id);
           for (const unitId of unitIds) {
@@ -644,7 +662,7 @@ export const generateRouter = createRouter({
         const fresh = await db.query.users.findFirst({ where: eq(users.id, ctx.user.id) });
         balance = fresh?.tokenBalance ?? null;
       }
-      return { deck, usedMock, cost, balance, previouslyTaught, slidePlan };
+      return { deck, usedMock, cost, balance, previouslyTaught, slidePlan, commercial };
     }),
 
   /**

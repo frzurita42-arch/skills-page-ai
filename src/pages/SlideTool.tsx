@@ -14,6 +14,7 @@ import { trpc } from '@/providers/trpc';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import type {
+  CommercialInfo,
   ImageStyle,
   LessonSeed,
   Level,
@@ -229,6 +230,7 @@ function ToolStudio({
     previouslyTaught: string | null;
     usedMock: boolean;
     slidePlan: SlidePlanInfo[];
+    commercial: CommercialInfo | null;
   } | null>(null);
   const canceledRef = useRef(false);
 
@@ -327,6 +329,7 @@ function ToolStudio({
             previouslyTaught: res.previouslyTaught,
             usedMock: res.usedMock,
             slidePlan: res.slidePlan,
+            commercial: res.commercial,
           });
           setTheaterDone(true);
           if (!isGuest) void utils.auth.me.invalidate();
@@ -378,6 +381,7 @@ function ToolStudio({
         voiceURI={voiceURI}
         nextLessonTitle={nextLessonTitle}
         scratchpadEnabled={useScratchpad}
+        commercial={result.commercial}
         onExit={() => {
           setMode('config');
           setResult(null);
