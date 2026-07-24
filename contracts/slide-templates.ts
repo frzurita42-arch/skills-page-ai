@@ -9,6 +9,8 @@
 /* slideTemplates table.                                                */
 /* ------------------------------------------------------------------ */
 
+import { LEVELS, levelTier, type Level } from "./types";
+
 /**
  * The component vocabulary a template step may use. The first eight map 1:1
  * onto the player's renderable slide components. The last four are GRADABLE
@@ -63,8 +65,9 @@ export const TEMPLATE_COMPONENT_LABELS: Record<TemplateComponentType, string> = 
   shortanswer: "Typed answer",
 };
 
-export type TemplateLevel = "beginner" | "intermediate" | "advanced";
-export const TEMPLATE_LEVELS: TemplateLevel[] = ["beginner", "intermediate", "advanced"];
+// Template levels are the same CEFR scale as decks (A0-C2).
+export type TemplateLevel = Level;
+export const TEMPLATE_LEVELS: TemplateLevel[] = LEVELS;
 
 export type TemplateSection = "stem" | "humanities" | "general";
 
@@ -141,93 +144,93 @@ function bi(
 /* ---------------- STEM: 10 per level ---------------- */
 const STEM_TEMPLATES: SlideTemplate[] = [
   // beginner (1 text, light evaluation)
-  bi("Concept in a line", "beginner", ["prose", "mcq2"], ["math", "science"]),
-  bi("One formula", "beginner", ["prose", "latex", "mcq2"], ["math", "physics"]),
-  bi("Spot it on the graph", "beginner", ["prose", "chart", "quiz"], ["math", "statistics"]),
-  bi("Label the diagram", "beginner", ["prose", "svg", "quiz"], ["science", "biology"]),
-  bi("Read the table", "beginner", ["prose", "table", "mcq2"], ["stem", "data"]),
-  bi("Picture the idea", "beginner", ["image", "prose", "quiz"], ["science"]),
-  bi("First code line", "beginner", ["prose", "code", "mcq2"], ["programming", "cs"]),
-  bi("Fill the value", "beginner", ["prose", "latex", "fillblank"], ["math", "algebra"]),
-  bi("True or false science", "beginner", ["prose", "mcq2"], ["science"]),
-  bi("One-step problem", "beginner", ["prose", "latex", "quiz"], ["math"]),
+  bi("Concept in a line", "A1", ["prose", "mcq2"], ["math", "science"]),
+  bi("One formula", "A1", ["prose", "latex", "mcq2"], ["math", "physics"]),
+  bi("Spot it on the graph", "A1", ["prose", "chart", "quiz"], ["math", "statistics"]),
+  bi("Label the diagram", "A1", ["prose", "svg", "quiz"], ["science", "biology"]),
+  bi("Read the table", "A1", ["prose", "table", "mcq2"], ["stem", "data"]),
+  bi("Picture the idea", "A1", ["image", "prose", "quiz"], ["science"]),
+  bi("First code line", "A1", ["prose", "code", "mcq2"], ["programming", "cs"]),
+  bi("Fill the value", "A1", ["prose", "latex", "fillblank"], ["math", "algebra"]),
+  bi("True or false science", "A1", ["prose", "mcq2"], ["science"]),
+  bi("One-step problem", "A1", ["prose", "latex", "quiz"], ["math"]),
 
   // intermediate (2-3 texts, mixed evaluation)
-  bi("Explain then apply", "intermediate", ["prose", "prose", "latex", "quiz"], ["math", "physics"]),
-  bi("Worked example", "intermediate", ["prose", "latex", "prose", "fillblank"], ["math", "physics"]),
-  bi("Graph analysis", "intermediate", ["prose", "chart", "prose", "quiz"], ["statistics", "economics"]),
-  bi("Diagram deep dive", "intermediate", ["prose", "svg", "prose", "shortanswer"], ["biology", "engineering"]),
-  bi("Data reasoning", "intermediate", ["prose", "table", "prose", "quiz"], ["data", "science"]),
-  bi("Debug the code", "intermediate", ["prose", "code", "prose", "quiz"], ["programming", "cs"]),
-  bi("Two-step problem", "intermediate", ["prose", "latex", "prose", "fillblank"], ["math"]),
-  bi("Compare methods", "intermediate", ["prose", "table", "prose", "shortanswer"], ["stem"]),
-  bi("Formula + graph", "intermediate", ["prose", "latex", "chart", "quiz"], ["physics", "math"]),
-  bi("Cause and effect", "intermediate", ["prose", "prose", "svg", "quiz"], ["science", "chemistry"]),
+  bi("Explain then apply", "B1", ["prose", "prose", "latex", "quiz"], ["math", "physics"]),
+  bi("Worked example", "B1", ["prose", "latex", "prose", "fillblank"], ["math", "physics"]),
+  bi("Graph analysis", "B1", ["prose", "chart", "prose", "quiz"], ["statistics", "economics"]),
+  bi("Diagram deep dive", "B1", ["prose", "svg", "prose", "shortanswer"], ["biology", "engineering"]),
+  bi("Data reasoning", "B1", ["prose", "table", "prose", "quiz"], ["data", "science"]),
+  bi("Debug the code", "B1", ["prose", "code", "prose", "quiz"], ["programming", "cs"]),
+  bi("Two-step problem", "B1", ["prose", "latex", "prose", "fillblank"], ["math"]),
+  bi("Compare methods", "B1", ["prose", "table", "prose", "shortanswer"], ["stem"]),
+  bi("Formula + graph", "B1", ["prose", "latex", "chart", "quiz"], ["physics", "math"]),
+  bi("Cause and effect", "B1", ["prose", "prose", "svg", "quiz"], ["science", "chemistry"]),
 
   // advanced (3-4 texts + visual, analytical evaluation)
-  bi("Derivation walk-through", "advanced", ["prose", "latex", "prose", "prose", "shortanswer"], ["math", "physics"]),
-  bi("Model & interpret", "advanced", ["prose", "chart", "prose", "prose", "shortanswer"], ["statistics", "data"]),
-  bi("Full worked solution", "advanced", ["prose", "prose", "latex", "chart", "fillblank"], ["math", "physics"]),
-  bi("System analysis", "advanced", ["prose", "svg", "prose", "prose", "shortanswer"], ["engineering", "science"]),
-  bi("Data-driven argument", "advanced", ["prose", "table", "prose", "prose", "shortanswer"], ["economics", "data"]),
-  bi("Algorithm reasoning", "advanced", ["prose", "code", "prose", "prose", "quiz"], ["programming", "cs"]),
-  bi("Multi-step proof", "advanced", ["prose", "latex", "prose", "latex", "shortanswer"], ["math"]),
-  bi("Contrast two models", "advanced", ["prose", "prose", "table", "prose", "shortanswer"], ["stem", "science"]),
-  bi("Edge cases", "advanced", ["prose", "prose", "prose", "code", "quiz"], ["cs", "programming"]),
-  bi("Quantitative deep dive", "advanced", ["prose", "latex", "chart", "prose", "fillblank"], ["physics", "math"]),
+  bi("Derivation walk-through", "C1", ["prose", "latex", "prose", "prose", "shortanswer"], ["math", "physics"]),
+  bi("Model & interpret", "C1", ["prose", "chart", "prose", "prose", "shortanswer"], ["statistics", "data"]),
+  bi("Full worked solution", "C1", ["prose", "prose", "latex", "chart", "fillblank"], ["math", "physics"]),
+  bi("System analysis", "C1", ["prose", "svg", "prose", "prose", "shortanswer"], ["engineering", "science"]),
+  bi("Data-driven argument", "C1", ["prose", "table", "prose", "prose", "shortanswer"], ["economics", "data"]),
+  bi("Algorithm reasoning", "C1", ["prose", "code", "prose", "prose", "quiz"], ["programming", "cs"]),
+  bi("Multi-step proof", "C1", ["prose", "latex", "prose", "latex", "shortanswer"], ["math"]),
+  bi("Contrast two models", "C1", ["prose", "prose", "table", "prose", "shortanswer"], ["stem", "science"]),
+  bi("Edge cases", "C1", ["prose", "prose", "prose", "code", "quiz"], ["cs", "programming"]),
+  bi("Quantitative deep dive", "C1", ["prose", "latex", "chart", "prose", "fillblank"], ["physics", "math"]),
 ];
 
 /* ---------------- Humanities: 10 per level ---------------- */
 const HUMANITIES_TEMPLATES: SlideTemplate[] = [
   // beginner
-  bi("Short read", "beginner", ["prose", "mcq2"], ["humanities", "reading"]),
-  bi("Story moment", "beginner", ["prose", "image", "quiz"], ["history", "literature"]),
-  bi("New word", "beginner", ["image", "prose", "fillblank"], ["esl", "language"]),
-  bi("Who / what / when", "beginner", ["prose", "quiz"], ["history"]),
-  bi("Simple compare", "beginner", ["prose", "table", "mcq2"], ["humanities"]),
-  bi("Picture a scene", "beginner", ["image", "prose", "mcq2"], ["arts", "history"]),
-  bi("Read and answer", "beginner", ["prose", "shortanswer"], ["reading", "esl"]),
-  bi("Key term", "beginner", ["prose", "stickynote", "quiz"], ["humanities"]),
-  bi("True or false history", "beginner", ["prose", "mcq2"], ["history", "civics"]),
-  bi("Fill the sentence", "beginner", ["prose", "fillblank"], ["language", "esl"]),
+  bi("Short read", "A1", ["prose", "mcq2"], ["humanities", "reading"]),
+  bi("Story moment", "A1", ["prose", "image", "quiz"], ["history", "literature"]),
+  bi("New word", "A1", ["image", "prose", "fillblank"], ["esl", "language"]),
+  bi("Who / what / when", "A1", ["prose", "quiz"], ["history"]),
+  bi("Simple compare", "A1", ["prose", "table", "mcq2"], ["humanities"]),
+  bi("Picture a scene", "A1", ["image", "prose", "mcq2"], ["arts", "history"]),
+  bi("Read and answer", "A1", ["prose", "shortanswer"], ["reading", "esl"]),
+  bi("Key term", "A1", ["prose", "stickynote", "quiz"], ["humanities"]),
+  bi("True or false history", "A1", ["prose", "mcq2"], ["history", "civics"]),
+  bi("Fill the sentence", "A1", ["prose", "fillblank"], ["language", "esl"]),
 
   // intermediate (2-3 texts)
-  bi("Close reading", "intermediate", ["prose", "prose", "quiz"], ["humanities", "literature"]),
-  bi("Narrative + image", "intermediate", ["prose", "image", "prose", "quiz"], ["history", "arts"]),
-  bi("Compare & contrast", "intermediate", ["prose", "table", "prose", "shortanswer"], ["humanities", "language"]),
-  bi("Cause in history", "intermediate", ["prose", "prose", "shortanswer"], ["history", "civics"]),
-  bi("Read a passage", "intermediate", ["prose", "prose", "fillblank"], ["reading", "esl"]),
-  bi("Interpret a source", "intermediate", ["prose", "image", "prose", "shortanswer"], ["history"]),
-  bi("Theme & evidence", "intermediate", ["prose", "prose", "quiz"], ["literature"]),
-  bi("Dialogue practice", "intermediate", ["prose", "prose", "fillblank"], ["language", "esl"]),
-  bi("Two viewpoints", "intermediate", ["prose", "table", "prose", "shortanswer"], ["philosophy", "civics"]),
-  bi("Timeline reasoning", "intermediate", ["prose", "prose", "quiz"], ["history"]),
+  bi("Close reading", "B1", ["prose", "prose", "quiz"], ["humanities", "literature"]),
+  bi("Narrative + image", "B1", ["prose", "image", "prose", "quiz"], ["history", "arts"]),
+  bi("Compare & contrast", "B1", ["prose", "table", "prose", "shortanswer"], ["humanities", "language"]),
+  bi("Cause in history", "B1", ["prose", "prose", "shortanswer"], ["history", "civics"]),
+  bi("Read a passage", "B1", ["prose", "prose", "fillblank"], ["reading", "esl"]),
+  bi("Interpret a source", "B1", ["prose", "image", "prose", "shortanswer"], ["history"]),
+  bi("Theme & evidence", "B1", ["prose", "prose", "quiz"], ["literature"]),
+  bi("Dialogue practice", "B1", ["prose", "prose", "fillblank"], ["language", "esl"]),
+  bi("Two viewpoints", "B1", ["prose", "table", "prose", "shortanswer"], ["philosophy", "civics"]),
+  bi("Timeline reasoning", "B1", ["prose", "prose", "quiz"], ["history"]),
 
   // advanced (3-4 dense texts + aid)
-  bi("Scholar reading", "advanced", ["prose", "prose", "prose", "shortanswer"], ["humanities", "reading"]),
-  bi("Critical analysis", "advanced", ["prose", "prose", "prose", "prose", "shortanswer"], ["literature", "philosophy"]),
-  bi("Source critique", "advanced", ["prose", "image", "prose", "prose", "shortanswer"], ["history"]),
-  bi("Argue a thesis", "advanced", ["prose", "prose", "prose", "shortanswer"], ["writing", "humanities"]),
-  bi("Compare traditions", "advanced", ["prose", "table", "prose", "prose", "shortanswer"], ["humanities", "arts"]),
-  bi("Dense passage study", "advanced", ["prose", "prose", "prose", "fillblank"], ["reading", "literature"]),
-  bi("Historiography", "advanced", ["prose", "prose", "table", "prose", "shortanswer"], ["history"]),
-  bi("Rhetoric breakdown", "advanced", ["prose", "prose", "prose", "quiz"], ["writing", "language"]),
-  bi("Ethics debate", "advanced", ["prose", "prose", "prose", "shortanswer"], ["philosophy", "civics"]),
-  bi("Advanced ESL reading", "advanced", ["prose", "prose", "prose", "fillblank"], ["esl", "language"]),
+  bi("Scholar reading", "C1", ["prose", "prose", "prose", "shortanswer"], ["humanities", "reading"]),
+  bi("Critical analysis", "C1", ["prose", "prose", "prose", "prose", "shortanswer"], ["literature", "philosophy"]),
+  bi("Source critique", "C1", ["prose", "image", "prose", "prose", "shortanswer"], ["history"]),
+  bi("Argue a thesis", "C1", ["prose", "prose", "prose", "shortanswer"], ["writing", "humanities"]),
+  bi("Compare traditions", "C1", ["prose", "table", "prose", "prose", "shortanswer"], ["humanities", "arts"]),
+  bi("Dense passage study", "C1", ["prose", "prose", "prose", "fillblank"], ["reading", "literature"]),
+  bi("Historiography", "C1", ["prose", "prose", "table", "prose", "shortanswer"], ["history"]),
+  bi("Rhetoric breakdown", "C1", ["prose", "prose", "prose", "quiz"], ["writing", "language"]),
+  bi("Ethics debate", "C1", ["prose", "prose", "prose", "shortanswer"], ["philosophy", "civics"]),
+  bi("Advanced ESL reading", "C1", ["prose", "prose", "prose", "fillblank"], ["esl", "language"]),
 ];
 
 /* ---------------- General: 10 (untagged, level-spread) ---------------- */
 const GENERAL_TEMPLATES: SlideTemplate[] = [
-  bi("Key takeaway", "beginner", ["prose", "stickynote", "mcq2"], []),
-  bi("Picture first", "beginner", ["image", "prose", "quiz"], []),
-  bi("Quick check", "beginner", ["prose", "fillblank"], []),
-  bi("Explain & apply", "intermediate", ["prose", "prose", "quiz"], []),
-  bi("Show and compare", "intermediate", ["prose", "table", "prose", "shortanswer"], []),
-  bi("Illustrated idea", "intermediate", ["prose", "image", "prose", "quiz"], []),
-  bi("Reflect in writing", "intermediate", ["prose", "prose", "shortanswer"], []),
-  bi("Deep explainer", "advanced", ["prose", "prose", "prose", "shortanswer"], []),
-  bi("Case study", "advanced", ["prose", "prose", "table", "prose", "shortanswer"], []),
-  bi("Synthesis", "advanced", ["prose", "prose", "prose", "quiz"], []),
+  bi("Key takeaway", "A1", ["prose", "stickynote", "mcq2"], []),
+  bi("Picture first", "A1", ["image", "prose", "quiz"], []),
+  bi("Quick check", "A1", ["prose", "fillblank"], []),
+  bi("Explain & apply", "B1", ["prose", "prose", "quiz"], []),
+  bi("Show and compare", "B1", ["prose", "table", "prose", "shortanswer"], []),
+  bi("Illustrated idea", "B1", ["prose", "image", "prose", "quiz"], []),
+  bi("Reflect in writing", "B1", ["prose", "prose", "shortanswer"], []),
+  bi("Deep explainer", "C1", ["prose", "prose", "prose", "shortanswer"], []),
+  bi("Case study", "C1", ["prose", "prose", "table", "prose", "shortanswer"], []),
+  bi("Synthesis", "C1", ["prose", "prose", "prose", "quiz"], []),
 ];
 
 export const BUILTIN_SLIDE_TEMPLATES: SlideTemplate[] = [
@@ -259,8 +262,11 @@ export function templatesForSubjectAndLevel(
   level: TemplateLevel,
 ): SlideTemplate[] {
   const bySubject = templatesForSubject(all, stem);
-  const byLevel = bySubject.filter((t) => t.level === level);
-  return byLevel.length > 0 ? byLevel : bySubject;
+  // Match by TIER (A0-A2 light, B1-B2 mid, C1-C2 dense) so the whole catalog
+  // stays usable across the CEFR scale; an exact-level match is also included.
+  const tier = levelTier(level);
+  const byTier = bySubject.filter((t) => t.level === level || levelTier(t.level) === tier);
+  return byTier.length > 0 ? byTier : bySubject;
 }
 
 /* ------------------------------------------------------------------ */

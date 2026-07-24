@@ -27,7 +27,7 @@ const roleEnum = appSchema.enum("role", ["user", "moderator", "admin"]);
 const providerEnum = appSchema.enum("provider", ["openai", "anthropic", "gemini"]);
 const capabilityEnum = appSchema.enum("capability", ["text", "image", "tts"]);
 const templateEnum = appSchema.enum("template", ["course", "restaurant", "service", "shop", "other"]);
-const levelEnum = appSchema.enum("level", ["beginner", "intermediate", "advanced"]);
+const levelEnum = appSchema.enum("level", ["A0", "A1", "A2", "B1", "B2", "C1", "C2"]);
 const imageStyleEnum = appSchema.enum("imageStyle", ["sketch", "watercolor", "flat", "photo", "none"]);
 const paymentStatusEnum = appSchema.enum("status", ["pending", "credited", "rejected"]);
 const targetTypeEnum = appSchema.enum("targetType", ["repo", "slideTool"]);
@@ -113,7 +113,7 @@ export const slideTools = appSchema.table(
     ownerId: fk("ownerId"),
     topic: text("topic").notNull(),
     instructions: text("instructions").notNull(),
-    defaultLevel: levelEnum("defaultLevel").notNull().default("beginner"),
+    defaultLevel: levelEnum("defaultLevel").notNull().default("A1"),
     defaultSlideCount: integer("defaultSlideCount").notNull().default(8),
     defaultImageStyle: imageStyleEnum("defaultImageStyle").notNull().default("sketch"),
     isPublic: boolean("isPublic").notNull().default(true),
@@ -128,7 +128,7 @@ export const slideTemplates = appSchema.table(
   {
     id: serial("id").primaryKey(),
     name: varchar("name", { length: 120 }).notNull(),
-    level: levelEnum("level").notNull().default("beginner"),
+    level: levelEnum("level").notNull().default("A1"),
     /** ordered component types, e.g. ["prose","table","quiz"] */
     componentsJson: json("componentsJson").notNull(),
     /** lowercase subject hashtags, e.g. ["math","statistics"] */

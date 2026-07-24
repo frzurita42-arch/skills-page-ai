@@ -193,7 +193,7 @@ function ActionCardView({ card, index }: { card: ActionCard; index: number }) {
       <p className="mt-1 font-display text-2xl leading-tight text-ink">{card.title}</p>
       <div className="mt-1.5 flex flex-wrap items-center gap-2">
         {card.template && (
-          <Chip kind={isLessonPath ? 'intermediate' : 'slide-tool'}>
+          <Chip kind={isLessonPath ? 'repo-ref' : 'slide-tool'}>
             {TEMPLATE_LABEL[card.template]}
           </Chip>
         )}

@@ -26,7 +26,7 @@ async function main() {
   await ensureEnum(client, "sketchlearn", "provider", ["openai", "anthropic", "gemini"]);
   await ensureEnum(client, "sketchlearn", "capability", ["text", "image", "tts"]);
   await ensureEnum(client, "sketchlearn", "template", ["course", "restaurant", "service", "shop", "other"]);
-  await ensureEnum(client, "sketchlearn", "level", ["beginner", "intermediate", "advanced"]);
+  await ensureEnum(client, "sketchlearn", "level", ["A0", "A1", "A2", "B1", "B2", "C1", "C2"]);
   await ensureEnum(client, "sketchlearn", "imageStyle", ["sketch", "watercolor", "flat", "photo", "none"]);
   await ensureEnum(client, "sketchlearn", "status", ["pending", "credited", "rejected"]);
   await ensureEnum(client, "sketchlearn", "targetType", ["repo", "slideTool"]);

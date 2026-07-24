@@ -88,7 +88,7 @@ export const slideToolsRouter = createRouter({
         description: z.string().max(4000).default(""),
         topic: z.string().max(2000).default(""),
         instructions: z.string().max(4000).default(""),
-        defaultLevel: levelSchema.default("beginner"),
+        defaultLevel: levelSchema.default("A1"),
         defaultSlideCount: z.number().int().min(1).max(15).default(8),
         defaultImageStyle: imageStyleSchema.default("sketch"),
       }),

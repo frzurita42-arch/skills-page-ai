@@ -2,9 +2,13 @@ import type { HTMLAttributes, ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 type ChipKind =
-  | 'beginner'
-  | 'intermediate'
-  | 'advanced'
+  | 'A0'
+  | 'A1'
+  | 'A2'
+  | 'B1'
+  | 'B2'
+  | 'C1'
+  | 'C2'
   | 'user'
   | 'moderator'
   | 'admin'
@@ -14,10 +18,14 @@ type ChipKind =
   | 'neutral';
 
 const KINDS: Record<ChipKind, string> = {
-  // Level chips (design.md §7.6) — all ink text, dotted border
-  beginner: 'bg-green-soft text-ink border-dotted border-ink',
-  intermediate: 'bg-yellow-soft text-ink border-dotted border-ink',
-  advanced: 'bg-red-soft text-ink border-dotted border-ink',
+  // CEFR level chips — coloured by tier (A0-A2 green, B1-B2 yellow, C1-C2 red)
+  A0: 'bg-green-soft text-ink border-dotted border-ink',
+  A1: 'bg-green-soft text-ink border-dotted border-ink',
+  A2: 'bg-green-soft text-ink border-dotted border-ink',
+  B1: 'bg-yellow-soft text-ink border-dotted border-ink',
+  B2: 'bg-yellow-soft text-ink border-dotted border-ink',
+  C1: 'bg-red-soft text-ink border-dotted border-ink',
+  C2: 'bg-red-soft text-ink border-dotted border-ink',
   // Role chips
   user: 'bg-blue-soft text-ink border-solid border-ink',
   moderator: 'bg-purple-soft text-ink border-solid border-ink',

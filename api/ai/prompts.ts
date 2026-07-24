@@ -4,7 +4,7 @@ import { z } from "zod";
 /* Zod schemas for LLM outputs (mirror contracts/types.ts)              */
 /* ------------------------------------------------------------------ */
 
-export const levelSchema = z.enum(["beginner", "intermediate", "advanced"]);
+export const levelSchema = z.enum(["A0", "A1", "A2", "B1", "B2", "C1", "C2"]);
 export const imageStyleSchema = z.enum(["sketch", "watercolor", "flat", "photo", "none"]);
 export const templateSchema = z.enum(["course", "restaurant", "service", "shop", "other"]);
 
@@ -161,7 +161,15 @@ TEACHING RULES (non-negotiable):
 5. HARD max ONE latex formula per slide. When a formula or graph is present, order components: (1) the formula, (2) its graph/diagram, (3) a short "why it is here" text.
 6. Per-slide MCQ: exactly 4 options, answerable ONLY from that slide's content plus everyday knowledge — one small step past the text (not a verbatim copy). Difficulty matched to level "${opts.level}". Quizzes appear on MOST slides, not necessarily every one. Quiz questions must be direct, closed-form multiple-choice questions with exactly ONE objectively correct option. NEVER phrase them as open-ended prompts such as "in your own words", "explain", "describe", or "what do you think" — the student picks an option, not writes prose.
 7. Images use imageStyle "${opts.imageStyle}"${opts.imageStyle === "none" ? " — style is 'none', so DO NOT emit any image components" : ""}.
-8. Level "${opts.level}": beginner = a clear, self-contained explanatory paragraph (2-4 plain sentences) that defines every term with concrete everyday examples — beginner means SIMPLE language, NOT less text, and never a bare sentence next to a picture; intermediate = 2-3 paragraphs that assume basics and connect ideas; advanced = 3-4 denser paragraphs with edge cases. Whatever the level, if the slide has a visual it also has the words that explain it.
+8. CEFR LEVEL "${opts.level}" — calibrate reading difficulty precisely to this level (this controls VOCABULARY and SENTENCE COMPLEXITY, not how much you teach; every slide still fully explains its visual):
+   - A0 (pre-beginner): 1-2 very short sentences, ~present tense, only the ~300 most common words, define/illustrate each key word; lean on images.
+   - A1 (beginner): short simple sentences, common everyday vocabulary, one idea per sentence, define every term with a concrete example.
+   - A2 (elementary): simple connected sentences, familiar topics, basic connectors (because, so, then).
+   - B1 (intermediate): clear standard language, some subordinate clauses, explain any less-common term.
+   - B2 (upper-intermediate): detailed paragraphs, some abstraction and comparison, precise terminology introduced with brief gloss.
+   - C1 (advanced): complex, nuanced prose, dense information, edge cases, field-specific terms assumed.
+   - C2 (mastery): near-native academic register, sophisticated argument, subtlety and exceptions, no hand-holding.
+   Match sentence length and word choice to the level: a low level means SIMPLER language, not shallower coverage; a high level means denser, more sophisticated language.
 ${memory}${templates}
 OUTPUT: STRICT JSON ONLY (no markdown fences, no commentary) matching exactly:
 {"slides":[{"title":"...","components":[...],"quiz":{"question":"...","options":["a","b","c","d"],"correctIndex":0,"explanation":"..."}}],"level":"${opts.level}","imageStyle":"${opts.imageStyle}","topic":"..."}`;

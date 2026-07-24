@@ -9,6 +9,7 @@ import type {
 } from "@contracts/types";
 import type { LessonPathDraft } from "./prompts";
 import { isStemTopic } from "@contracts/stem";
+import { levelTier } from "@contracts/types";
 
 /* ------------------------------------------------------------------ */
 /* Deterministic pseudo-generation — the platform is fully demo-able    */
@@ -174,9 +175,9 @@ export function mockDeck(opts: {
         ? undefined
         : {
             question:
-              level === "beginner"
+              levelTier(level) === "light"
                 ? `Which statement about the role of ${k1} in ${subject} is correct?`
-                : level === "intermediate"
+                : levelTier(level) === "mid"
                   ? `You observe ${k2} changing in ${subject}. What does this slide say you should connect it to first?`
                   : `A peer claims ${k1} and ${k2} are interchangeable in ${subject}. Which objection is the strongest?`,
             options: [

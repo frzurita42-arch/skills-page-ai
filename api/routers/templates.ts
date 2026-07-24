@@ -41,7 +41,7 @@ export async function loadTemplateCatalog(): Promise<SlideTemplate[]> {
       out.push({
         id: row.id,
         name: row.name,
-        level: (row.level ?? "beginner") as TemplateLevel,
+        level: (row.level ?? "A1") as TemplateLevel,
         components,
         tags: (Array.isArray(row.tagsJson) ? row.tagsJson : []).filter(
           (t): t is string => typeof t === "string",
@@ -67,7 +67,7 @@ export const templatesRouter = createRouter({
     .input(
       z.object({
         name: z.string().min(3).max(120),
-        level: levelSchema.default("beginner"),
+        level: levelSchema.default("A1"),
         components: z.array(componentSchema).min(1).max(8),
         tags: z.array(z.string().min(1).max(24)).max(6).default([]),
       }),

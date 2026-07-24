@@ -78,8 +78,8 @@ export default function Templates() {
         <p className="mt-2 max-w-2xl text-ink-soft">
           These are the slide layouts the AI chooses from when it generates a deck. Each bar is a
           recipe of components in order — <em>Text → Graph → Multiple choice</em> — tagged by subject
-          and by difficulty <strong>level</strong>. Beginner decks get lighter layouts; advanced
-          decks get denser, multi-paragraph ones. Every layout ends with a gradable step.
+          and by CEFR <strong>level</strong>. Lower levels (A0–A2) get lighter layouts; higher
+          levels (C1–C2) get denser, multi-paragraph ones. Every layout ends with a gradable step.
         </p>
       </header>
 
@@ -235,7 +235,7 @@ function TemplateSection({
                 <div className="min-w-0">
                   <h3 className="font-heading text-lg font-bold text-ink">{t.name}</h3>
                   <Chip
-                    kind={t.level === 'beginner' ? 'beginner' : t.level === 'intermediate' ? 'intermediate' : 'advanced'}
+                    kind={t.level}
                     className="mt-0.5 text-[0.58rem] capitalize"
                   >
                     {t.level}
@@ -312,7 +312,7 @@ function TemplateSection({
 function TemplateBuilder({ onDone }: { onDone: () => void }) {
   const utils = trpc.useUtils();
   const [name, setName] = useState('');
-  const [level, setLevel] = useState<TemplateLevel>('beginner');
+  const [level, setLevel] = useState<TemplateLevel>('A1');
   const [components, setComponents] = useState<TemplateComponentType[]>(['prose', 'quiz']);
   const [tagsRaw, setTagsRaw] = useState('');
 

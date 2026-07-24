@@ -5,13 +5,35 @@ export * from "./errors";
 /* ------------------------------------------------------------------ */
 
 export type Role = "user" | "moderator" | "admin";
-export type Level = "beginner" | "intermediate" | "advanced";
+/** CEFR-style difficulty levels (A0 = pre-beginner … C2 = mastery). */
+export type Level = "A0" | "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
+/** Coarse difficulty tier used for template filtering & cost. */
+export type LevelTier = "light" | "mid" | "dense";
 export type ImageStyle = "sketch" | "watercolor" | "flat" | "photo" | "none";
 export type RepoTemplate = "course" | "restaurant" | "service" | "shop" | "other";
 export type AiProvider = "openai" | "anthropic" | "gemini";
 export type AiCapability = "text" | "image" | "tts";
 
-export const LEVELS: Level[] = ["beginner", "intermediate", "advanced"];
+export const LEVELS: Level[] = ["A0", "A1", "A2", "B1", "B2", "C1", "C2"];
+
+/** Short human label for each CEFR level. */
+export const LEVEL_LABEL: Record<Level, string> = {
+  A0: "A0 · Pre-beginner",
+  A1: "A1 · Beginner",
+  A2: "A2 · Elementary",
+  B1: "B1 · Intermediate",
+  B2: "B2 · Upper-intermediate",
+  C1: "C1 · Advanced",
+  C2: "C2 · Mastery",
+};
+
+/** Coarse tier for template filtering & cost (A0-A2 light, B1-B2 mid, C1-C2 dense). */
+export function levelTier(level: Level): LevelTier {
+  if (level === "A0" || level === "A1" || level === "A2") return "light";
+  if (level === "B1" || level === "B2") return "mid";
+  return "dense";
+}
+
 export const IMAGE_STYLES: ImageStyle[] = ["sketch", "watercolor", "flat", "photo", "none"];
 export const REPO_TEMPLATES: RepoTemplate[] = ["course", "restaurant", "service", "shop", "other"];
 

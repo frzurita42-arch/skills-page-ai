@@ -15,7 +15,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     perSlideBase: 2,
     perImageSlide: 2,
     perTts: 1,
-    levelMultiplier: { beginner: 1.0, intermediate: 1.2, advanced: 1.5 },
+    levelMultiplier: { A0: 1.0, A1: 1.0, A2: 1.1, B1: 1.2, B2: 1.3, C1: 1.4, C2: 1.5 },
   },
   googleSheetUrl: "https://docs.google.com/spreadsheets/d/REPLACE_ME",
   platformAiKeys: {},
@@ -33,7 +33,16 @@ export async function getSettings(): Promise<AppSettings> {
     return {
       ...DEFAULT_SETTINGS,
       ...value,
-      prices: { ...DEFAULT_SETTINGS.prices, ...(value.prices ?? {}) },
+      prices: {
+        ...DEFAULT_SETTINGS.prices,
+        ...(value.prices ?? {}),
+        // deep-merge so every CEFR level always has a multiplier even if the
+        // stored settings predate the CEFR migration (old keys linger harmlessly)
+        levelMultiplier: {
+          ...DEFAULT_SETTINGS.prices.levelMultiplier,
+          ...(value.prices?.levelMultiplier ?? {}),
+        },
+      },
       platformAiKeys: { ...(value.platformAiKeys ?? {}) },
       featureFlags: { ...DEFAULT_SETTINGS.featureFlags, ...(value.featureFlags ?? {}) },
     };

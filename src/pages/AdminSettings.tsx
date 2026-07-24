@@ -40,9 +40,13 @@ const CAP_META: { id: AiCapability; label: string; helper: string }[] = [
 ];
 
 const LEVEL_LABEL: Record<Level, string> = {
-  beginner: 'Beginner',
-  intermediate: 'Intermediate',
-  advanced: 'Advanced',
+  A0: 'A0',
+  A1: 'A1',
+  A2: 'A2',
+  B1: 'B1',
+  B2: 'B2',
+  C1: 'C1',
+  C2: 'C2',
 };
 
 /* ------------------------------------------------------------------ */
@@ -102,7 +106,7 @@ function PricingTab({
   patch: (p: Partial<AppSettings>) => void;
 }) {
   const [calcSlides, setCalcSlides] = useState(8);
-  const [calcLevel, setCalcLevel] = useState<Level>('intermediate');
+  const [calcLevel, setCalcLevel] = useState<Level>('B1');
   const [calcImages, setCalcImages] = useState(true);
   const [calcTts, setCalcTts] = useState(false);
 
@@ -447,7 +451,7 @@ function ProvidersTab({
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="font-heading text-lg font-semibold text-ink">{cap.label}</h3>
                 {configured ? (
-                  <Chip kind="beginner" className="border-solid">active</Chip>
+                  <Chip kind="A1" className="border-solid">active</Chip>
                 ) : (
                   <Chip kind="neutral">not set</Chip>
                 )}

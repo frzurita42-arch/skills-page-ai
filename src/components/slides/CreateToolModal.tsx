@@ -31,7 +31,7 @@ export default function CreateToolModal({ open, onClose }: CreateToolModalProps)
   const [name, setName] = useState('');
   const [topic, setTopic] = useState('');
   const [instructions, setInstructions] = useState('');
-  const [level, setLevel] = useState<Level>('beginner');
+  const [level, setLevel] = useState<Level>('A1');
   const [slideCount, setSlideCount] = useState(8);
   const [imageStyle, setImageStyle] = useState<ImageStyle>('sketch');
 

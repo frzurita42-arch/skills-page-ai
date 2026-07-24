@@ -81,7 +81,7 @@ export default function Replay() {
         <span className="font-heading font-semibold text-ink">{data.toolName}</span>
         {data.lessonTitle && <span className="text-ink-soft">· {data.lessonTitle}</span>}
         <span className="ml-auto flex items-center gap-2">
-          <Chip kind={data.level as 'beginner' | 'intermediate' | 'advanced'} className="capitalize">
+          <Chip kind={data.level} className="capitalize">
             {data.level}
           </Chip>
           <span className="micro text-ink-faint">

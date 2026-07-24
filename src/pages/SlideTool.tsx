@@ -20,7 +20,7 @@ import type {
   SlideDeck,
   SlideToolSummary,
 } from '@contracts/types';
-import { LEVELS } from '@contracts/types';
+import { LEVELS, LEVEL_LABEL, levelTier } from '@contracts/types';
 import SketchButton from '@/components/sketch/SketchButton';
 import Chip from '@/components/sketch/Chip';
 import StickyNote from '@/components/sketch/StickyNote';
@@ -444,7 +444,9 @@ function ToolStudio({
           className="mt-5"
           variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
         >
-          <span className="micro mb-1.5 block text-ink-soft">Level</span>
+          <span className="micro mb-1.5 block text-ink-soft">
+            Level (CEFR) — controls reading difficulty
+          </span>
           <div className="flex flex-wrap gap-2">
             {LEVELS.map((l) => (
               <button
@@ -452,12 +454,13 @@ function ToolStudio({
                 type="button"
                 onClick={() => setLevel(l)}
                 aria-pressed={level === l}
+                title={LEVEL_LABEL[l]}
                 className={cn(
-                  'rounded-wobble-sm border-2 px-3.5 py-1.5 text-sm font-bold capitalize transition-all',
+                  'rounded-wobble-sm border-2 px-3.5 py-1.5 text-sm font-bold transition-all',
                   level === l
-                    ? l === 'beginner'
+                    ? levelTier(l) === 'light'
                       ? 'border-ink bg-green-soft text-ink shadow-offset'
-                      : l === 'intermediate'
+                      : levelTier(l) === 'mid'
                         ? 'border-ink bg-yellow-soft text-ink shadow-offset'
                         : 'border-ink bg-red-soft text-ink shadow-offset'
                     : 'border-dashed border-pencil text-ink-soft hover:border-ink hover:text-ink',

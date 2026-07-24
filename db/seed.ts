@@ -307,7 +307,7 @@ async function seed() {
     toolTopic: "Foundations of physics: motion, forces, energy and momentum",
     toolInstructions:
       "Teach first-semester physics with concrete everyday examples first, then the formula, then a quick graph. One formula per slide, always followed by its picture and a why-it-matters note.",
-    defaultLevel: "beginner",
+    defaultLevel: "A1",
     units: [
       {
         title: "Unit 1 — Kinematics",
@@ -396,7 +396,7 @@ async function seed() {
     toolTopic: "The dishes of Casa Azul, a Mexican kitchen",
     toolInstructions:
       "Present each dish as a warm story: where it comes from, what goes into it, how our kitchen prepares it, and how to enjoy it. No formulas — prose, images, tables and sticky notes only.",
-    defaultLevel: "beginner",
+    defaultLevel: "A1",
     units: [
       {
         title: "Breakfast",
@@ -464,7 +464,7 @@ async function seed() {
       lessonTitle: l1.title,
       userId: samId,
       playerName: "Sam Sketcher",
-      level: "beginner",
+      level: "A1",
       perSlide: slidesL1,
       elapsedSec: 420,
       completedAt: new Date(Date.now() - 3 * day),
@@ -476,7 +476,7 @@ async function seed() {
       lessonTitle: l2.title,
       userId: samId,
       playerName: "Sam Sketcher",
-      level: "beginner",
+      level: "A1",
       perSlide: slidesL2,
       elapsedSec: 510,
       completedAt: new Date(Date.now() - 2 * day),
@@ -488,7 +488,7 @@ async function seed() {
       lessonTitle: l2.title,
       userId: adminId,
       playerName: "Ada Admin",
-      level: "intermediate",
+      level: "B1",
       perSlide: slidesL2b,
       elapsedSec: 380,
       completedAt: new Date(Date.now() - 1 * day),

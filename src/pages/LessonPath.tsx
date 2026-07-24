@@ -21,6 +21,7 @@ import { DoodleArrow, DoodleCheck, DoodleSparkle } from '@/components/sketch/Doo
 import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/hooks/useAuth';
 import type { ImageStyle, Level, RepoTemplate } from '@contracts/types';
+import { LEVELS } from '@contracts/types';
 import { SketchToaster, TEMPLATE_META } from '@/components/repo/shared';
 
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
@@ -64,7 +65,7 @@ export default function LessonPath() {
   /* ---------------- form state -------------------------------------------- */
   const [template, setTemplate] = useState<RepoTemplate>(prefill.template ?? 'course');
   const [subject, setSubject] = useState(prefill.subject);
-  const [level, setLevel] = useState<Level>('beginner');
+  const [level, setLevel] = useState<Level>('A1');
   const [audience, setAudience] = useState('');
   const [unitCount, setUnitCount] = useState(3);
   const [lessonsPerUnit, setLessonsPerUnit] = useState(3);
@@ -305,7 +306,7 @@ export default function LessonPath() {
               <section>
                 <SectionLabel label="Audience & level" />
                 <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Level">
-                  {(['beginner', 'intermediate', 'advanced'] as Level[]).map((l) => (
+                  {LEVELS.map((l) => (
                     <motion.button
                       key={l}
                       type="button"

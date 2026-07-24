@@ -98,7 +98,7 @@ describe("extractJson", () => {
 });
 
 describe("repairDeckDraft", () => {
-  const defaults = { level: "beginner", imageStyle: "sketch", topic: "Fungi" };
+  const defaults = { level: "A1", imageStyle: "sketch", topic: "Fungi" };
 
   it("salvages a deck with one bad component and a bad quiz", () => {
     const raw = {
@@ -124,7 +124,7 @@ describe("repairDeckDraft", () => {
     expect(deck.slides).toHaveLength(1); // the junk slide is dropped, the good one kept
     expect(deck.slides[0].components).toHaveLength(1);
     expect(deck.slides[0].quiz).toBeUndefined();
-    expect(deck.level).toBe("beginner");
+    expect(deck.level).toBe("A1");
     expect(deck.imageStyle).toBe("sketch");
     expect(deck.topic).toBe("Fungi");
   });
@@ -139,7 +139,7 @@ describe("repairDeckDraft", () => {
           ],
         },
       ],
-      level: "beginner",
+      level: "A1",
       imageStyle: "sketch",
       topic: "Fungi",
     };
@@ -163,7 +163,7 @@ describe("repairDeckDraft", () => {
           },
         },
       ],
-      level: "advanced",
+      level: "C1",
       imageStyle: "none",
       topic: "Spores",
     };
@@ -185,12 +185,12 @@ describe("explanatory-prose guarantees", () => {
           quiz: { question: "q", options: ["a", "b", "c", "d"], correctIndex: 0, explanation: "e" },
         },
       ],
-      level: "beginner",
+      level: "A1",
       imageStyle: "sketch",
       topic: "Cells",
     };
     const deck = slideDeckSchema.parse(
-      repairDeckDraft(raw, { level: "beginner", imageStyle: "sketch", topic: "Cells" }),
+      repairDeckDraft(raw, { level: "A1", imageStyle: "sketch", topic: "Cells" }),
     );
     expect(slideHasProse(deck.slides[0])).toBe(true);
     const prose = deck.slides[0].components.find((c) => c.type === "prose");
@@ -210,12 +210,12 @@ describe("explanatory-prose guarantees", () => {
         },
         { title: "C", components: [{ type: "prose", paragraphs: ["more text"] }] },
       ],
-      level: "beginner",
+      level: "A1",
       imageStyle: "sketch",
       topic: "T",
     };
     const deck = slideDeckSchema.parse(
-      repairDeckDraft(raw, { level: "beginner", imageStyle: "sketch", topic: "T" }),
+      repairDeckDraft(raw, { level: "A1", imageStyle: "sketch", topic: "T" }),
     );
     // all three slides survive
     expect(deck.slides).toHaveLength(3);
@@ -255,7 +255,7 @@ describe("explanatory-prose guarantees", () => {
           },
         },
       ],
-      level: "beginner",
+      level: "A1",
       imageStyle: "photo",
       topic: "Binary",
     });
@@ -335,7 +335,7 @@ describe("shuffleQuizAnswers", () => {
           quiz: { question: "q?", options: ["a", "b", "c", "d"], correctIndex: 2, explanation: "e" },
         },
       ],
-      level: "beginner",
+      level: "A1",
       imageStyle: "sketch",
       topic: "T",
     });
@@ -350,7 +350,7 @@ describe("mock generators satisfy the output contracts", () => {
   it("mockDeck validates against slideDeckSchema", () => {
     const deck = mockDeck({
       topic: "Newton's laws of motion",
-      level: "beginner",
+      level: "A1",
       slideCount: 6,
       imageStyle: "sketch",
     });
@@ -368,7 +368,7 @@ describe("mock generators satisfy the output contracts", () => {
   });
 
   it("mock quiz questions are closed-form MCQs (never open-ended prompts)", () => {
-    for (const level of ["beginner", "intermediate", "advanced"] as const) {
+    for (const level of ["A1", "B1", "C1"] as const) {
       const deck = mockDeck({ topic: "Newton's laws of motion", level, slideCount: 8, imageStyle: "sketch" });
       const questions = deck.slides.flatMap((s) => (s.quiz ? [s.quiz.question] : []));
       expect(questions.length).toBeGreaterThan(0);
@@ -380,7 +380,7 @@ describe("mock generators satisfy the output contracts", () => {
   });
 
   it("mockDeck is deterministic", () => {
-    const opts = { topic: "chilaquiles", level: "intermediate" as const, slideCount: 4, imageStyle: "flat" as const };
+    const opts = { topic: "chilaquiles", level: "B1" as const, slideCount: 4, imageStyle: "flat" as const };
     expect(mockDeck(opts)).toEqual(mockDeck(opts));
   });
 

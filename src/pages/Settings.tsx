@@ -876,7 +876,7 @@ interface Prefs {
 const PREFS_KEY = 'sketchlearn:prefs';
 const DEFAULT_PREFS: Prefs = {
   defaultImageStyle: 'sketch',
-  defaultLevel: 'beginner',
+  defaultLevel: 'A1',
   defaultSlides: 8,
   reducedMotion: false,
   emailPayment: true,
