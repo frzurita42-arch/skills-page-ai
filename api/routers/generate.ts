@@ -5,7 +5,7 @@ import { createRouter, publicQuery } from "../middleware";
 import { authedProcedure } from "../procedures";
 import { getDb } from "../queries/connection";
 import { lessons, repos, slideTools, units, users } from "@db/schema";
-import { completeText, generateImage, resolveKey, userHasKey } from "../ai/provider";
+import { completeText, generateImage, userHasKey } from "../ai/provider";
 import { mockCoachReply, mockDeck, mockLessonPath } from "../ai/mock";
 import {
   buildLessonPathPrompt,
@@ -472,36 +472,12 @@ export const generateRouter = createRouter({
       // Guarantee every slide has explanatory text — no image-only slides ship
       deck = ensureExplanatoryProse(deck);
 
-      // Attach real generated images when an image key is configured.
-      // Cheap key check first — without a key this adds zero latency and the
-      // player keeps the style-thumbnail fallback. Cap at 4 images per deck
-      // to bound cost/latency; failures only skip that one image.
-      if (input.imageStyle !== "none") {
-        const imageKey = await resolveKey(ctx.user?.id, "image");
-        if (imageKey) {
-          let generated = 0;
-          for (const slide of deck.slides) {
-            if (generated >= 4) break;
-            for (const comp of slide.components) {
-              if (generated >= 4) break;
-              if (comp.type !== "image") continue;
-              try {
-                const url = await generateImage({
-                  userId: ctx.user?.id,
-                  prompt: comp.prompt,
-                  style: input.imageStyle,
-                });
-                if (url) {
-                  comp.imageUrl = url;
-                  generated += 1;
-                }
-              } catch (err) {
-                console.warn("[generate.slides] image generation failed for one component:", err);
-              }
-            }
-          }
-        }
-      }
+      // NOTE: images are NOT generated here. Generating up to N images inline
+      // (each up to 60s) was the dominant cause of the long "dealing your
+      // deck" wait. The deck now returns as soon as the text is ready, and the
+      // player lazily fetches each slide's image via generate.slideImage as
+      // the learner advances (current + next prefetched). Until an image
+      // arrives the player shows the style thumbnail, so nothing looks broken.
 
       let balance: number | null = null;
       if (ctx.user) {
@@ -509,6 +485,31 @@ export const generateRouter = createRouter({
         balance = fresh?.tokenBalance ?? null;
       }
       return { deck, usedMock, cost, balance, previouslyTaught };
+    }),
+
+  /**
+   * Generate ONE slide image on demand. The deck's image cost is already paid
+   * at generation time, so this is not charged again — it just turns a slide's
+   * image prompt into a data URI. The player calls it lazily per slide (current
+   * + next prefetch) so the deck can open immediately instead of waiting for
+   * every image up front. Returns null when no image key is configured or the
+   * provider fails, and the player keeps the style-thumbnail fallback.
+   */
+  slideImage: publicQuery
+    .input(
+      z.object({
+        prompt: z.string().min(1).max(2000),
+        style: imageStyleSchema,
+      }),
+    )
+    .mutation(async ({ ctx, input }): Promise<{ imageUrl: string | null }> => {
+      if (input.style === "none") return { imageUrl: null };
+      const imageUrl = await generateImage({
+        userId: ctx.user?.id,
+        prompt: input.prompt,
+        style: input.style,
+      });
+      return { imageUrl };
     }),
 
 })

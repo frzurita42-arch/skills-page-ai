@@ -43,11 +43,16 @@ export default function Repository() {
   const { user, isGuest, role } = useAuth();
   const utils = trpc.useUtils();
 
-  const repo = trpc.repos.getBySlug.useQuery({ slug }, { retry: false });
+  // refetchOnMount: 'always' so progress (completed / try-again, next-up) is
+  // fresh every time the learner returns here after playing a lesson.
+  const repo = trpc.repos.getBySlug.useQuery(
+    { slug },
+    { retry: false, refetchOnMount: 'always' },
+  );
   // shares the react-query cache with LessonRunsTable (same key)
   const runs = trpc.repos.lessonRuns.useQuery(
     { slug, limit: 100 },
-    { enabled: repo.isSuccess },
+    { enabled: repo.isSuccess, refetchOnMount: 'always' },
   );
 
   const [authWallOpen, setAuthWallOpen] = useState(false);

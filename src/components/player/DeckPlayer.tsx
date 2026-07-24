@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Flag } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { trpc } from '@/providers/trpc';
 import type { LessonSeed, SlideDeck } from '@contracts/types';
 import SketchButton from '../sketch/SketchButton';
 import WashiTape from '../sketch/WashiTape';
@@ -58,8 +59,56 @@ export default function DeckPlayer({
 
   const total = deck.slides.length;
   const viewingIdx = reviewIdx ?? index;
-  const slide = deck.slides[viewingIdx];
   const inReview = reviewIdx !== null;
+
+  /* -------- lazy per-slide image loading (current + next prefetch) -------- */
+  // Images are generated on demand so the deck opens immediately; each slide's
+  // image streams in while the learner reads, and the next slide's image is
+  // prefetched so it's usually ready by the time they advance.
+  const utils = trpc.useUtils();
+  const [slideImages, setSlideImages] = useState<Record<number, string>>({});
+  const imgRequested = useRef<Set<number>>(new Set());
+
+  const ensureImage = useCallback(
+    async (idx: number) => {
+      if (deck.imageStyle === 'none') return;
+      const s = deck.slides[idx];
+      if (!s) return;
+      const imgComp = s.components.find((c) => c.type === 'image');
+      if (!imgComp || imgComp.type !== 'image') return;
+      if (imgComp.imageUrl || imgRequested.current.has(idx)) return; // embedded or in-flight
+      imgRequested.current.add(idx);
+      try {
+        const res = await utils.client.generate.slideImage.mutate({
+          prompt: imgComp.prompt,
+          style: deck.imageStyle,
+        });
+        if (res?.imageUrl) setSlideImages((prev) => ({ ...prev, [idx]: res.imageUrl! }));
+      } catch {
+        // keep the style-thumbnail fallback; allow a later retry
+        imgRequested.current.delete(idx);
+      }
+    },
+    [deck, utils],
+  );
+
+  useEffect(() => {
+    void ensureImage(viewingIdx);
+    void ensureImage(viewingIdx + 1); // prefetch the next slide's image
+  }, [viewingIdx, ensureImage]);
+
+  const rawSlide = deck.slides[viewingIdx];
+  const fetchedUrl = slideImages[viewingIdx];
+  // inject the lazily-fetched image into this slide's image component
+  const slide = useMemo(() => {
+    if (!fetchedUrl) return rawSlide;
+    return {
+      ...rawSlide,
+      components: rawSlide.components.map((c) =>
+        c.type === 'image' && !c.imageUrl ? { ...c, imageUrl: fetchedUrl } : c,
+      ),
+    };
+  }, [rawSlide, fetchedUrl]);
 
   const narration = useMemo(() => buildNarration(slide), [slide]);
   const readAloud = useReadAloud(narration, voiceURI);
