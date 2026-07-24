@@ -52,7 +52,9 @@ function ProseView({
   return (
     <div className="max-w-[68ch] text-[1.05rem] leading-[1.8] text-ink">
       {paragraphs.map((p, pi) => (
-        <p key={pi} className={cn(pi > 0 && 'mt-4')}>
+        // Justify so every full line spans the same width — the body text
+        // reads as an evenly distributed block instead of a ragged edge.
+        <p key={pi} className={cn('text-justify hyphens-auto', pi > 0 && 'mt-4')}>
           {splitSentences(p).map((s, si) => (
             <Kara key={si} k={`prose:${ci}:${pi}:${si}`} current={current}>
               {s}{' '}

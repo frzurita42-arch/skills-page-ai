@@ -31,6 +31,9 @@ function lessonProgress(lessonId: number, viewerRuns: RunLite[]): Pick<
   | "myAttempts"
   | "myBestCorrect"
   | "myBestTotal"
+  | "myBestRunId"
+  | "myBestLevel"
+  | "myBestElapsedSec"
   | "myLastCorrect"
   | "myLastTotal"
   | "myLastLevel"
@@ -45,6 +48,9 @@ function lessonProgress(lessonId: number, viewerRuns: RunLite[]): Pick<
       myAttempts: 0,
       myBestCorrect: 0,
       myBestTotal: 0,
+      myBestRunId: null,
+      myBestLevel: null,
+      myBestElapsedSec: 0,
       myLastCorrect: 0,
       myLastTotal: 0,
       myLastLevel: null,
@@ -53,13 +59,22 @@ function lessonProgress(lessonId: number, viewerRuns: RunLite[]): Pick<
     };
   }
   const ratio = (r: RunLite) => (r.scoreTotal === 0 ? 1 : r.scoreCorrect / r.scoreTotal);
-  const best = mine.reduce((a, b) => (ratio(b) > ratio(a) ? b : a));
+  // Highest score wins; ties break toward the FASTER run, then the more recent
+  // one — that best run is the canonical result surfaced and linked on the row.
+  const best = mine.reduce((a, b) => {
+    if (ratio(b) !== ratio(a)) return ratio(b) > ratio(a) ? b : a;
+    if (b.elapsedSec !== a.elapsedSec) return b.elapsedSec < a.elapsedSec ? b : a;
+    return b.completedAt.getTime() >= a.completedAt.getTime() ? b : a;
+  });
   const last = mine[mine.length - 1];
   const passed = mine.some((r) => isPassingScore(r.scoreCorrect, r.scoreTotal));
   return {
     myAttempts: mine.length,
     myBestCorrect: best.scoreCorrect,
     myBestTotal: best.scoreTotal,
+    myBestRunId: best.id,
+    myBestLevel: (best.level as Level) ?? null,
+    myBestElapsedSec: best.elapsedSec,
     myLastCorrect: last.scoreCorrect,
     myLastTotal: last.scoreTotal,
     myLastLevel: (last.level as Level) ?? null,

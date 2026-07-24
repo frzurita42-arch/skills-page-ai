@@ -6,9 +6,11 @@ import {
   ChevronDown,
   Clapperboard,
   Clock,
+  Eye,
   Hourglass,
   Pencil,
   Plus,
+  Repeat,
   RotateCcw,
   Square,
   Trash2,
@@ -519,12 +521,12 @@ function LessonCard({
           </span>
         ) : tryAgain ? (
           <span
-            title={`Last score ${lesson.myLastCorrect}/${lesson.myLastTotal} — pass to mark this lesson completed`}
+            title={`Best score ${lesson.myBestCorrect}/${lesson.myBestTotal} — pass to mark this lesson completed`}
             className="flex animate-low-pulse items-center gap-1 text-red"
           >
             <RotateCcw className="h-3.5 w-3.5" />
             <span className="micro text-[0.6rem]">
-              try again · {lesson.myLastCorrect}/{lesson.myLastTotal}
+              try again · {lesson.myBestCorrect}/{lesson.myBestTotal}
             </span>
           </span>
         ) : isNextUp ? (
@@ -538,25 +540,46 @@ function LessonCard({
             <span className="micro text-[0.6rem]">unplayed</span>
           </span>
         )}
-        {/* last-attempt meta: level + time (only once the viewer has played it) */}
+        {/* best-run meta: the HIGHEST score's level + time, how many times the
+            viewer has played it, and a link to replay that best run's
+            answers (only once the viewer has played it) */}
         {(completed || tryAgain) && (
           <>
-            {lesson.myLastLevel && (
+            {lesson.myBestLevel && (
               <span
-                title="Level of your last attempt"
+                title="Level of your best attempt"
                 className="micro rounded-wobble-sm border border-pencil bg-paper-2 px-1.5 text-[0.58rem] text-ink-soft"
               >
-                {lesson.myLastLevel}
+                {lesson.myBestLevel}
               </span>
             )}
-            {lesson.myLastElapsedSec > 0 && (
+            {lesson.myBestElapsedSec > 0 && (
               <span
-                title="Time of your last attempt"
+                title="Time of your best attempt"
                 className="micro flex items-center gap-0.5 text-[0.58rem] text-ink-faint"
               >
                 <Clock className="h-3 w-3" />
-                {fmtMMSS(lesson.myLastElapsedSec)}
+                {fmtMMSS(lesson.myBestElapsedSec)}
               </span>
+            )}
+            {lesson.myAttempts > 0 && (
+              <span
+                title={`You have played this lesson ${lesson.myAttempts} time${lesson.myAttempts === 1 ? '' : 's'}`}
+                className="micro flex items-center gap-0.5 text-[0.58rem] text-ink-faint"
+              >
+                <Repeat className="h-3 w-3" />
+                {lesson.myAttempts}×
+              </span>
+            )}
+            {lesson.myBestRunId != null && (
+              <Link
+                to={`/runs/${lesson.myBestRunId}/replay`}
+                title="Open your highest-scoring run — its slides and the answers you gave"
+                className="micro flex items-center gap-1 rounded-wobble-sm border border-ink bg-paper-2 px-1.5 py-0.5 text-[0.58rem] font-semibold text-ink no-underline transition-colors hover:bg-blue-soft"
+              >
+                <Eye className="h-3 w-3" />
+                Best run
+              </Link>
             )}
           </>
         )}

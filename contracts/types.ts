@@ -202,6 +202,12 @@ export interface RepoLesson {
   myAttempts: number;
   myBestCorrect: number;
   myBestTotal: number;
+  /** the viewer's highest-scoring run: its id (for replay), level, and time.
+      This is the canonical run shown on the row and linked from "View best
+      run" — the other attempts are not surfaced. null/0 when never played. */
+  myBestRunId: number | null;
+  myBestLevel: Level | null;
+  myBestElapsedSec: number;
   myLastCorrect: number;
   myLastTotal: number;
   /** level + elapsed time of the viewer's most recent attempt (null/0 if none) */
