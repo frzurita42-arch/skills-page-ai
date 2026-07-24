@@ -63,11 +63,22 @@ export type SlideComponent =
     }
   | { type: "code"; language: string; code: string; caption?: string };
 
+/** Evaluation kinds a slide can use. mcq = 4-option, mcq2 = 2-option,
+ *  fillblank = type the missing word(s), typed = free typed answer. */
+export type QuizKind = "mcq" | "mcq2" | "fillblank" | "typed";
+
 export interface SlideQuiz {
+  /** defaults to "mcq" for decks generated before typed answers existed */
+  kind?: QuizKind;
   question: string;
-  options: [string, string, string, string];
-  /** 0-3 */
-  correctIndex: number;
+  /** mcq (4) / mcq2 (2) option texts */
+  options?: string[];
+  /** index of the correct option (mcq/mcq2) */
+  correctIndex?: number;
+  /** accepted answer for fillblank / reference answer for typed */
+  answer?: string;
+  /** extra accepted answers for fillblank (case/space-insensitive) */
+  acceptableAnswers?: string[];
   explanation: string;
 }
 

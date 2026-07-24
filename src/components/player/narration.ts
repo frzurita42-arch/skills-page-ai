@@ -66,7 +66,7 @@ export function buildNarration(slide: Slide): NarrationUnit[] {
 
   if (slide.quiz) {
     units.push({ text: slide.quiz.question, key: 'quizq' });
-    slide.quiz.options.forEach((o, i) =>
+    (slide.quiz.options ?? []).forEach((o, i) =>
       units.push({ text: `Option ${LETTERS[i]}: ${o}`, key: `quizo:${i}` }),
     );
   }

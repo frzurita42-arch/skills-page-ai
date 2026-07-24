@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Pencil } from 'lucide-react';
+import { Pencil, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { SlideQuiz } from '@contracts/types';
+import { isFillBlankCorrect } from '@contracts/grade';
+import { trpc } from '@/providers/trpc';
 import { DoodleCheck } from '../sketch/DoodleIcons';
 import { SquiggleDivider } from '../sketch/Squiggle';
 import { Kara } from './SlideComponents';
@@ -10,38 +12,45 @@ import { Kara } from './SlideComponents';
 const LETTERS = ['A', 'B', 'C', 'D'];
 
 export interface QuizAnswer {
-  /** first-try choice — this is what gets logged (slide-tool.md §C3) */
-  firstChosen: number;
+  /** logged first-try correctness (what scoring uses) */
   firstCorrect: boolean;
   solved: boolean;
+  /** mcq/mcq2 first pick */
+  firstChosen?: number;
+  /** fillblank/typed first text */
+  firstText?: string;
 }
 
 export interface QuizCardProps {
   quiz: SlideQuiz;
-  /** logged first-try answer, if already answered */
   answer: QuizAnswer | null;
   /** record the first-try result (parent owns the log) */
-  onAnswer: (chosenIndex: number, correct: boolean) => void;
-  /** called whenever the correct option gets picked (unlocks Next) */
+  onAnswer: (res: { chosen?: number; text?: string; correct: boolean }) => void;
+  /** called to unlock Next */
   onSolved?: () => void;
-  /** read-only review mode (from the finish screen) */
   review?: boolean;
   current: string | null;
 }
 
-/**
- * Per-slide MCQ (design.md §7.11 + slide-tool.md §C3): 4 option cards A–D,
- * immediate correct(green)/incorrect(red+shake) feedback + explanation line.
- * Retry after a wrong pick is allowed; the first-try result is what's logged.
- */
-export default function QuizCard({
-  quiz,
-  answer,
-  onAnswer,
-  onSolved,
-  review = false,
-  current,
-}: QuizCardProps) {
+/** kind defaults to mcq for older decks */
+function quizKind(q: SlideQuiz): NonNullable<SlideQuiz['kind']> {
+  return q.kind ?? 'mcq';
+}
+
+export default function QuizCard(props: QuizCardProps) {
+  const kind = quizKind(props.quiz);
+  if (kind === 'fillblank' || kind === 'typed') {
+    return <TextAnswerCard {...props} kind={kind} />;
+  }
+  return <ChoiceCard {...props} />;
+}
+
+/* ------------------------------------------------------------------ */
+/* Multiple choice (mcq = 4 options, mcq2 = 2 options)                  */
+/* ------------------------------------------------------------------ */
+function ChoiceCard({ quiz, answer, onAnswer, onSolved, review = false, current }: QuizCardProps) {
+  const options = quiz.options ?? [];
+  const correctIndex = quiz.correctIndex ?? 0;
   const [picked, setPicked] = useState<number | null>(answer?.firstChosen ?? null);
   const [solved, setSolved] = useState(answer?.solved ?? false);
   const [shakeIdx, setShakeIdx] = useState<number | null>(null);
@@ -49,13 +58,10 @@ export default function QuizCard({
 
   const select = useCallback(
     (i: number) => {
-      if (solved) return;
-      const correct = i === quiz.correctIndex;
+      if (solved || i >= options.length) return;
+      const correct = i === correctIndex;
       setPicked(i);
-      if (attempts === 0 && !review) {
-        // first try — the logged result
-        onAnswer(i, correct);
-      }
+      if (attempts === 0 && !review) onAnswer({ chosen: i, correct });
       setAttempts((a) => a + 1);
       if (correct) {
         setSolved(true);
@@ -65,38 +71,31 @@ export default function QuizCard({
         window.setTimeout(() => setShakeIdx(null), 450);
       }
     },
-    [solved, quiz.correctIndex, attempts, review, onAnswer, onSolved],
+    [solved, correctIndex, attempts, review, onAnswer, onSolved, options.length],
   );
 
-  // Keyboard 1–4 selects options (slide-tool.md §C4); safe because the
-  // player mounts exactly one slide at a time (AnimatePresence mode="wait")
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const n = Number(e.key);
-      if (n >= 1 && n <= 4) select(n - 1);
+      if (n >= 1 && n <= options.length) select(n - 1);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [select]);
+  }, [select, options.length]);
 
   const showExplanation = attempts > 0 || answer !== null;
 
   return (
     <section className="mt-10" aria-label="Quick check quiz">
-      <SquiggleDivider className="text-pencil" />
-      <h3 className="mt-3 flex items-center gap-2 font-display text-2xl font-bold text-ink">
-        <Pencil className="h-5 w-5 text-ink" strokeWidth={2} />
-        Quick check
-      </h3>
-      <p className="mt-2 text-[1.125rem] font-extrabold leading-snug text-ink">
-        <Kara k="quizq" current={current}>
-          {quiz.question}
-        </Kara>
-      </p>
-
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {quiz.options.map((option, i) => {
-          const isCorrect = i === quiz.correctIndex;
+      <QuizHeader question={quiz.question} current={current} />
+      <div
+        className={cn(
+          'mt-4 grid gap-3',
+          options.length > 2 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1',
+        )}
+      >
+        {options.map((option, i) => {
+          const isCorrect = i === correctIndex;
           const isPicked = picked === i;
           const revealedCorrect = solved && isCorrect;
           const revealedWrong = isPicked && !isCorrect && attempts > 0 && !solved;
@@ -105,9 +104,7 @@ export default function QuizCard({
               key={i}
               onClick={() => select(i)}
               disabled={solved}
-              animate={
-                shakeIdx === i ? { x: [0, -4, 4, -4, 4, 0] } : { x: 0 }
-              }
+              animate={shakeIdx === i ? { x: [0, -4, 4, -4, 4, 0] } : { x: 0 }}
               transition={{ duration: 0.4 }}
               whileHover={!solved ? { y: -3 } : undefined}
               className={cn(
@@ -125,53 +122,191 @@ export default function QuizCard({
                   revealedCorrect ? 'bg-green-soft' : revealedWrong ? 'bg-red-soft' : 'bg-yellow-soft',
                 )}
               >
-                <Kara k={`quizo:${i}`} current={current}>
-                  {LETTERS[i]}
-                </Kara>
+                {LETTERS[i] ?? i + 1}
               </span>
               <span className="flex-1 pt-0.5 text-[0.95rem] font-bold leading-snug text-ink">
                 {option}
               </span>
               {revealedCorrect && (
-                <motion.span
-                  initial={{ scale: 0, rotate: -12 }}
-                  animate={{ scale: 1, rotate: 0 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 14 }}
-                  className="text-green"
-                >
+                <span className="text-green">
                   <DoodleCheck className="h-6 w-6" />
-                </motion.span>
+                </span>
               )}
-              {revealedWrong && (
-                <span className="font-display text-2xl font-bold text-red">✗</span>
-              )}
+              {revealedWrong && <span className="font-display text-2xl font-bold text-red">✗</span>}
             </motion.button>
           );
         })}
       </div>
+      <Explanation show={showExplanation} solved={solved} text={quiz.explanation} />
+    </section>
+  );
+}
 
-      <AnimatePresence>
-        {showExplanation && (
+/* ------------------------------------------------------------------ */
+/* Text answer (fillblank = exact match, typed = AI-graded)             */
+/* ------------------------------------------------------------------ */
+function TextAnswerCard({
+  quiz,
+  answer,
+  onAnswer,
+  onSolved,
+  review = false,
+  current,
+  kind,
+}: QuizCardProps & { kind: 'fillblank' | 'typed' }) {
+  const [text, setText] = useState(answer?.firstText ?? '');
+  const [solved, setSolved] = useState(answer?.solved ?? false);
+  const [result, setResult] = useState<null | { correct: boolean; feedback?: string }>(
+    answer ? { correct: answer.firstCorrect } : null,
+  );
+  const [attempts, setAttempts] = useState(answer ? 1 : 0);
+  const [grading, setGrading] = useState(false);
+  const gradeTyped = trpc.generate.gradeTyped.useMutation();
+
+  const submit = useCallback(async () => {
+    if (solved || review || grading || !text.trim()) return;
+    if (kind === 'fillblank') {
+      const accepted = [quiz.answer ?? '', ...(quiz.acceptableAnswers ?? [])].filter(Boolean);
+      const correct = isFillBlankCorrect(text, accepted);
+      if (attempts === 0) onAnswer({ text, correct });
+      setAttempts((a) => a + 1);
+      setResult({ correct });
+      if (correct) {
+        setSolved(true);
+        onSolved?.();
+      }
+      return;
+    }
+    // typed → grade with AI (server), fall back handled server-side
+    setGrading(true);
+    try {
+      const res = await gradeTyped.mutateAsync({
+        question: quiz.question,
+        reference: quiz.answer ?? quiz.explanation,
+        answer: text,
+      });
+      if (attempts === 0) onAnswer({ text, correct: res.correct });
+      setAttempts((a) => a + 1);
+      setResult(res);
+      // typed answers are subjective — proceeding is allowed after grading
+      setSolved(true);
+      onSolved?.();
+    } catch {
+      if (attempts === 0) onAnswer({ text, correct: false });
+      setAttempts((a) => a + 1);
+      setResult({ correct: false, feedback: "Couldn't grade that — see the explanation." });
+      setSolved(true);
+      onSolved?.();
+    } finally {
+      setGrading(false);
+    }
+  }, [solved, review, grading, text, kind, quiz, attempts, onAnswer, onSolved, gradeTyped]);
+
+  const canRetry = kind === 'fillblank' && result && !result.correct && !solved;
+
+  return (
+    <section className="mt-10" aria-label="Quick check">
+      <QuizHeader question={quiz.question} current={current} />
+
+      {kind === 'typed' ? (
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          disabled={solved || grading}
+          rows={3}
+          placeholder="Type your answer…"
+          className="mt-4 w-full resize-y rounded-wobble-sm border-2 border-ink bg-paper-3 px-3.5 py-2.5 text-[0.95rem] text-ink shadow-offset outline-none focus:border-blue disabled:opacity-70"
+        />
+      ) : (
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && submit()}
+          disabled={solved}
+          placeholder="Type the missing word(s)…"
+          className="mt-4 w-full rounded-wobble-sm border-2 border-ink bg-paper-3 px-3.5 py-2.5 text-[0.95rem] font-bold text-ink shadow-offset outline-none focus:border-blue disabled:opacity-70"
+        />
+      )}
+
+      {!solved && (
+        <button
+          type="button"
+          onClick={submit}
+          disabled={grading || !text.trim()}
+          className={cn(
+            'mt-3 inline-flex items-center gap-1.5 rounded-wobble-sm border-2 border-ink px-3.5 py-1.5 font-heading text-sm font-bold text-ink shadow-offset transition-transform hover:-translate-y-0.5 disabled:opacity-50',
+            'bg-yellow',
+          )}
+        >
+          <Send className="h-4 w-4" />
+          {grading ? 'Checking…' : canRetry ? 'Try again' : 'Check answer'}
+        </button>
+      )}
+
+      {result && (
+        <AnimatePresence>
           <motion.div
-            initial={{ opacity: 0, rotate: 6, y: 8 }}
-            animate={{ opacity: 1, rotate: -1.5, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.4 }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
             className={cn(
-              'mt-4 max-w-lg rounded-wobble-2 p-3.5 pt-4 font-heading text-[0.95rem] leading-snug text-ink shadow-offset',
-              solved ? 'bg-green-soft' : 'bg-yellow',
+              'mt-4 max-w-lg rounded-wobble-2 p-3.5 font-heading text-[0.95rem] leading-snug text-ink shadow-offset',
+              result.correct ? 'bg-green-soft' : 'bg-yellow',
             )}
           >
-            {!solved && <span className="font-bold">Not quite — </span>}
-            {quiz.explanation}
-            {!solved && (
-              <span className="mt-1 block text-sm text-ink-soft">
-                Try again — you've got this.
-              </span>
+            <span className="font-bold">
+              {result.correct ? 'Correct — ' : 'Not quite — '}
+            </span>
+            {result.feedback ? `${result.feedback} ` : ''}
+            {!result.correct && kind === 'fillblank' && quiz.answer && (
+              <span>Answer: <span className="font-bold">{quiz.answer}</span>. </span>
             )}
+            <span className="block text-sm text-ink-soft">{quiz.explanation}</span>
           </motion.div>
-        )}
-      </AnimatePresence>
+        </AnimatePresence>
+      )}
     </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+function QuizHeader({ question, current }: { question: string; current: string | null }) {
+  return (
+    <>
+      <SquiggleDivider className="text-pencil" />
+      <h3 className="mt-3 flex items-center gap-2 font-display text-2xl font-bold text-ink">
+        <Pencil className="h-5 w-5 text-ink" strokeWidth={2} />
+        Quick check
+      </h3>
+      <p className="mt-2 text-[1.125rem] font-extrabold leading-snug text-ink">
+        <Kara k="quizq" current={current}>
+          {question}
+        </Kara>
+      </p>
+    </>
+  );
+}
+
+function Explanation({ show, solved, text }: { show: boolean; solved: boolean; text: string }) {
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          initial={{ opacity: 0, rotate: 6, y: 8 }}
+          animate={{ opacity: 1, rotate: -1.5, y: 0 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.4 }}
+          className={cn(
+            'mt-4 max-w-lg rounded-wobble-2 p-3.5 pt-4 font-heading text-[0.95rem] leading-snug text-ink shadow-offset',
+            solved ? 'bg-green-soft' : 'bg-yellow',
+          )}
+        >
+          {!solved && <span className="font-bold">Not quite — </span>}
+          {text}
+          {!solved && (
+            <span className="mt-1 block text-sm text-ink-soft">Try again — you've got this.</span>
+          )}
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

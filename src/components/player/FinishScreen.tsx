@@ -99,13 +99,20 @@ export default function FinishScreen({
         .map((c) => c.type)
         .filter((t) => t !== 'prose' && t !== 'stickynote');
       const ans = answers[i];
+      // the student's recorded response: option text (mcq/mcq2) or typed text
+      const chosenOption =
+        slide.quiz && ans
+          ? ans.firstText ??
+            (typeof ans.firstChosen === 'number'
+              ? slide.quiz.options?.[ans.firstChosen] ?? null
+              : null)
+          : null;
       return {
         title: slide.title,
         summary,
         visuals,
         question: slide.quiz?.question ?? null,
-        chosenOption:
-          slide.quiz && ans ? slide.quiz.options[ans.firstChosen] : null,
+        chosenOption,
         correct: slide.quiz && ans ? ans.firstCorrect : null,
       };
     });
@@ -322,18 +329,22 @@ export default function FinishScreen({
                       {slide.quiz.question}
                     </p>
                     <p className="text-xs text-ink-soft">
-                      You picked:{' '}
+                      You {ans?.firstText != null ? 'answered' : 'picked'}:{' '}
                       <span className="font-bold">
-                        {ans
-                          ? slide.quiz.options[ans.firstChosen]
-                          : '—'}
+                        {ans?.firstText ??
+                          (ans && typeof ans.firstChosen === 'number'
+                            ? slide.quiz.options?.[ans.firstChosen]
+                            : '—')}
                       </span>
                       {!correct && (
                         <>
                           {' '}
                           · Correct:{' '}
                           <span className="font-bold">
-                            {slide.quiz.options[slide.quiz.correctIndex]}
+                            {slide.quiz.answer ??
+                              (slide.quiz.options && typeof slide.quiz.correctIndex === 'number'
+                                ? slide.quiz.options[slide.quiz.correctIndex]
+                                : '—')}
                           </span>
                         </>
                       )}

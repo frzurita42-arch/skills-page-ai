@@ -131,6 +131,26 @@ export default function Replay() {
             {hasQuiz && slide.quiz && (
               <div className="mt-6 rounded-wobble-2 border-2 border-ink bg-paper-3 p-4">
                 <p className="mb-3 font-heading text-lg font-bold text-ink">{slide.quiz.question}</p>
+                {/* text answers (fillblank/typed) have no options — show recorded vs correct */}
+                {!slide.quiz.options || slide.quiz.options.length === 0 ? (
+                  <div className="flex flex-col gap-2 text-sm">
+                    <div
+                      className={cn(
+                        'rounded-wobble-sm border-2 px-3 py-2',
+                        answer?.correct ? 'border-green bg-green-soft' : 'border-red bg-red-soft',
+                      )}
+                    >
+                      <span className="micro text-ink-faint">Your answer: </span>
+                      <span className="text-ink">{answer?.chosenOption ?? '—'}</span>
+                    </div>
+                    {slide.quiz.answer && (
+                      <div className="rounded-wobble-sm border-2 border-pencil bg-paper px-3 py-2">
+                        <span className="micro text-ink-faint">Reference: </span>
+                        <span className="text-ink">{slide.quiz.answer}</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
                 <div className="flex flex-col gap-2">
                   {slide.quiz.options.map((opt, oi) => {
                     const isCorrect = oi === slide.quiz!.correctIndex;
@@ -162,6 +182,7 @@ export default function Replay() {
                     );
                   })}
                 </div>
+                )}
                 {answer?.chosenOption == null && (
                   <p className="micro mt-2 text-ink-faint">No answer was recorded for this slide.</p>
                 )}

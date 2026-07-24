@@ -170,11 +170,19 @@ export default function DeckPlayer({
     return () => window.removeEventListener('keydown', handler);
   }, [goNext, goBack, finished, inReview]);
 
-  const handleAnswer = (chosenIndex: number, correct: boolean) => {
+  const handleAnswer = (res: { chosen?: number; text?: string; correct: boolean }) => {
     setAnswers((a) =>
       a[index]
         ? a
-        : { ...a, [index]: { firstChosen: chosenIndex, firstCorrect: correct, solved: correct } },
+        : {
+            ...a,
+            [index]: {
+              firstChosen: res.chosen,
+              firstText: res.text,
+              firstCorrect: res.correct,
+              solved: res.correct,
+            },
+          },
     );
   };
   const handleSolved = () => {

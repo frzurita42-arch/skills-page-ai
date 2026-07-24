@@ -232,10 +232,12 @@ export const runsRouter = createRouter({
       const slides = deck && Array.isArray(deck.slides) ? deck.slides : [];
       const answers = slides.map((s, i) => {
         const a = recorded[i];
-        const correctOption =
-          s.quiz && typeof s.quiz.correctIndex === "number"
-            ? (s.quiz.options[s.quiz.correctIndex] ?? null)
-            : null;
+        const correctOption = s.quiz
+          ? s.quiz.answer ??
+            (s.quiz.options && typeof s.quiz.correctIndex === "number"
+              ? (s.quiz.options[s.quiz.correctIndex] ?? null)
+              : null)
+          : null;
         return {
           chosenOption: a?.chosenOption ?? null,
           correctOption,

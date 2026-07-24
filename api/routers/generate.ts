@@ -37,6 +37,7 @@ import {
   TEMPLATE_COMPONENT_LABELS,
 } from "@contracts/slide-templates";
 import { isStemTopic } from "@contracts/stem";
+import { typedOverlapCorrect } from "@contracts/grade";
 import type { CoachReply, SlideDeck } from "@contracts/types";
 
 const GUEST_MAX_SLIDES = 6;
@@ -616,6 +617,67 @@ export const generateRouter = createRouter({
         style: input.style,
       });
       return { imageUrl };
+    }),
+
+  /**
+   * Grade a typed free-text answer against the question's reference answer.
+   * Uses the AI when a text key is configured; otherwise falls back to a
+   * lenient token-overlap check so typed questions still work keyless.
+   */
+  gradeTyped: publicQuery
+    .input(
+      z.object({
+        question: z.string().min(1).max(2000),
+        reference: z.string().min(1).max(2000),
+        answer: z.string().max(4000),
+      }),
+    )
+    .mutation(async ({ ctx, input }): Promise<{ correct: boolean; feedback: string }> => {
+      const student = input.answer.trim();
+      if (!student) return { correct: false, feedback: "No answer was entered." };
+
+      try {
+        const result = await completeText({
+          userId: ctx.user?.id,
+          messages: [
+            {
+              role: "system",
+              content:
+                'You grade a student\'s short typed answer against a reference answer. Be lenient about wording, spelling, and phrasing — reward correct meaning, not exact words. Reply STRICT JSON ONLY: {"correct":true|false,"feedback":"one short encouraging sentence"}.',
+            },
+            {
+              role: "user",
+              content: `QUESTION: ${input.question}\nREFERENCE ANSWER: ${input.reference}\nSTUDENT ANSWER: ${student}\n\nIs the student's answer correct in meaning? Reply JSON only.`,
+            },
+          ],
+          maxTokens: 200,
+        });
+        if (result) {
+          const parsed = JSON.parse(extractJson(result.text)) as {
+            correct?: boolean;
+            feedback?: string;
+          };
+          if (typeof parsed.correct === "boolean") {
+            return {
+              correct: parsed.correct,
+              feedback:
+                (parsed.feedback && String(parsed.feedback).slice(0, 300)) ||
+                (parsed.correct ? "Correct." : "Not quite."),
+            };
+          }
+        }
+      } catch (err) {
+        console.warn("[gradeTyped] AI grading failed, using overlap fallback:", err instanceof Error ? err.message : err);
+      }
+
+      // fallback: token overlap with the reference
+      const correct = typedOverlapCorrect(student, input.reference);
+      return {
+        correct,
+        feedback: correct
+          ? "Looks right — you covered the key idea."
+          : "Missing the key idea — compare with the explanation.",
+      };
     }),
 
 })

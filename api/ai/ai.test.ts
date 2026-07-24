@@ -168,7 +168,29 @@ describe("repairDeckDraft", () => {
       topic: "Spores",
     };
     const deck = slideDeckSchema.parse(repairDeckDraft(structuredClone(raw), defaults));
-    expect(deck).toEqual(raw);
+    // the schema now stamps the default quiz kind
+    expect(deck.slides[0].quiz).toMatchObject({ ...raw.slides[0].quiz, kind: "mcq" });
+    expect(deck.level).toBe("C1");
+    expect(deck.topic).toBe("Spores");
+  });
+
+  it("parses each evaluation kind (mcq2, fillblank, typed)", () => {
+    const mk = (quiz: Record<string, unknown>) =>
+      slideDeckSchema.parse({
+        slides: [{ title: "s", components: [{ type: "prose", paragraphs: ["p"] }], quiz }],
+        level: "A1",
+        imageStyle: "none",
+        topic: "T",
+      }).slides[0].quiz;
+    expect(mk({ kind: "mcq2", question: "q", options: ["a", "b"], correctIndex: 1, explanation: "e" })?.kind).toBe("mcq2");
+    expect(mk({ kind: "fillblank", question: "__ ran", answer: "she", explanation: "e" })?.answer).toBe("she");
+    expect(mk({ kind: "typed", question: "why?", answer: "because", explanation: "e" })?.kind).toBe("typed");
+    // mcq2 with 4 options is rejected
+    expect(() =>
+      mk({ kind: "mcq2", question: "q", options: ["a", "b", "c", "d"], correctIndex: 0, explanation: "e" }),
+    ).toThrow();
+    // fillblank without an answer is rejected
+    expect(() => mk({ kind: "fillblank", question: "q", explanation: "e" })).toThrow();
   });
 });
 
@@ -339,10 +361,12 @@ describe("shuffleQuizAnswers", () => {
       imageStyle: "sketch",
       topic: "T",
     });
-    const before = deck.slides[0].quiz!.options[deck.slides[0].quiz!.correctIndex];
+    const q0 = deck.slides[0].quiz!;
+    const before = q0.options![q0.correctIndex!];
     shuffleQuizAnswers(deck, rngFrom(99));
     expect(() => slideDeckSchema.parse(deck)).not.toThrow();
-    expect(deck.slides[0].quiz!.options[deck.slides[0].quiz!.correctIndex]).toBe(before);
+    const q1 = deck.slides[0].quiz!;
+    expect(q1.options![q1.correctIndex!]).toBe(before);
   });
 });
 

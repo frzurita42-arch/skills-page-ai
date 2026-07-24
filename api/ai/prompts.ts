@@ -50,12 +50,41 @@ export const slideComponentSchema = z.discriminatedUnion("type", [
   }),
 ]);
 
-export const slideQuizSchema = z.object({
-  question: z.string().min(1),
-  options: z.tuple([z.string().min(1), z.string().min(1), z.string().min(1), z.string().min(1)]),
-  correctIndex: z.number().int().min(0).max(3),
-  explanation: z.string().min(1),
-});
+export const quizKindSchema = z.enum(["mcq", "mcq2", "fillblank", "typed"]);
+
+/**
+ * A slide's evaluation. Backward compatible: a quiz with no `kind` and 4
+ * options parses as a 4-option MCQ. mcq2 = 2 options; fillblank/typed carry an
+ * `answer` (accepted / reference) and no options.
+ */
+export const slideQuizSchema = z
+  .object({
+    kind: quizKindSchema.default("mcq"),
+    question: z.string().min(1),
+    options: z.array(z.string().min(1)).optional(),
+    correctIndex: z.number().int().min(0).optional(),
+    answer: z.string().min(1).optional(),
+    acceptableAnswers: z.array(z.string().min(1)).optional(),
+    explanation: z.string().min(1),
+  })
+  .superRefine((q, ctx) => {
+    const addErr = (message: string) =>
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message });
+    if (q.kind === "mcq" || q.kind === "mcq2") {
+      const need = q.kind === "mcq" ? 4 : 2;
+      if (!q.options || q.options.length !== need) addErr(`${q.kind} needs exactly ${need} options`);
+      if (
+        typeof q.correctIndex !== "number" ||
+        q.correctIndex < 0 ||
+        q.correctIndex >= (q.options?.length ?? 0)
+      ) {
+        addErr(`${q.kind} needs a valid correctIndex`);
+      }
+    } else {
+      // fillblank / typed
+      if (!q.answer || !q.answer.trim()) addErr(`${q.kind} needs an "answer"`);
+    }
+  });
 
 export const slideSchema = z.object({
   title: z.string().min(1),
@@ -146,7 +175,7 @@ ${opts.previouslyTaught}
   const templates =
     opts.layoutTemplates && opts.layoutTemplates.length > 0
       ? `
-SLIDE LAYOUT TEMPLATES — this is the ONLY set of slide configurations you may use. Build each slide as one of these layouts, following its component types IN ORDER and including ALL of its steps; pick the layout that best fits the concept and vary layouts across the deck. A layout with several "Text" steps means that many DISTINCT paragraphs (never repeat one). Any evaluation step ("Multiple choice", "2-option", "Fill blank", "Typed answer") is realized as this slide's quiz object — make the question style match (e.g. "2-option" → a question whose 4 options are two clear choices plus two distractors; "Fill blank" → a cloze sentence; "Typed answer" → a recall question) and keep exactly ONE objectively correct option. These layouts are already chosen for this deck's difficulty level, so honor the text density they imply.
+SLIDE LAYOUT TEMPLATES — this is the ONLY set of slide configurations you may use. Build each slide as one of these layouts, following its component types IN ORDER and including ALL of its steps; pick the layout that best fits the concept and vary layouts across the deck. A layout with several "Text" steps means that many DISTINCT paragraphs (never repeat one). The evaluation step names map to the quiz "kind" (see rule 6): "Multiple choice"→mcq, "2-option"→mcq2, "Fill blank"→fillblank, "Typed answer"→typed. Emit the quiz with EXACTLY that kind and its required fields — do not substitute one kind for another. These layouts are already chosen for this deck's difficulty level, so honor the text density they imply.
 ${opts.layoutTemplates.map((t) => `- ${t.name}${t.tags.length ? ` [${t.tags.join(", ")}]` : ""}: ${t.components.join(" -> ")}`).join("\n")}
 When a layout calls for a Table, emit a valid table component with real rows, e.g. {"type":"table","columns":["Rule","Example"],"rows":[["Add -ed for past tense","walk -> walked"],["Double the consonant","stop -> stopped"]]}. When it calls for a Graph, emit a chart component, e.g. {"type":"chart","chartType":"bar","title":"...","labels":["A","B","C"],"series":[{"name":"...","data":[3,5,2]}]}. A malformed table/chart is dropped, which breaks the layout — always give columns+rows / labels+series.
 `
@@ -160,7 +189,12 @@ TEACHING RULES (non-negotiable):
 3. Choose components deliberately per concept from this palette: prose, chart (bar/line/pie/area with real plausible data), latex, svg (a diagram description the app sketches), table (compact, few columns), stickynote (max ONE per deck, for a mnemonic or key warning), image (a vivid visual with an alt text and a generation prompt), code (short snippet).
 4. SUBJECT GATING: latex and code ONLY for math/STEM/technical topics. Humanities, languages, business, food, history -> prose + images + tables + diagrams + sticky notes.
 5. HARD max ONE latex formula per slide. When a formula or graph is present, order components: (1) the formula, (2) its graph/diagram, (3) a short "why it is here" text.
-6. Per-slide MCQ: exactly 4 options, answerable ONLY from that slide's content plus everyday knowledge — one small step past the text (not a verbatim copy). Difficulty matched to level "${opts.level}". Quizzes appear on MOST slides, not necessarily every one. Quiz questions must be direct, closed-form multiple-choice questions with exactly ONE objectively correct option. NEVER phrase them as open-ended prompts such as "in your own words", "explain", "describe", or "what do you think" — the student picks an option, not writes prose.
+6. EVALUATION ("quiz"): each slide's evaluation MUST match the evaluation step its layout template lists, using the "kind" field — answerable ONLY from that slide's content plus everyday knowledge, difficulty matched to level "${opts.level}":
+   - "Multiple choice" -> {"kind":"mcq","question":"...","options":["a","b","c","d"],"correctIndex":0,"explanation":"..."} — EXACTLY 4 options, ONE objectively correct.
+   - "2-option" -> {"kind":"mcq2","question":"...","options":["a","b"],"correctIndex":0,"explanation":"..."} — EXACTLY 2 options (e.g. true/false, this/that).
+   - "Fill blank" -> {"kind":"fillblank","question":"The past tense of run is ___.","answer":"ran","acceptableAnswers":["ran"],"explanation":"..."} — put a ___ blank in the question; "answer" is the exact missing word/phrase; add other correct spellings/forms to acceptableAnswers.
+   - "Typed answer" -> {"kind":"typed","question":"In one sentence, why ...?","answer":"a concise correct reference answer","explanation":"..."} — an open recall/short-answer question the student types; "answer" is the model answer used to grade them.
+   Choose the kind from the template's step; do NOT substitute a multiple-choice for a fill-blank/typed step. NEVER phrase mcq/mcq2 as "explain"/"in your own words"; those belong to the typed kind.
 7. Images use imageStyle "${opts.imageStyle}"${opts.imageStyle === "none" ? " — style is 'none', so DO NOT emit any image components" : ""}.
 8. CEFR LEVEL "${opts.level}" — calibrate reading difficulty precisely to this level (this controls VOCABULARY and SENTENCE COMPLEXITY, not how much you teach; every slide still fully explains its visual):
    - A0 (pre-beginner): 1-2 very short sentences, ~present tense, only the ~300 most common words, define/illustrate each key word; lean on images.
@@ -173,7 +207,8 @@ TEACHING RULES (non-negotiable):
    Match sentence length and word choice to the level: a low level means SIMPLER language, not shallower coverage; a high level means denser, more sophisticated language.
 ${memory}${templates}
 OUTPUT: STRICT JSON ONLY (no markdown fences, no commentary) matching exactly:
-{"slides":[{"title":"...","components":[...],"quiz":{"question":"...","options":["a","b","c","d"],"correctIndex":0,"explanation":"..."}}],"level":"${opts.level}","imageStyle":"${opts.imageStyle}","topic":"..."}`;
+{"slides":[{"title":"...","components":[...],"quiz":{"kind":"mcq","question":"...","options":["a","b","c","d"],"correctIndex":0,"explanation":"..."}}],"level":"${opts.level}","imageStyle":"${opts.imageStyle}","topic":"..."}
+(set "quiz.kind" to the evaluation the slide's layout calls for: mcq, mcq2, fillblank, or typed, with the fields shown in rule 6.)`;
 }
 
 export function buildLessonPathPrompt(opts: {

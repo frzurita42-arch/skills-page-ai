@@ -193,8 +193,10 @@ const HUMANITIES_TEMPLATES: SlideTemplate[] = [
   bi("Key term", "A1", ["prose", "stickynote", "quiz"], ["humanities"]),
   bi("True or false history", "A1", ["prose", "mcq2"], ["history", "civics"]),
   bi("Fill the sentence", "A1", ["prose", "fillblank"], ["language", "esl"]),
-  // grammar rules | examples table + fill-the-blank
+  // grammar rules | examples table with varied evaluation kinds
   bi("Grammar table", "A1", ["prose", "table", "fillblank"], ["language", "esl", "grammar"]),
+  bi("Grammar this or that", "A1", ["prose", "table", "mcq2"], ["language", "esl", "grammar"]),
+  bi("Grammar quick pick", "A1", ["prose", "table", "quiz"], ["language", "esl", "grammar"]),
   // humanities graphs (timelines / trends)
   bi("Read the timeline", "A1", ["prose", "chart", "mcq2"], ["history", "humanities"]),
 
@@ -209,8 +211,9 @@ const HUMANITIES_TEMPLATES: SlideTemplate[] = [
   bi("Dialogue practice", "B1", ["prose", "prose", "fillblank"], ["language", "esl"]),
   bi("Two viewpoints", "B1", ["prose", "table", "prose", "shortanswer"], ["philosophy", "civics"]),
   bi("Timeline reasoning", "B1", ["prose", "prose", "quiz"], ["history"]),
-  // grammar rules | examples table, explained, then checked
+  // grammar rules | examples table, explained, then checked (varied evals)
   bi("Grammar in context", "B1", ["prose", "table", "prose", "quiz"], ["language", "esl", "grammar"]),
+  bi("Grammar cloze", "B1", ["prose", "table", "prose", "fillblank"], ["language", "esl", "grammar"]),
   // humanities graph read + interpret
   bi("Historical trends", "B1", ["prose", "chart", "prose", "quiz"], ["history", "humanities"]),
 
@@ -225,8 +228,9 @@ const HUMANITIES_TEMPLATES: SlideTemplate[] = [
   bi("Rhetoric breakdown", "C1", ["prose", "prose", "prose", "quiz"], ["writing", "language"]),
   bi("Ethics debate", "C1", ["prose", "prose", "prose", "shortanswer"], ["philosophy", "civics"]),
   bi("Advanced ESL reading", "C1", ["prose", "prose", "prose", "fillblank"], ["esl", "language"]),
-  // dense grammar rules | examples table with typed answer
+  // dense grammar rules | examples table with typed answer / judgement
   bi("Grammar deep dive", "C1", ["prose", "table", "prose", "shortanswer"], ["language", "writing", "grammar"]),
+  bi("Grammar judgement", "C1", ["prose", "prose", "table", "mcq2"], ["language", "writing", "grammar"]),
   // humanities data argument from a graph
   bi("Data in history", "C1", ["prose", "chart", "prose", "prose", "shortanswer"], ["history", "humanities"]),
 ];
