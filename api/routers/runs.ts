@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { createRouter, publicQuery } from "../middleware";
 import { authedProcedure, moderatorProcedure } from "../procedures";
 import { getDb } from "../queries/connection";
@@ -28,26 +28,18 @@ const seedSchema = z.object({
   lessonSeqTotal: z.number().int(),
 });
 
-async function toRunRow(db: ReturnType<typeof getDb>, r: typeof runs.$inferSelect): Promise<RunRow> {
-  const tool = await db.query.slideTools.findFirst({ where: eq(slideTools.id, r.slideToolId) });
-  let repoSlug: string | null = null;
-  let repoRef: string | null = null;
-  if (r.repoId) {
-    const repo = await db.query.repos.findFirst({ where: eq(repos.id, r.repoId) });
-    repoSlug = repo?.slug ?? null;
-    repoRef = repo?.ref ?? null;
-  }
-  let lessonTitle: string | null = null;
-  if (r.lessonId) {
-    const lesson = await db.query.lessons.findFirst({ where: eq(lessons.id, r.lessonId) });
-    lessonTitle = lesson?.title ?? null;
-  }
+function buildRunRow(
+  r: typeof runs.$inferSelect,
+  tool: { slug: string; name: string } | undefined,
+  repo: { slug: string; ref: string } | undefined,
+  lessonTitle: string | null,
+): RunRow {
   return {
     id: r.id,
     toolSlug: tool?.slug ?? "unknown",
     toolName: tool?.name ?? "Unknown tool",
-    repoSlug,
-    repoRef,
+    repoSlug: repo?.slug ?? null,
+    repoRef: repo?.ref ?? null,
     lessonTitle,
     playerName: r.playerName,
     level: r.level,
@@ -59,6 +51,61 @@ async function toRunRow(db: ReturnType<typeof getDb>, r: typeof runs.$inferSelec
     flagged: r.flagged,
     completedAt: r.completedAt,
   };
+}
+
+async function toRunRow(db: ReturnType<typeof getDb>, r: typeof runs.$inferSelect): Promise<RunRow> {
+  const tool = await db.query.slideTools.findFirst({ where: eq(slideTools.id, r.slideToolId) });
+  const repo = r.repoId
+    ? await db.query.repos.findFirst({ where: eq(repos.id, r.repoId) })
+    : undefined;
+  const lesson = r.lessonId
+    ? await db.query.lessons.findFirst({ where: eq(lessons.id, r.lessonId) })
+    : undefined;
+  return buildRunRow(r, tool ?? undefined, repo ?? undefined, lesson?.title ?? null);
+}
+
+/**
+ * Batch version of toRunRow for lists: resolves every run's tool/repo/lesson
+ * in THREE queries total (one per table, keyed by id set) instead of ~3 per
+ * run. This is what made the runs page slow — 100 rows meant ~300 sequential
+ * lookups.
+ */
+async function toRunRows(
+  db: ReturnType<typeof getDb>,
+  rows: (typeof runs.$inferSelect)[],
+): Promise<RunRow[]> {
+  if (rows.length === 0) return [];
+  const toolIds = [...new Set(rows.map((r) => r.slideToolId))];
+  const repoIds = [...new Set(rows.map((r) => r.repoId).filter((v): v is number => v != null))];
+  const lessonIds = [...new Set(rows.map((r) => r.lessonId).filter((v): v is number => v != null))];
+
+  const [toolRows, repoRows, lessonRows] = await Promise.all([
+    toolIds.length
+      ? db.select({ id: slideTools.id, slug: slideTools.slug, name: slideTools.name })
+          .from(slideTools).where(inArray(slideTools.id, toolIds))
+      : Promise.resolve([]),
+    repoIds.length
+      ? db.select({ id: repos.id, slug: repos.slug, ref: repos.ref })
+          .from(repos).where(inArray(repos.id, repoIds))
+      : Promise.resolve([]),
+    lessonIds.length
+      ? db.select({ id: lessons.id, title: lessons.title })
+          .from(lessons).where(inArray(lessons.id, lessonIds))
+      : Promise.resolve([]),
+  ]);
+
+  const toolMap = new Map(toolRows.map((t) => [t.id, t]));
+  const repoMap = new Map(repoRows.map((r) => [r.id, r]));
+  const lessonMap = new Map(lessonRows.map((l) => [l.id, l]));
+
+  return rows.map((r) =>
+    buildRunRow(
+      r,
+      toolMap.get(r.slideToolId),
+      r.repoId != null ? repoMap.get(r.repoId) : undefined,
+      (r.lessonId != null ? lessonMap.get(r.lessonId)?.title : null) ?? null,
+    ),
+  );
 }
 
 export const runsRouter = createRouter({
@@ -264,7 +311,7 @@ export const runsRouter = createRouter({
         .orderBy(desc(runs.completedAt))
         .limit(input?.limit ?? 25)
         .offset(input?.offset ?? 0);
-      return Promise.all(rows.map((r) => toRunRow(db, r)));
+      return toRunRows(db, rows);
     }),
 
   listMine: authedProcedure
@@ -277,7 +324,7 @@ export const runsRouter = createRouter({
         .where(eq(runs.userId, ctx.user.id))
         .orderBy(desc(runs.completedAt))
         .limit(input?.limit ?? 50);
-      return Promise.all(rows.map((r) => toRunRow(db, r)));
+      return toRunRows(db, rows);
     }),
 
   setFlagged: moderatorProcedure

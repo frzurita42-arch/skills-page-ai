@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Check,
   ChevronDown,
-  Clapperboard,
   NotebookPen,
   Presentation,
   ScrollText,
@@ -277,9 +276,8 @@ export default function LessonPath() {
         </div>
       </section>
 
-      {/* form + preview */}
-      <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,560px)_minmax(0,1fr)]">
-        {/* LEFT — form / theater */}
+      {/* form */}
+      <div className="mt-8 max-w-[680px]">
         <div className="min-w-0">
           {generating ? (
             <Theater step={theaterStep} total={total} />
@@ -470,17 +468,6 @@ export default function LessonPath() {
             </div>
           )}
         </div>
-
-        {/* RIGHT — live preview */}
-        <div className="min-w-0 self-start lg:sticky lg:top-24">
-          <Preview
-            subject={subject}
-            metaLabel={{ unit: meta.unitNoun, lesson: meta.lessonNoun }}
-            unitCount={unitCount}
-            lessonsPerUnit={lessonsPerUnit}
-            totalLessons={totalLessons}
-          />
-        </div>
       </div>
 
       {/* mobile sticky action bar */}
@@ -659,113 +646,6 @@ function CostAndGenerate({
 }
 
 /* ------------------------------------------------------------------ */
-/* Live preview — mini repo tree sketch (lesson-path.md §3)            */
-/* ------------------------------------------------------------------ */
-
-function Preview({
-  subject,
-  metaLabel,
-  unitCount,
-  lessonsPerUnit,
-  totalLessons,
-}: {
-  subject: string;
-  metaLabel: { unit: string; lesson: string };
-  unitCount: number;
-  lessonsPerUnit: number;
-  totalLessons: number;
-}) {
-  const title = subject.trim() || 'Untitled notebook';
-  const [typed, setTyped] = useState(title);
-  const firstRender = useRef(true);
-
-  // title typing effect (20ms/char)
-  useEffect(() => {
-    if (firstRender.current) {
-      firstRender.current = false;
-      setTyped(title);
-      return;
-    }
-    setTyped('');
-    let i = 0;
-    const t = setInterval(() => {
-      i += 1;
-      setTyped(title.slice(0, i));
-      if (i >= title.length) clearInterval(t);
-    }, 20);
-    return () => clearInterval(t);
-  }, [title]);
-
-  const shownUnits = Math.min(unitCount, 3);
-  const shownLessons = Math.min(lessonsPerUnit, 4);
-
-  return (
-    <aside
-      aria-label="Live preview"
-      className="relative rounded-wobble-1 border-2 border-dashed border-pencil bg-paper-3/70 p-5 pt-7"
-    >
-      <WashiTape rotate={2} className="left-1/2 -translate-x-1/2" />
-      <div className="flex items-center justify-between gap-2">
-        <p className="micro text-[0.62rem] text-ink-faint">Live preview — AI will draft these ✦</p>
-        <Chip kind="repo-ref" title="Assigned on create">
-          #·····
-        </Chip>
-      </div>
-      <p className="mt-2 min-h-[2rem] font-display text-2xl font-bold text-ink">
-        {typed}
-        <span className="animate-caret-blink text-ink-faint">▏</span>
-      </p>
-
-      <div className="mt-4 flex flex-col gap-3 border-l-2 border-dashed border-pencil pl-4">
-        {Array.from({ length: shownUnits }, (_, u) => (
-          <div key={u}>
-            <div className="flex items-center gap-2 rounded-wobble-sm border-2 border-dashed border-pencil bg-paper-3 px-3 py-2">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-ink font-display text-base font-bold text-ink">
-                {u + 1}
-              </span>
-              <span className="micro text-[0.62rem] text-ink-soft">
-                {metaLabel.unit} {u + 1}
-              </span>
-              <span className="skeleton-stroke h-3 flex-1" />
-            </div>
-            <div className="ml-5 mt-2 flex flex-col gap-1.5 border-l-2 border-dotted border-pencil pl-3">
-              {Array.from({ length: shownLessons }, (_, l) => {
-                const mySeq = u * lessonsPerUnit + l + 1;
-                return (
-                  <motion.div
-                    key={`${u}-${mySeq}`}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, ease: EASE }}
-                    className="flex items-center gap-2 rounded-wobble-sm border-2 border-dotted border-pencil bg-paper-3 px-2.5 py-1.5"
-                  >
-                    <span className="font-mono text-[0.65rem] font-bold text-ink-faint">
-                      {mySeq}/{totalLessons}
-                    </span>
-                    <span className="skeleton-stroke h-2.5 flex-1" />
-                    <Clapperboard className="h-3.5 w-3.5 text-ink-faint" />
-                  </motion.div>
-                );
-              })}
-              {lessonsPerUnit > shownLessons && (
-                <p className="pl-1 font-mono text-[0.65rem] text-ink-faint">
-                  + {lessonsPerUnit - shownLessons} more {metaLabel.lesson.toLowerCase()}s
-                </p>
-              )}
-            </div>
-          </div>
-        ))}
-        {unitCount > shownUnits && (
-          <p className="pl-1 font-mono text-xs text-ink-faint">
-            + {unitCount - shownUnits} more {metaLabel.unit.toLowerCase()}s
-          </p>
-        )}
-      </div>
-    </aside>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /* Generation theater (lesson-path.md §4)                              */
 /* ------------------------------------------------------------------ */
 
@@ -840,7 +720,7 @@ function Theater({ step, total }: { step: number; total: number | null }) {
       </div>
       <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-faint">
         <Check className="h-3.5 w-3.5" />
-        Real AI drafting can take 10–30 seconds — the preview on the right is the plan it's following.
+        Real AI drafting can take 10–30 seconds — hang tight while it sketches your notebook.
       </p>
     </motion.div>
   );

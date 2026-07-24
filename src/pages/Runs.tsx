@@ -28,7 +28,7 @@ import { DoodleSparkle } from '@/components/sketch/DoodleIcons';
 import { usePrefersReducedMotion } from '@/components/about/usePrefersReducedMotion';
 import { LEVELS, type Level, type RunRow, type RunSlideDetail } from '@contracts/types';
 
-const PAGE_SIZE = 24;
+const PAGE_SIZE = 5;
 const EASE_OUT = [0.22, 1, 0.36, 1] as [number, number, number, number];
 
 /* ------------------------------------------------------------------ */
