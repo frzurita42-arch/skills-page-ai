@@ -111,7 +111,7 @@ export type SlideComponent =
 
 /** Evaluation kinds a slide can use. mcq = 4-option, mcq2 = 2-option,
  *  fillblank = type the missing word(s), typed = free typed answer. */
-export type QuizKind = "mcq" | "mcq2" | "fillblank" | "typed";
+export type QuizKind = "mcq" | "mcq2" | "fillblank" | "typed" | "solve";
 
 export interface SlideQuiz {
   /** defaults to "mcq" for decks generated before typed answers existed */
@@ -121,7 +121,8 @@ export interface SlideQuiz {
   options?: string[];
   /** index of the correct option (mcq/mcq2) */
   correctIndex?: number;
-  /** accepted answer for fillblank / reference answer for typed */
+  /** accepted answer for fillblank / reference answer for typed / final
+      answer for a solve worksheet */
   answer?: string;
   /** extra accepted answers for fillblank (case/space-insensitive) */
   acceptableAnswers?: string[];
@@ -322,6 +323,10 @@ export type SlideAnnotation = AnnStroke | AnnText;
 export interface DeckAnnotations {
   w: number;
   slides: Record<number, SlideAnnotation[]>;
+  /** worked-solution scratchpads for "solve" slides: per slide index, an
+      ordered list of pages, each page its own list of marks. Saved so a
+      learner (or moderator) can review the work they showed. */
+  scratch?: Record<number, SlideAnnotation[][]>;
 }
 
 /** A fully replayable recording of a past play: the exact deck as presented

@@ -63,9 +63,9 @@ describe("slide-template catalog", () => {
     for (const t of advStem) expect(t.level).toBe("C1");
   });
 
-  it("gradable set is exactly the four evaluation types", () => {
+  it("gradable set is exactly the five evaluation types", () => {
     expect(new Set(GRADABLE_TYPES)).toEqual(
-      new Set(["quiz", "mcq2", "fillblank", "shortanswer"]),
+      new Set(["quiz", "mcq2", "fillblank", "shortanswer", "solve"]),
     );
   });
 });
@@ -118,8 +118,9 @@ describe("slide conformance to templates", () => {
 
   it("every built-in template is self-conforming (its own shape satisfies it)", () => {
     for (const t of BUILTIN_SLIDE_TEMPLATES) {
-      const content = t.components.filter((c) => !["quiz", "mcq2", "fillblank", "shortanswer"].includes(c));
-      const hasQuiz = t.components.some((c) => ["quiz", "mcq2", "fillblank", "shortanswer"].includes(c));
+      const grad = ["quiz", "mcq2", "fillblank", "shortanswer", "solve"];
+      const content = t.components.filter((c) => !grad.includes(c));
+      const hasQuiz = t.components.some((c) => grad.includes(c));
       expect(slideConformsToTemplate({ componentTypes: content, hasQuiz }, t), t.name).toBe(true);
     }
   });

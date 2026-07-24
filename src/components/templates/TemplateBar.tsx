@@ -12,6 +12,7 @@ import {
   ToggleLeft,
   TextCursorInput,
   Keyboard,
+  PencilRuler,
   ArrowRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -33,6 +34,7 @@ const ICONS: Record<TemplateComponentType, typeof AlignLeft> = {
   mcq2: ToggleLeft,
   fillblank: TextCursorInput,
   shortanswer: Keyboard,
+  solve: PencilRuler,
 };
 
 const TINT: Record<TemplateComponentType, string> = {
@@ -48,6 +50,7 @@ const TINT: Record<TemplateComponentType, string> = {
   mcq2: 'text-purple',
   fillblank: 'text-blue',
   shortanswer: 'text-green',
+  solve: 'text-orange',
 };
 
 /**

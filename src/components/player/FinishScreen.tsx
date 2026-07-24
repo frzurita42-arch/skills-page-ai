@@ -119,9 +119,14 @@ export default function FinishScreen({
         correct: slide.quiz && ans ? ans.firstCorrect : null,
       };
     });
-    // only send annotations if the player actually drew something
+    // only send annotations if the player actually drew something — on a slide
+    // overlay OR on a solve worksheet scratchpad
     const hasMarks =
-      !!annotations && Object.values(annotations.slides).some((list) => list.length > 0);
+      !!annotations &&
+      (Object.values(annotations.slides).some((list) => list.length > 0) ||
+        Object.values(annotations.scratch ?? {}).some((pages) =>
+          pages.some((page) => page.length > 0),
+        ));
     complete.mutate({
       toolSlug,
       seed: seed ?? undefined,

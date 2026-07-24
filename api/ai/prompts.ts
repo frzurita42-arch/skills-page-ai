@@ -79,7 +79,7 @@ export const slideComponentSchema = z.discriminatedUnion("type", [
   }),
 ]);
 
-export const quizKindSchema = z.enum(["mcq", "mcq2", "fillblank", "typed"]);
+export const quizKindSchema = z.enum(["mcq", "mcq2", "fillblank", "typed", "solve"]);
 
 /**
  * A slide's evaluation. Backward compatible: a quiz with no `kind` and 4
@@ -110,7 +110,7 @@ export const slideQuizSchema = z
         addErr(`${q.kind} needs a valid correctIndex`);
       }
     } else {
-      // fillblank / typed
+      // fillblank / typed / solve all carry a reference "answer"
       if (!q.answer || !q.answer.trim()) addErr(`${q.kind} needs an "answer"`);
     }
   });
@@ -217,7 +217,7 @@ ${opts.previouslyTaught}
   const templates =
     opts.layoutTemplates && opts.layoutTemplates.length > 0
       ? `
-SLIDE LAYOUT TEMPLATES — this is the ONLY set of slide configurations you may use. Build each slide as one of these layouts, following its component types IN ORDER and including ALL of its steps; pick the layout that best fits the concept and vary layouts across the deck. A layout with several "Text" steps means that many DISTINCT paragraphs (never repeat one). The evaluation step names map to the quiz "kind" (see rule 6): "Multiple choice"→mcq, "2-option"→mcq2, "Fill blank"→fillblank, "Typed answer"→typed. Emit the quiz with EXACTLY that kind and its required fields — do not substitute one kind for another. These layouts are already chosen for this deck's difficulty level, so honor the text density they imply.
+SLIDE LAYOUT TEMPLATES — this is the ONLY set of slide configurations you may use. Build each slide as one of these layouts, following its component types IN ORDER and including ALL of its steps; pick the layout that best fits the concept and vary layouts across the deck. A layout with several "Text" steps means that many DISTINCT paragraphs (never repeat one). The evaluation step names map to the quiz "kind" (see rule 6): "Multiple choice"→mcq, "2-option"→mcq2, "Fill blank"→fillblank, "Typed answer"→typed, "Solve (worksheet)"→solve. Emit the quiz with EXACTLY that kind and its required fields — do not substitute one kind for another. These layouts are already chosen for this deck's difficulty level, so honor the text density they imply.
 ${opts.layoutTemplates.map((t) => `- ${t.name}${t.tags.length ? ` [${t.tags.join(", ")}]` : ""}: ${t.components.join(" -> ")}`).join("\n")}
 When a layout calls for a Table, emit a valid table component with real rows, e.g. {"type":"table","columns":["Rule","Example"],"rows":[["Add -ed for past tense","walk -> walked"],["Double the consonant","stop -> stopped"]]}. When it calls for a Graph, emit a chart component, e.g. {"type":"chart","chartType":"bar","title":"...","labels":["A","B","C"],"series":[{"name":"...","data":[3,5,2]}]}. A malformed table/chart is dropped, which breaks the layout — always give columns+rows / labels+series.
 `
@@ -236,7 +236,8 @@ TEACHING RULES (non-negotiable):
    - "2-option" -> {"kind":"mcq2","question":"...","options":["a","b"],"correctIndex":0,"explanation":"..."} — EXACTLY 2 options (e.g. true/false, this/that).
    - "Fill blank" -> {"kind":"fillblank","question":"The past tense of run is ___.","answer":"ran","acceptableAnswers":["ran"],"explanation":"..."} — put a ___ blank in the question; "answer" is the exact missing word/phrase; add other correct spellings/forms to acceptableAnswers.
    - "Typed answer" -> {"kind":"typed","question":"In one sentence, why ...?","answer":"a concise correct reference answer","explanation":"..."} — an open recall/short-answer question the student types; "answer" is the model answer used to grade them.
-   Choose the kind from the template's step; do NOT substitute a multiple-choice for a fill-blank/typed step. NEVER phrase mcq/mcq2 as "explain"/"in your own words"; those belong to the typed kind.
+   - "Solve (worksheet)" -> {"kind":"solve","question":"State the exact problem to solve (with all given values/conditions).","answer":"the correct FINAL answer (a number, expression, or short result — e.g. 'x = 3/2' or '12.5 m/s')","explanation":"the full step-by-step worked solution"} — a math/physics/chemistry problem the student works out by hand on a scratchpad and then types their final answer; "answer" is the final result used to grade them, "explanation" is the worked method. Use this kind ONLY for problems with a definite procedural solution.
+   Choose the kind from the template's step; do NOT substitute a multiple-choice for a fill-blank/typed/solve step. NEVER phrase mcq/mcq2 as "explain"/"in your own words"; those belong to the typed kind. A "solve" step's question must be an actual solvable problem statement.
 7. Images use imageStyle "${opts.imageStyle}"${opts.imageStyle === "none" ? " — style is 'none', so DO NOT emit any image components" : ""}.
 8. CEFR LEVEL "${opts.level}" — calibrate reading difficulty precisely to this level (this controls VOCABULARY and SENTENCE COMPLEXITY, not how much you teach; every slide still fully explains its visual):
    - A0 (pre-beginner): 1-2 very short sentences, ~present tense, only the ~300 most common words, define/illustrate each key word; lean on images.
@@ -253,7 +254,7 @@ TEACHING RULES (non-negotiable):
 ${memory}${templates}
 OUTPUT: STRICT JSON ONLY (no markdown fences, no commentary) matching exactly:
 {"slides":[{"title":"...","components":[...],"quiz":{"kind":"mcq","question":"...","options":["a","b","c","d"],"correctIndex":0,"explanation":"..."}}],"level":"${opts.level}","imageStyle":"${opts.imageStyle}","topic":"..."}
-(set "quiz.kind" to the evaluation the slide's layout calls for: mcq, mcq2, fillblank, or typed, with the fields shown in rule 6.)`;
+(set "quiz.kind" to the evaluation the slide's layout calls for: mcq, mcq2, fillblank, typed, or solve, with the fields shown in rule 6.)`;
 }
 
 export function buildLessonPathPrompt(opts: {

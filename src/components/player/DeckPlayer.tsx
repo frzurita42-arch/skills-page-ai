@@ -71,10 +71,11 @@ export default function DeckPlayer({
   const [annColor, setAnnColor] = useState('#2E2820');
   const [annWidth, setAnnWidth] = useState(4);
   const [annotations, setAnnotations] = useState<Record<number, SlideAnnotation[]>>({});
+  const [scratch, setScratch] = useState<Record<number, SlideAnnotation[][]>>({});
   const [captureW, setCaptureW] = useState(0);
   const deckAnnotations = useMemo<DeckAnnotations>(
-    () => ({ w: captureW || 1, slides: annotations }),
-    [captureW, annotations],
+    () => ({ w: captureW || 1, slides: annotations, scratch }),
+    [captureW, annotations, scratch],
   );
 
   const total = deck.slides.length;
@@ -208,6 +209,7 @@ export default function DeckPlayer({
   const replay = () => {
     setAnswers({});
     setAnnotations({});
+    setScratch({});
     setAnnotateOn(false);
     setIndex(0);
     setDir(1);
@@ -366,6 +368,10 @@ export default function DeckPlayer({
                       onSolved={inReview ? () => undefined : handleSolved}
                       review={inReview}
                       current={readAloud.currentKey}
+                      scratchPages={scratch[viewingIdx]}
+                      onScratchChange={(pages) =>
+                        setScratch((prev) => ({ ...prev, [viewingIdx]: pages }))
+                      }
                     />
                   </motion.div>
                 )}

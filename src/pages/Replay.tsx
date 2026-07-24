@@ -199,6 +199,31 @@ export default function Replay() {
                 )}
               </div>
             )}
+
+            {/* worked-solution scratchpad pages the learner drew (read-only) */}
+            {data.annotations?.scratch?.[safeIdx] && data.annotations.scratch[safeIdx].length > 0 && (
+              <div className="mt-6">
+                <p className="micro mb-2 text-ink-faint">
+                  Worked solution · {data.annotations.scratch[safeIdx].length} page
+                  {data.annotations.scratch[safeIdx].length === 1 ? '' : 's'}
+                </p>
+                {data.annotations.scratch[safeIdx].map((page, pi) => (
+                  <div
+                    key={pi}
+                    className="relative mb-3 h-[440px] w-full overflow-hidden rounded-wobble-sm border-2 border-ink bg-paper-3 [background-image:repeating-linear-gradient(transparent,transparent_31px,rgba(46,40,32,0.08)_32px)]"
+                  >
+                    <AnnotationLayer
+                      annotations={page}
+                      editable={false}
+                      captureWidth={data.annotations!.w}
+                    />
+                    <span className="pointer-events-none absolute right-2 top-2 rounded-wobble-sm bg-paper-2/80 px-2 py-0.5 font-mono text-[0.6rem] text-ink-faint">
+                      Page {pi + 1}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </motion.div>
         </AnimatePresence>
       </div>

@@ -617,7 +617,7 @@ export const generateRouter = createRouter({
         // than the slide really has. Append the real quiz kind as its step.
         const quizStep =
           s.quiz &&
-          ({ mcq: "quiz", mcq2: "mcq2", fillblank: "fillblank", typed: "shortanswer" }[
+          ({ mcq: "quiz", mcq2: "mcq2", fillblank: "fillblank", typed: "shortanswer", solve: "solve" }[
             s.quiz.kind ?? "mcq"
           ] as string);
         const realComponents = [

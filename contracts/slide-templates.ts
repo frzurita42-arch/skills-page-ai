@@ -34,6 +34,7 @@ export const TEMPLATE_COMPONENT_TYPES = [
   "mcq2",
   "fillblank",
   "shortanswer",
+  "solve",
 ] as const;
 
 export type TemplateComponentType = (typeof TEMPLATE_COMPONENT_TYPES)[number];
@@ -43,6 +44,7 @@ export const GRADABLE_TYPES: TemplateComponentType[] = [
   "mcq2",
   "fillblank",
   "shortanswer",
+  "solve",
 ];
 
 export function isGradable(t: TemplateComponentType): boolean {
@@ -63,6 +65,7 @@ export const TEMPLATE_COMPONENT_LABELS: Record<TemplateComponentType, string> = 
   mcq2: "2-option",
   fillblank: "Fill blank",
   shortanswer: "Typed answer",
+  solve: "Solve (worksheet)",
 };
 
 /** Compact labels for tight spaces (e.g. a <select> option, where text can't
@@ -80,6 +83,7 @@ export const TEMPLATE_COMPONENT_SHORT: Record<TemplateComponentType, string> = {
   mcq2: "2-opt",
   fillblank: "Fill-in",
   shortanswer: "Typed",
+  solve: "Solve",
 };
 
 /** A one-line "Text · Table · Text · Typed" summary of a template's content
@@ -199,6 +203,11 @@ const STEM_TEMPLATES: SlideTemplate[] = [
   bi("Compare methods", "B1", ["prose", "table", "prose", "shortanswer"], ["stem"]),
   bi("Formula + graph", "B1", ["prose", "latex", "chart", "quiz"], ["physics", "math"]),
   bi("Cause and effect", "B1", ["prose", "prose", "svg", "quiz"], ["science", "chemistry"]),
+  // problem-solving: a statement to work out on a paginated scratchpad
+  bi("Solve the problem", "B1", ["prose", "solve"], ["math", "physics", "problem-solving"]),
+  bi("Solve with a graph", "B1", ["prose", "chart", "solve"], ["math", "physics", "problem-solving"]),
+  bi("Solve with a diagram", "B1", ["prose", "svg", "solve"], ["physics", "chemistry", "problem-solving"]),
+  bi("Solve with a figure", "B1", ["prose", "image", "solve"], ["math", "physics", "problem-solving"]),
 
   // advanced (3-4 texts + visual, analytical evaluation)
   bi("Derivation walk-through", "C1", ["prose", "latex", "prose", "prose", "shortanswer"], ["math", "physics"]),
@@ -211,6 +220,11 @@ const STEM_TEMPLATES: SlideTemplate[] = [
   bi("Contrast two models", "C1", ["prose", "prose", "table", "prose", "shortanswer"], ["stem", "science"]),
   bi("Edge cases", "C1", ["prose", "prose", "prose", "code", "quiz"], ["cs", "programming"]),
   bi("Quantitative deep dive", "C1", ["prose", "latex", "chart", "prose", "fillblank"], ["physics", "math"]),
+  // problem-solving: a full statement worked out on a paginated scratchpad
+  bi("Work the problem", "C1", ["prose", "prose", "solve"], ["math", "physics", "problem-solving"]),
+  bi("Model & solve on a graph", "C1", ["prose", "chart", "prose", "solve"], ["math", "physics", "problem-solving"]),
+  bi("Analyze the diagram & solve", "C1", ["prose", "svg", "prose", "solve"], ["physics", "engineering", "problem-solving"]),
+  bi("Interpret the figure & solve", "C1", ["prose", "image", "prose", "solve"], ["math", "physics", "problem-solving"]),
 ];
 
 /* ---------------- Humanities: 10 per level ---------------- */
