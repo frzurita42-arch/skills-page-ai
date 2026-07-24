@@ -1,5 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -38,17 +37,15 @@ function OptionLabel({ t, withSequence }: { t: SlideTemplate; withSequence: bool
   );
 }
 
-type PanelRect = { left: number; top: number; width: number; maxHeight: number };
-
 /**
  * A per-slide layout picker. Replaces the native <select> so the subject
  * section (STEM/Humanities/General) can be colour-coded — native <option>
  * text can't be styled per word.
  *
- * The open panel is rendered in a PORTAL on document.body with fixed
- * positioning so it is never clipped or z-index-trapped by the collapsible
- * Advanced section it lives in (whose animation wrapper creates its own
- * stacking + overflow context).
+ * The list expands IN FLOW (it pushes the content below it down) rather than
+ * floating over the page, so it is never clipped or overlapped, moves
+ * naturally with the page, and — marked data-lenis-prevent — scrolls its own
+ * list on the mouse wheel instead of scrolling the whole page.
  */
 export default function TemplatePicker({
   value,
@@ -61,46 +58,13 @@ export default function TemplatePicker({
   onChange: (name: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [rect, setRect] = useState<PanelRect | null>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLUListElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
 
-  // Position the portal panel under (or above) the trigger, based on its
-  // on-screen rect. Recomputed on open and on any scroll/resize while open.
-  useLayoutEffect(() => {
-    if (!open) return;
-    const place = () => {
-      const el = triggerRef.current;
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      const gap = 4;
-      const below = window.innerHeight - r.bottom - gap;
-      const above = r.top - gap;
-      const openUp = below < 240 && above > below;
-      setRect({
-        left: r.left,
-        top: openUp ? r.top : r.bottom + gap,
-        width: r.width,
-        maxHeight: Math.min(288, Math.max(140, (openUp ? above : below) - 8)),
-      });
-    };
-    place();
-    window.addEventListener('scroll', place, true);
-    window.addEventListener('resize', place);
-    return () => {
-      window.removeEventListener('scroll', place, true);
-      window.removeEventListener('resize', place);
-    };
-  }, [open]);
-
-  // Close on outside click (trigger + portal panel both count as "inside")
-  // and on Escape.
+  // Close on outside click / Escape.
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (triggerRef.current?.contains(target) || panelRef.current?.contains(target)) return;
-      setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
@@ -127,14 +91,16 @@ export default function TemplatePicker({
     );
 
   return (
-    <div className="relative min-w-[180px] flex-1">
+    <div ref={ref} className="min-w-[180px] flex-1">
       <button
-        ref={triggerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-2 rounded-wobble-sm border-2 border-ink bg-paper px-2 py-1 text-left font-heading text-sm text-ink outline-none focus:border-blue"
+        className={cn(
+          'flex w-full items-center justify-between gap-2 border-2 border-ink bg-paper px-2 py-1 text-left font-heading text-sm text-ink outline-none focus:border-blue',
+          open ? 'rounded-t-wobble-sm border-b-transparent' : 'rounded-wobble-sm',
+        )}
       >
         <span className="truncate">
           {selected ? <OptionLabel t={selected} withSequence={false} /> : 'Auto (AI chooses)'}
@@ -144,25 +110,19 @@ export default function TemplatePicker({
         />
       </button>
 
-      {createPortal(
-        <AnimatePresence>
-          {open && rect && (
-            <motion.ul
-              ref={panelRef}
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <ul
               role="listbox"
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.12 }}
-              style={{
-                position: 'fixed',
-                left: rect.left,
-                top: rect.top,
-                minWidth: rect.width,
-                maxWidth: 'min(88vw, 560px)',
-                maxHeight: rect.maxHeight,
-              }}
-              className="z-[100] w-max overflow-y-auto rounded-wobble-sm border-2 border-ink bg-paper-3 p-1 shadow-offset"
+              data-lenis-prevent
+              className="max-h-64 overflow-y-auto rounded-b-wobble-sm border-2 border-t-0 border-ink bg-paper-3 p-1 shadow-offset"
             >
               <li role="option" aria-selected={!value}>
                 <button type="button" onClick={() => pick(null)} className={optionClasses(!value)}>
@@ -189,11 +149,10 @@ export default function TemplatePicker({
                   </button>
                 </li>
               ))}
-            </motion.ul>
-          )}
-        </AnimatePresence>,
-        document.body,
-      )}
+            </ul>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

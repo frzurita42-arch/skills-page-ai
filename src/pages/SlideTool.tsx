@@ -702,9 +702,9 @@ function ToolStudio({
                     return (
                       <div
                         key={i}
-                        className="flex flex-wrap items-center gap-2 rounded-wobble-sm border-2 border-pencil bg-paper-3 px-3 py-2"
+                        className="flex flex-wrap items-start gap-2 rounded-wobble-sm border-2 border-pencil bg-paper-3 px-3 py-2"
                       >
-                        <span className="micro w-14 shrink-0 font-mono text-ink-faint">
+                        <span className="micro mt-1.5 w-14 shrink-0 font-mono text-ink-faint">
                           Slide {i + 1}
                         </span>
                         <TemplatePicker
