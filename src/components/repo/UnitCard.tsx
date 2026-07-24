@@ -5,6 +5,7 @@ import {
   Check,
   ChevronDown,
   Clapperboard,
+  Clock,
   Hourglass,
   Pencil,
   Plus,
@@ -39,6 +40,13 @@ export interface UnitCardProps {
   /** owner/admin — shows the unit & lesson editing controls */
   canEdit: boolean;
   onGuestStudy: () => void;
+}
+
+/** mm:ss from seconds */
+function fmtMMSS(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = Math.round(sec % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
 }
 
 /**
@@ -529,6 +537,28 @@ function LessonCard({
             <Square className="h-3.5 w-3.5" />
             <span className="micro text-[0.6rem]">unplayed</span>
           </span>
+        )}
+        {/* last-attempt meta: level + time (only once the viewer has played it) */}
+        {(completed || tryAgain) && (
+          <>
+            {lesson.myLastLevel && (
+              <span
+                title="Level of your last attempt"
+                className="micro rounded-wobble-sm border border-pencil bg-paper-2 px-1.5 text-[0.58rem] text-ink-soft"
+              >
+                {lesson.myLastLevel}
+              </span>
+            )}
+            {lesson.myLastElapsedSec > 0 && (
+              <span
+                title="Time of your last attempt"
+                className="micro flex items-center gap-0.5 text-[0.58rem] text-ink-faint"
+              >
+                <Clock className="h-3 w-3" />
+                {fmtMMSS(lesson.myLastElapsedSec)}
+              </span>
+            )}
+          </>
         )}
         {controls && (
           <span className="ml-auto flex items-center gap-1">

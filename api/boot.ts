@@ -5,6 +5,17 @@ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "./router";
 import { createContext } from "./context";
 import { env } from "./lib/env";
+import { ensureCefrLevelEnum } from "./lib/migrate-levels";
+
+// Best-effort schema catch-up on boot so an existing database accepts CEFR
+// levels (otherwise new runs/decks silently fail to save). Never blocks boot.
+void ensureCefrLevelEnum().catch((err) =>
+  console.warn(
+    "[migrate] CEFR level enum auto-migration skipped:",
+    err instanceof Error ? err.message : err,
+    "— run `npx tsx scripts/migrate-cefr-levels.ts` manually if new runs fail to save.",
+  ),
+);
 
 const app = new Hono<{ Bindings: HttpBindings }>();
 

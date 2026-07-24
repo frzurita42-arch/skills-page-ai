@@ -147,6 +147,9 @@ export interface RepoLesson {
   myBestTotal: number;
   myLastCorrect: number;
   myLastTotal: number;
+  /** level + elapsed time of the viewer's most recent attempt (null/0 if none) */
+  myLastLevel: Level | null;
+  myLastElapsedSec: number;
   myStatus: "unplayed" | "try-again" | "completed";
 }
 

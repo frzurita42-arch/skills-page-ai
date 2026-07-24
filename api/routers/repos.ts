@@ -22,13 +22,20 @@ import type { RepoDetail, RepoLesson, RepoSummary, RepoUnit, LessonRunRow, Level
 
 type RunLite = Pick<
   typeof runs.$inferSelect,
-  "id" | "lessonId" | "userId" | "scoreCorrect" | "scoreTotal" | "completedAt"
+  "id" | "lessonId" | "userId" | "scoreCorrect" | "scoreTotal" | "completedAt" | "level" | "elapsedSec"
 >;
 
 /** Viewer-scoped progress fields for one lesson (guests → all-zero/unplayed). */
 function lessonProgress(lessonId: number, viewerRuns: RunLite[]): Pick<
   RepoLesson,
-  "myAttempts" | "myBestCorrect" | "myBestTotal" | "myLastCorrect" | "myLastTotal" | "myStatus"
+  | "myAttempts"
+  | "myBestCorrect"
+  | "myBestTotal"
+  | "myLastCorrect"
+  | "myLastTotal"
+  | "myLastLevel"
+  | "myLastElapsedSec"
+  | "myStatus"
 > {
   const mine = viewerRuns
     .filter((r) => r.lessonId === lessonId)
@@ -40,6 +47,8 @@ function lessonProgress(lessonId: number, viewerRuns: RunLite[]): Pick<
       myBestTotal: 0,
       myLastCorrect: 0,
       myLastTotal: 0,
+      myLastLevel: null,
+      myLastElapsedSec: 0,
       myStatus: "unplayed",
     };
   }
@@ -53,6 +62,8 @@ function lessonProgress(lessonId: number, viewerRuns: RunLite[]): Pick<
     myBestTotal: best.scoreTotal,
     myLastCorrect: last.scoreCorrect,
     myLastTotal: last.scoreTotal,
+    myLastLevel: (last.level as Level) ?? null,
+    myLastElapsedSec: last.elapsedSec,
     myStatus: passed ? "completed" : "try-again",
   };
 }
