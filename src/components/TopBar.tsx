@@ -91,9 +91,9 @@ export default function TopBar({ onMenuClick, title }: TopBarProps) {
           {/* token pill — live balance when signed in */}
           {user ? (
             <Link
-              to="/settings"
+              to="/settings?tab=tokens"
               className="flex items-center gap-1.5 rounded-wobble-sm border-2 border-ink bg-orange/20 px-2.5 py-1 font-mono text-sm font-bold text-ink no-underline shadow-offset transition-transform hover:-translate-y-0.5"
-              title="Token balance"
+              title="Token balance — click to recharge"
             >
               <span aria-hidden="true">🪙</span>
               <span>{user.tokenBalance}</span>

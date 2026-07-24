@@ -391,6 +391,7 @@ export const generateRouter = createRouter({
         .join("\n");
 
       let deck: SlideDeck | null = null;
+      let lastAttempt: SlideDeck | null = null; // best under-delivering try, as a fallback
       let usedMock = false;
       try {
         for (let attempt = 0; attempt < 2 && deck === null; attempt++) {
@@ -404,7 +405,7 @@ export const generateRouter = createRouter({
                   content:
                     attempt === 0
                       ? userPrompt
-                      : `${userPrompt}\n\nReminder: STRICT JSON ONLY, exactly the requested shape. EVERY slide MUST follow one of the SLIDE LAYOUT TEMPLATES exactly — include all of its steps, so any image/chart/table/diagram/formula/code is paired with the text that explains it. Never a slide that is only a visual and a question.`,
+                      : `${userPrompt}\n\nReminder: STRICT JSON ONLY, exactly the requested shape. Return EXACTLY ${slideCount} slides — no fewer. EVERY slide MUST follow one of the SLIDE LAYOUT TEMPLATES exactly — include all of its steps, so any image/chart/table/diagram/formula/code is paired with the text that explains it. Never a slide that is only a visual and a question.`,
                 },
               ],
               // A full deck is a large JSON; leave generous headroom so the
@@ -432,10 +433,23 @@ export const generateRouter = createRouter({
                     allowedTemplates,
                   ),
               );
-            if (attempt === 0 && nonConforming) {
-              console.warn(
-                "[generate.slides] a slide did not match any approved template — retrying once",
-              );
+            // The model sometimes under-delivers (e.g. 3 slides when 8 were
+            // asked). Retry once demanding the full count before accepting.
+            const tooFewSlides = parsedDeck.slides.length < slideCount;
+            if (attempt === 0 && (nonConforming || tooFewSlides)) {
+              if (tooFewSlides) {
+                console.warn(
+                  `[generate.slides] model returned ${parsedDeck.slides.length}/${slideCount} slides — retrying once`,
+                );
+              } else {
+                console.warn(
+                  "[generate.slides] a slide did not match any approved template — retrying once",
+                );
+              }
+              // remember the fullest attempt in case the retry also falls short
+              if (!lastAttempt || parsedDeck.slides.length > lastAttempt.slides.length) {
+                lastAttempt = parsedDeck;
+              }
               continue;
             }
             deck = parsedDeck;
@@ -451,6 +465,15 @@ export const generateRouter = createRouter({
         }
       } catch (err) {
         console.error("[generate.slides] provider error:", err);
+      }
+
+      // Both attempts under-delivered but the model did return usable slides —
+      // ship its best try rather than falling through to mock/error.
+      if (!deck && lastAttempt) {
+        console.warn(
+          `[generate.slides] accepting best attempt with ${lastAttempt.slides.length}/${slideCount} slides`,
+        );
+        deck = lastAttempt;
       }
 
       if (!deck) {

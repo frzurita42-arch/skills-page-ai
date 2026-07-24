@@ -24,13 +24,13 @@ export default function TokenMeter({
   const low = tokens < lowThreshold;
   return (
     <Link
-      to="/settings"
+      to="/settings?tab=tokens"
       className={cn(
         'group flex items-center gap-2 no-underline',
         low && 'animate-low-pulse',
         className,
       )}
-      title="Tokens — open Settings"
+      title="Tokens — click to recharge"
     >
       {/* pencil body */}
       <span className="relative block h-3.5 w-24 overflow-hidden rounded-r-full rounded-l-sm border-2 border-ink bg-paper-2">

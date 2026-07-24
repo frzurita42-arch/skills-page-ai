@@ -295,6 +295,13 @@ export function repairDeckDraft(
           console.warn("[ai/repair] dropping invalid quiz on slide:", s.title);
           delete s.quiz;
         }
+        // If a slide lost ALL its components (e.g. the model emitted only
+        // eval-type components, which aren't renderable), salvage it with a
+        // text paragraph instead of dropping it — dropping shrinks the deck
+        // below the requested slide count.
+        if (Array.isArray(s.components) && s.components.length === 0 && (s.title || s.quiz)) {
+          s.components = [{ type: "prose", paragraphs: [slideFallbackParagraph(s as LooseSlide)] }];
+        }
         return s;
       })
       .filter(
@@ -365,23 +372,26 @@ function proseFromQuiz(quiz: LooseQuiz | null | undefined): string | null {
  * prompt is expected to do this well; this just prevents a text-less or
  * off-topic slide from ever shipping.
  */
+/** A single explanatory paragraph for a slide that has none — drawn from its
+ *  quiz (real, on-topic) when possible, else its title/visual. Shared by the
+ *  repair salvage (so a slide is never dropped for shrinking the deck) and the
+ *  final ensureExplanatoryProse net. */
+export function slideFallbackParagraph(slide: LooseSlide): string {
+  const fromQuiz = proseFromQuiz(slide.quiz);
+  if (fromQuiz) return fromQuiz;
+  const visual = (slide.components ?? []).find((c) => c?.type && VISUAL_LABEL[c.type]);
+  const title = (slide.title ?? "this idea").trim();
+  return visual
+    ? `Look closely at ${title}: ${VISUAL_LABEL[visual.type as string]} below illustrates it. Study what it shows and how the parts relate.`
+    : `Let's work through ${title}.`;
+}
+
 export function ensureExplanatoryProse<T extends { slides?: LooseSlide[] }>(deck: T): T {
   for (const slide of deck.slides ?? []) {
     if (slideHasProse(slide)) continue;
     if (!Array.isArray(slide.components)) slide.components = [];
-    const fromQuiz = proseFromQuiz(slide.quiz);
-    let paragraph: string;
-    if (fromQuiz) {
-      paragraph = fromQuiz;
-    } else {
-      const visual = slide.components.find((c) => c?.type && VISUAL_LABEL[c.type]);
-      const title = (slide.title ?? "this idea").trim();
-      paragraph = visual
-        ? `Look closely at ${title}: ${VISUAL_LABEL[visual.type as string]} below illustrates it. Study what it shows and how the parts relate.`
-        : `Let's work through ${title}.`;
-    }
     console.warn("[ai/prose] slide had no explanatory text — injecting a fallback paragraph:", slide.title);
-    slide.components.unshift({ type: "prose", paragraphs: [paragraph] });
+    slide.components.unshift({ type: "prose", paragraphs: [slideFallbackParagraph(slide)] });
   }
   return deck;
 }

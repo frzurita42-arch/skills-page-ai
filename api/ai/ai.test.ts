@@ -115,12 +115,12 @@ describe("repairDeckDraft", () => {
             explanation: "x",
           },
         },
-        { title: "Empty slide", components: [] }, // dropped entirely
+        { components: [] }, // no title, no quiz → genuinely empty → dropped
       ],
       // level/imageStyle/topic missing — filled from defaults
     };
     const deck = slideDeckSchema.parse(repairDeckDraft(raw, defaults));
-    expect(deck.slides).toHaveLength(1);
+    expect(deck.slides).toHaveLength(1); // the junk slide is dropped, the good one kept
     expect(deck.slides[0].components).toHaveLength(1);
     expect(deck.slides[0].quiz).toBeUndefined();
     expect(deck.level).toBe("beginner");
@@ -194,6 +194,32 @@ describe("explanatory-prose guarantees", () => {
     expect(slideHasProse(deck.slides[0])).toBe(true);
     const prose = deck.slides[0].components.find((c) => c.type === "prose");
     expect(prose?.type === "prose" && prose.paragraphs).toEqual(["Water moves across the membrane."]);
+  });
+
+  it("repair keeps a slide whose components were all invalid (no shrinking the deck)", () => {
+    const raw = {
+      slides: [
+        { title: "A", components: [{ type: "prose", paragraphs: ["real text"] }] },
+        // this slide's only component is an eval-type (not a renderable
+        // component) — it must be salvaged with text, not dropped
+        {
+          title: "B",
+          components: [{ type: "fillblank", prompt: "___" }],
+          quiz: { question: "q", options: ["a", "b", "c", "d"], correctIndex: 1, explanation: "because b" },
+        },
+        { title: "C", components: [{ type: "prose", paragraphs: ["more text"] }] },
+      ],
+      level: "beginner",
+      imageStyle: "sketch",
+      topic: "T",
+    };
+    const deck = slideDeckSchema.parse(
+      repairDeckDraft(raw, { level: "beginner", imageStyle: "sketch", topic: "T" }),
+    );
+    // all three slides survive
+    expect(deck.slides).toHaveLength(3);
+    // the salvaged slide has prose (built from its quiz)
+    expect(slideHasProse(deck.slides[1])).toBe(true);
   });
 
   it("detects a visual-only slide as missing prose", () => {
