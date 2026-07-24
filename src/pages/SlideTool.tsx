@@ -35,14 +35,10 @@ import CreateToolModal from '@/components/slides/CreateToolModal';
 import GenerationTheater from '@/components/player/GenerationTheater';
 import DeckPlayer from '@/components/player/DeckPlayer';
 import TemplateBar from '@/components/templates/TemplateBar';
+import TemplatePicker from '@/components/templates/TemplatePicker';
 
 import { isStemTopic } from '@contracts/stem';
-import {
-  templatesForSubjectAndLevel,
-  templateSequenceLabel,
-  sectionForTags,
-  TEMPLATE_SECTION_LABEL,
-} from '@contracts/slide-templates';
+import { templatesForSubjectAndLevel } from '@contracts/slide-templates';
 
 const STYLE_PRESETS: Exclude<ImageStyle, 'none'>[] = [
   'sketch',
@@ -711,28 +707,18 @@ function ToolStudio({
                         <span className="micro w-14 shrink-0 font-mono text-ink-faint">
                           Slide {i + 1}
                         </span>
-                        <select
+                        <TemplatePicker
                           value={chosenName}
-                          onChange={(e) => {
-                            const v = e.target.value || null;
+                          templates={pickableTemplates}
+                          onChange={(v) =>
                             setTemplatePlan((prev) => {
                               const next = prev.slice();
                               while (next.length < slideCount) next.push(null);
                               next[i] = v;
                               return next;
-                            });
-                          }}
-                          className="min-w-[160px] rounded-wobble-sm border-2 border-ink bg-paper px-2 py-1 font-heading text-sm text-ink outline-none focus:border-blue"
-                        >
-                          <option value="">Auto (AI chooses)</option>
-                          {pickableTemplates.map((t) => (
-                            <option key={String(t.id)} value={t.name}>
-                              {t.name} · {TEMPLATE_SECTION_LABEL[sectionForTags(t.tags)]} ({t.level})
-                              {' '}
-                              — {templateSequenceLabel(t.components)}
-                            </option>
-                          ))}
-                        </select>
+                            })
+                          }
+                        />
                         {chosen && (
                           <TemplateBar components={chosen.components} className="ml-auto" />
                         )}

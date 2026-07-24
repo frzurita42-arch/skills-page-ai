@@ -1,0 +1,148 @@
+import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Check, ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import {
+  sectionForTags,
+  templateSequenceLabel,
+  TEMPLATE_SECTION_LABEL,
+  type SlideTemplate,
+  type TemplateSection,
+} from '@contracts/slide-templates';
+
+/** Category colour so the section reads at a glance in the picker. */
+const SECTION_COLOR: Record<TemplateSection, string> = {
+  stem: 'text-blue',
+  humanities: 'text-orange',
+  general: 'text-green',
+};
+
+/** The coloured "· STEM" / "· Humanities" / "· General" tag for a template. */
+function SectionTag({ t }: { t: SlideTemplate }) {
+  const section = sectionForTags(t.tags);
+  return (
+    <span className={cn('font-bold', SECTION_COLOR[section])}>
+      {TEMPLATE_SECTION_LABEL[section]}
+    </span>
+  );
+}
+
+/** Full option label: name · <coloured section> (level) — Text · Table · … */
+function OptionLabel({ t, withSequence }: { t: SlideTemplate; withSequence: boolean }) {
+  return (
+    <>
+      {t.name} · <SectionTag t={t} /> ({t.level})
+      {withSequence ? ` — ${templateSequenceLabel(t.components)}` : ''}
+    </>
+  );
+}
+
+/**
+ * A per-slide layout picker. Replaces the native <select> so the subject
+ * section (STEM/Humanities/General) can be colour-coded — native <option>
+ * text can't be styled per word.
+ */
+export default function TemplatePicker({
+  value,
+  templates,
+  onChange,
+}: {
+  /** selected template name, or '' for Auto */
+  value: string;
+  templates: SlideTemplate[];
+  onChange: (name: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const selected = value ? templates.find((t) => t.name === value) : undefined;
+
+  const pick = (name: string | null) => {
+    onChange(name);
+    setOpen(false);
+  };
+
+  return (
+    <div ref={ref} className="relative min-w-[180px] flex-1">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-2 rounded-wobble-sm border-2 border-ink bg-paper px-2 py-1 text-left font-heading text-sm text-ink outline-none focus:border-blue"
+      >
+        <span className="truncate">
+          {selected ? <OptionLabel t={selected} withSequence={false} /> : 'Auto (AI chooses)'}
+        </span>
+        <ChevronDown
+          className={cn('h-4 w-4 shrink-0 text-ink-soft transition-transform', open && 'rotate-180')}
+        />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.ul
+            role="listbox"
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.12 }}
+            className="absolute left-0 top-full z-50 mt-1 max-h-72 w-max min-w-full max-w-[min(88vw,560px)] overflow-y-auto rounded-wobble-sm border-2 border-ink bg-paper-3 p-1 shadow-offset"
+          >
+            <li role="option" aria-selected={!value}>
+              <button
+                type="button"
+                onClick={() => pick(null)}
+                className={cn(
+                  'flex w-full items-center gap-2 whitespace-nowrap rounded-wobble-sm px-2.5 py-1.5 text-left font-heading text-sm text-ink hover:bg-paper-2',
+                  !value && 'bg-paper-2',
+                )}
+              >
+                <Check className={cn('h-3.5 w-3.5 shrink-0', !value ? 'text-ink' : 'opacity-0')} />
+                Auto (AI chooses)
+              </button>
+            </li>
+            {templates.map((t) => (
+              <li key={String(t.id)} role="option" aria-selected={value === t.name}>
+                <button
+                  type="button"
+                  onClick={() => pick(t.name)}
+                  className={cn(
+                    'flex w-full items-center gap-2 whitespace-nowrap rounded-wobble-sm px-2.5 py-1.5 text-left font-heading text-sm text-ink hover:bg-paper-2',
+                    value === t.name && 'bg-paper-2',
+                  )}
+                >
+                  <Check
+                    className={cn(
+                      'h-3.5 w-3.5 shrink-0',
+                      value === t.name ? 'text-ink' : 'opacity-0',
+                    )}
+                  />
+                  <span>
+                    <OptionLabel t={t} withSequence />
+                  </span>
+                </button>
+              </li>
+            ))}
+          </motion.ul>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
