@@ -1,17 +1,36 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   flavorsForTags,
   sectionForTags,
-  templateSequenceLabel,
+  TEMPLATE_COMPONENT_SHORT,
   TEMPLATE_FLAVORS,
   TEMPLATE_SECTION_LABEL,
   type SlideTemplate,
+  type TemplateComponentType,
   type TemplateFlavor,
   type TemplateSection,
 } from '@contracts/slide-templates';
+
+/** Render a template's content sequence, colouring the Image step brown so
+ *  slides that carry a picture stand out. */
+function SequenceLabel({ components }: { components: TemplateComponentType[] }) {
+  return (
+    <>
+      {' — '}
+      {components.map((c, i) => (
+        <Fragment key={i}>
+          {i > 0 && ' · '}
+          <span className={c === 'image' ? 'font-bold text-[#8a5a2b]' : undefined}>
+            {TEMPLATE_COMPONENT_SHORT[c] ?? c}
+          </span>
+        </Fragment>
+      ))}
+    </>
+  );
+}
 
 /** Colour per subject flavour (the legend uses the same map). */
 export const FLAVOR_STYLE: Record<TemplateFlavor, string> = {
@@ -73,7 +92,7 @@ function OptionLabel({ t, withSequence }: { t: SlideTemplate; withSequence: bool
     <>
       <TemplateBadges tags={t.tags} />
       {t.name} · <SectionTag t={t} /> ({t.level})
-      {withSequence ? ` — ${templateSequenceLabel(t.components)}` : ''}
+      {withSequence && <SequenceLabel components={t.components} />}
     </>
   );
 }
