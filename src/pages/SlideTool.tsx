@@ -32,8 +32,10 @@ import { DoodleSparkle } from '@/components/sketch/DoodleIcons';
 import CreateToolModal from '@/components/slides/CreateToolModal';
 import GenerationTheater from '@/components/player/GenerationTheater';
 import DeckPlayer from '@/components/player/DeckPlayer';
+import TemplateBar from '@/components/templates/TemplateBar';
 
 import { isStemTopic } from '@contracts/stem';
+import { templatesForSubjectAndLevel } from '@contracts/slide-templates';
 
 const STYLE_PRESETS: Exclude<ImageStyle, 'none'>[] = [
   'sketch',
@@ -201,6 +203,9 @@ function ToolStudio({
   const [imageStyle, setImageStyle] = useState<ImageStyle>(tool.defaultImageStyle);
   const [voiceURI, setVoiceURI] = useState<string | null>(null);
   const [includeQuiz, setIncludeQuiz] = useState(true);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  // Advanced: pinned layout template per slide (name | null = auto). Index i → slide i+1.
+  const [templatePlan, setTemplatePlan] = useState<(string | null)[]>([]);
   const [theaterDone, setTheaterDone] = useState(false);
   const [result, setResult] = useState<{
     deck: SlideDeck;
@@ -217,6 +222,23 @@ function ToolStudio({
   const allLessons = useMemo(
     () => (repoQuery.data?.units ?? []).flatMap((u) => u.lessons),
     [repoQuery.data],
+  );
+
+  // Advanced options: templates the AI may be pinned to, filtered to this
+  // deck's subject + level (same set the generator validates against).
+  const templatesQuery = trpc.templates.list.useQuery();
+  const pickableTemplates = useMemo(
+    () =>
+      templatesForSubjectAndLevel(
+        templatesQuery.data ?? [],
+        isStemTopic(topic),
+        level,
+      ),
+    [templatesQuery.data, topic, level],
+  );
+  const templateByName = useMemo(
+    () => new Map(pickableTemplates.map((t) => [t.name, t])),
+    [pickableTemplates],
   );
   // pre-fill instructions with the lesson objective once the repo loads
   useEffect(() => {
@@ -265,6 +287,9 @@ function ToolStudio({
         level,
         slideCount,
         imageStyle,
+        templatePlan: templatePlan.some(Boolean)
+          ? templatePlan.slice(0, slideCount)
+          : undefined,
         seed: seed ?? undefined,
       },
       {
@@ -590,6 +615,93 @@ function ToolStudio({
           )}
         </motion.div>
       </motion.div>
+
+      {/* advanced: per-slide template plan */}
+      <div className="mt-4">
+        <button
+          type="button"
+          onClick={() => setAdvancedOpen((o) => !o)}
+          aria-expanded={advancedOpen}
+          className="flex items-center gap-1.5 font-heading text-sm font-semibold text-ink-soft hover:text-ink"
+        >
+          <ChevronDown
+            className={cn('h-4 w-4 transition-transform', advancedOpen && 'rotate-180')}
+          />
+          Advanced — choose a layout per slide
+        </button>
+
+        <AnimatePresence initial={false}>
+          {advancedOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              className="overflow-hidden"
+            >
+              <div className="mt-3 rounded-wobble-2 border-2 border-dashed border-pencil bg-paper-2/50 p-4">
+                <p className="micro mb-3 text-ink-faint">
+                  Pin a template so the AI drafts that slide in exactly that shape. Leave a slide on{' '}
+                  <span className="font-semibold">Auto</span> to let it choose. Templates shown match
+                  this deck's subject &amp; level — manage the full set on the{' '}
+                  <Link to="/templates" className="squiggle font-semibold">
+                    Slide templates
+                  </Link>{' '}
+                  page.
+                </p>
+                <div className="flex flex-col gap-2">
+                  {Array.from({ length: slideCount }, (_, i) => {
+                    const chosenName = templatePlan[i] ?? '';
+                    const chosen = chosenName ? templateByName.get(chosenName) : undefined;
+                    return (
+                      <div
+                        key={i}
+                        className="flex flex-wrap items-center gap-2 rounded-wobble-sm border-2 border-pencil bg-paper-3 px-3 py-2"
+                      >
+                        <span className="micro w-14 shrink-0 font-mono text-ink-faint">
+                          Slide {i + 1}
+                        </span>
+                        <select
+                          value={chosenName}
+                          onChange={(e) => {
+                            const v = e.target.value || null;
+                            setTemplatePlan((prev) => {
+                              const next = prev.slice();
+                              while (next.length < slideCount) next.push(null);
+                              next[i] = v;
+                              return next;
+                            });
+                          }}
+                          className="min-w-[160px] rounded-wobble-sm border-2 border-ink bg-paper px-2 py-1 font-heading text-sm text-ink outline-none focus:border-blue"
+                        >
+                          <option value="">Auto (AI chooses)</option>
+                          {pickableTemplates.map((t) => (
+                            <option key={String(t.id)} value={t.name}>
+                              {t.name} ({t.level})
+                            </option>
+                          ))}
+                        </select>
+                        {chosen && (
+                          <TemplateBar components={chosen.components} className="ml-auto" />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {templatePlan.some(Boolean) && (
+                  <button
+                    type="button"
+                    onClick={() => setTemplatePlan([])}
+                    className="micro mt-3 text-ink-faint hover:text-ink"
+                  >
+                    Reset all to Auto
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* cost estimate + generate (slide-tool.md §A3) */}
       <div className="mt-6 grid gap-5 sm:grid-cols-[1fr_2fr]">

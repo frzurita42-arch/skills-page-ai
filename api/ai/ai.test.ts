@@ -5,6 +5,7 @@ import {
   ensureExplanatoryProse,
   everySlideHasProse,
   slideHasProse,
+  shuffleQuizAnswers,
   repoRef,
   slugify,
   slideDeckSchema,
@@ -268,6 +269,80 @@ describe("explanatory-prose guarantees", () => {
     expect(text).toContain("OFF (0) and ON (1)");
     expect(text).toContain("map directly onto 0 and 1");
     expect(text).not.toContain("Let's look at");
+  });
+});
+
+describe("shuffleQuizAnswers", () => {
+  // simple deterministic RNG (mulberry32)
+  function rngFrom(seed: number) {
+    let a = seed;
+    return () => {
+      a |= 0;
+      a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  it("keeps the correct option pointing at the same text after shuffling", () => {
+    const deck = {
+      slides: [
+        {
+          quiz: {
+            question: "q",
+            options: ["CORRECT", "b", "c", "d"],
+            correctIndex: 0,
+            explanation: "e",
+          },
+        },
+      ],
+    };
+    shuffleQuizAnswers(deck, rngFrom(123));
+    const q = deck.slides[0].quiz;
+    expect(q.options[q.correctIndex]).toBe("CORRECT");
+  });
+
+  it("distributes the correct answer across positions (not always 'A')", () => {
+    const positions = new Set<number>();
+    const rng = rngFrom(7);
+    for (let n = 0; n < 40; n++) {
+      const deck = {
+        slides: [
+          {
+            quiz: {
+              question: "q",
+              options: ["CORRECT", "b", "c", "d"],
+              correctIndex: 0,
+              explanation: "e",
+            },
+          },
+        ],
+      };
+      shuffleQuizAnswers(deck, rng);
+      positions.add(deck.slides[0].quiz.correctIndex);
+    }
+    // over many shuffles the correct answer lands in more than one slot
+    expect(positions.size).toBeGreaterThan(1);
+  });
+
+  it("shuffled deck still validates against the schema", () => {
+    const deck = slideDeckSchema.parse({
+      slides: [
+        {
+          title: "s",
+          components: [{ type: "prose", paragraphs: ["p"] }],
+          quiz: { question: "q?", options: ["a", "b", "c", "d"], correctIndex: 2, explanation: "e" },
+        },
+      ],
+      level: "beginner",
+      imageStyle: "sketch",
+      topic: "T",
+    });
+    const before = deck.slides[0].quiz!.options[deck.slides[0].quiz!.correctIndex];
+    shuffleQuizAnswers(deck, rngFrom(99));
+    expect(() => slideDeckSchema.parse(deck)).not.toThrow();
+    expect(deck.slides[0].quiz!.options[deck.slides[0].quiz!.correctIndex]).toBe(before);
   });
 });
 

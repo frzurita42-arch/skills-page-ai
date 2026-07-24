@@ -16,6 +16,7 @@ import {
   imageStyleSchema,
   lessonPathSchema,
   ensureExplanatoryProse,
+  shuffleQuizAnswers,
   levelSchema,
   repairDeckDraft,
   repoRef,
@@ -30,6 +31,7 @@ import { loadTemplateCatalog } from "./templates";
 import {
   templatesForSubjectAndLevel,
   slideConformsToAny,
+  slideConformsToTemplate,
   TEMPLATE_COMPONENT_LABELS,
 } from "@contracts/slide-templates";
 import { isStemTopic } from "@contracts/stem";
@@ -279,6 +281,9 @@ export const generateRouter = createRouter({
         level: levelSchema,
         slideCount: z.number().int().min(1).max(MAX_SLIDES),
         imageStyle: imageStyleSchema,
+        // Advanced: pin a specific layout template per slide (by template
+        // name). null / missing entry = let the AI choose. Index i → slide i+1.
+        templatePlan: z.array(z.string().max(120).nullable()).max(MAX_SLIDES).optional(),
         seed: z
           .object({
             repoSlug: z.string(),
@@ -373,6 +378,22 @@ export const generateRouter = createRouter({
         components: t.components.map((c) => TEMPLATE_COMPONENT_LABELS[c]),
       }));
 
+      // Advanced: a per-slide pinned template (chosen in the UI). Matched by
+      // name against the FULL catalog so the user can pin any layout. When a
+      // slide is pinned, its output must conform to exactly that template.
+      const pinnedPlan: (typeof catalog[number] | null)[] = (input.templatePlan ?? [])
+        .slice(0, slideCount)
+        .map((name) =>
+          name ? catalog.find((t) => t.name === name) ?? null : null,
+        );
+      const planLines = pinnedPlan
+        .map((t, i) =>
+          t
+            ? `- Slide ${i + 1}: use layout "${t.name}" = ${t.components.map((c) => TEMPLATE_COMPONENT_LABELS[c]).join(" -> ")}`
+            : null,
+        )
+        .filter(Boolean);
+
       const systemPrompt = buildSlidesSystemPrompt({
         level: input.level,
         imageStyle: input.imageStyle,
@@ -383,6 +404,9 @@ export const generateRouter = createRouter({
         `TOPIC: ${topic}`,
         instructions && instructions !== topic ? `INSTRUCTIONS: ${instructions}` : null,
         `Write exactly ${slideCount} slides.`,
+        planLines.length > 0
+          ? `SLIDE PLAN — the user chose a specific layout for these slides; use EXACTLY these configurations (all their steps, in order) for the given slide numbers, and choose a fitting layout for any slide not listed:\n${planLines.join("\n")}`
+          : null,
         input.seed
           ? `This is lesson ${input.seed.lessonSeq} of ${input.seed.lessonSeqTotal} ("${input.seed.lessonTitle}", unit "${input.seed.unitTitle}") in the repository "${input.seed.repoSlug}".`
           : null,
@@ -426,13 +450,17 @@ export const generateRouter = createRouter({
             // accept the deck (final safety net fills any gap below).
             const nonConforming =
               allowedTemplates.length > 0 &&
-              parsedDeck.slides.some(
-                (s) =>
-                  !slideConformsToAny(
-                    { componentTypes: s.components.map((c) => c.type), hasQuiz: !!s.quiz },
-                    allowedTemplates,
-                  ),
-              );
+              parsedDeck.slides.some((s, i) => {
+                const shape = {
+                  componentTypes: s.components.map((c) => c.type),
+                  hasQuiz: !!s.quiz,
+                };
+                const pinned = pinnedPlan[i];
+                // a pinned slide must match its chosen template; others any allowed
+                return pinned
+                  ? !slideConformsToTemplate(shape, pinned)
+                  : !slideConformsToAny(shape, allowedTemplates);
+              });
             // The model sometimes under-delivers (e.g. 3 slides when 8 were
             // asked). Retry once demanding the full count before accepting.
             const tooFewSlides = parsedDeck.slides.length < slideCount;
@@ -494,6 +522,9 @@ export const generateRouter = createRouter({
       deck = { ...deck, slides: deck.slides.slice(0, slideCount), level: input.level, imageStyle: input.imageStyle };
       // Guarantee every slide has explanatory text — no image-only slides ship
       deck = ensureExplanatoryProse(deck);
+      // Randomize each quiz's correct-answer position (models almost always
+      // put the answer first, so otherwise every question is "A").
+      deck = shuffleQuizAnswers(deck);
 
       // NOTE: images are NOT generated here. Generating up to N images inline
       // (each up to 60s) was the dominant cause of the long "dealing your

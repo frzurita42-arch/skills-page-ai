@@ -396,6 +396,47 @@ export function ensureExplanatoryProse<T extends { slides?: LooseSlide[] }>(deck
   return deck;
 }
 
+type ShuffleQuiz = { options?: unknown; correctIndex?: unknown };
+type ShuffleSlide = { quiz?: ShuffleQuiz | null };
+
+/**
+ * Randomize the position of each quiz's correct answer. Models overwhelmingly
+ * place the correct option first (correctIndex 0), so without this every
+ * question in a deck has answer "A". Fisher-Yates shuffle the options and
+ * re-point correctIndex at the correct option's new slot. RNG is injectable
+ * for deterministic tests.
+ */
+export function shuffleQuizAnswers<T extends { slides?: ShuffleSlide[] }>(
+  deck: T,
+  rng: () => number = Math.random,
+): T {
+  for (const slide of deck.slides ?? []) {
+    const quiz = slide.quiz;
+    if (
+      !quiz ||
+      !Array.isArray(quiz.options) ||
+      quiz.options.length < 2 ||
+      typeof quiz.correctIndex !== "number" ||
+      quiz.correctIndex < 0 ||
+      quiz.correctIndex >= quiz.options.length
+    ) {
+      continue;
+    }
+    const original = quiz.options.slice();
+    const origIndex = quiz.correctIndex;
+    // Shuffle an array of INDICES (duplicate-text safe), then rebuild options
+    // in the new order and re-point correctIndex at the correct slot.
+    const order = original.map((_, i) => i);
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    quiz.options = order.map((i) => original[i]);
+    quiz.correctIndex = order.indexOf(origIndex);
+  }
+  return deck;
+}
+
 /** Extract the first JSON object from an LLM response (tolerates fences/prose). */
 export function extractJson(raw: string): string {
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
