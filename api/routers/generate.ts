@@ -23,6 +23,7 @@ import {
   slideDeckSchema,
   slugify,
   templateSchema,
+  toneSchema,
 } from "../ai/prompts";
 import { estimateCost } from "../cost";
 import { applyTokenDelta, refundTokens } from "../tokens";
@@ -284,6 +285,9 @@ export const generateRouter = createRouter({
         level: levelSchema,
         slideCount: z.number().int().min(1).max(MAX_SLIDES),
         imageStyle: imageStyleSchema,
+        // Advanced: teaching tone / voice for the whole deck (register + how
+        // much field terminology). Independent of the CEFR reading level.
+        tone: toneSchema.default("neutral"),
         // Advanced: pin a specific layout template per slide (by template
         // name). null / missing entry = let the AI choose. Index i → slide i+1.
         templatePlan: z.array(z.string().max(120).nullable()).max(MAX_SLIDES).optional(),
@@ -427,6 +431,7 @@ export const generateRouter = createRouter({
       const systemPrompt = buildSlidesSystemPrompt({
         level: input.level,
         imageStyle: input.imageStyle,
+        tone: input.tone,
         previouslyTaught,
         layoutTemplates,
       });

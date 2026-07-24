@@ -20,8 +20,9 @@ import type {
   SlideDeck,
   SlidePlanInfo,
   SlideToolSummary,
+  Tone,
 } from '@contracts/types';
-import { LEVELS, LEVEL_LABEL, levelTier } from '@contracts/types';
+import { LEVELS, LEVEL_LABEL, levelTier, TONES, TONE_LABEL, TONE_HINT } from '@contracts/types';
 import SketchButton from '@/components/sketch/SketchButton';
 import Chip from '@/components/sketch/Chip';
 import StickyNote from '@/components/sketch/StickyNote';
@@ -205,6 +206,8 @@ function ToolStudio({
   const [voiceURI, setVoiceURI] = useState<string | null>(null);
   const [includeQuiz, setIncludeQuiz] = useState(true);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  // Advanced: teaching tone / voice for the whole deck (register + jargon).
+  const [tone, setTone] = useState<Tone>('neutral');
   // Advanced: pinned layout template per slide (name | null = auto). Index i → slide i+1.
   const [templatePlan, setTemplatePlan] = useState<(string | null)[]>([]);
   const [theaterDone, setTheaterDone] = useState(false);
@@ -289,6 +292,7 @@ function ToolStudio({
         level,
         slideCount,
         imageStyle,
+        tone,
         templatePlan: templatePlan.some(Boolean)
           ? templatePlan.slice(0, slideCount)
           : undefined,
@@ -634,7 +638,7 @@ function ToolStudio({
           <ChevronDown
             className={cn('h-4 w-4 transition-transform', advancedOpen && 'rotate-180')}
           />
-          Advanced — choose a layout per slide
+          Advanced — teaching tone &amp; per-slide layout
         </button>
 
         <AnimatePresence initial={false}>
@@ -647,6 +651,40 @@ function ToolStudio({
               className="overflow-hidden"
             >
               <div className="mt-3 rounded-wobble-2 border-2 border-dashed border-pencil bg-paper-2/50 p-4">
+                {/* Teaching tone — voice/register for the whole deck */}
+                <div className="mb-4">
+                  <span className="micro mb-1 block font-semibold text-ink-soft">
+                    Teaching tone — the voice used to teach this subject
+                  </span>
+                  <p className="micro mb-2 text-ink-faint">
+                    Sets how casual or technical the writing is, independent of the reading level.
+                    Scholarly leans into the field's terminology; casual keeps it plain and
+                    jargon-light.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {TONES.map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setTone(t)}
+                        aria-pressed={tone === t}
+                        title={TONE_HINT[t]}
+                        className={cn(
+                          'rounded-wobble-sm border-2 px-3.5 py-1.5 text-sm font-bold transition-all',
+                          tone === t
+                            ? 'border-ink bg-purple-soft text-ink shadow-offset'
+                            : 'border-dashed border-pencil text-ink-soft hover:border-ink hover:text-ink',
+                        )}
+                      >
+                        {TONE_LABEL[t]}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="micro mt-1.5 text-ink-faint">{TONE_HINT[tone]}</p>
+                </div>
+
+                <div className="mb-3 border-t-2 border-dashed border-pencil" />
+
                 <p className="micro mb-3 text-ink-faint">
                   Pin a template so the AI drafts that slide in exactly that shape. Leave a slide on{' '}
                   <span className="font-semibold">Auto</span> to let it choose. Templates shown match

@@ -37,6 +37,52 @@ export function levelTier(level: Level): LevelTier {
 export const IMAGE_STYLES: ImageStyle[] = ["sketch", "watercolor", "flat", "photo", "none"];
 export const REPO_TEMPLATES: RepoTemplate[] = ["course", "restaurant", "service", "shop", "other"];
 
+/* ---------------- Teaching tone (voice/register of the deck) --------
+ * Tone is INDEPENDENT of CEFR level: level sets reading difficulty
+ * (vocabulary + sentence complexity), tone sets voice and how much
+ * field-specific terminology the deck leans on. A "scholarly" tone gets
+ * technical and precise; a "casual" tone explains the same idea plainly
+ * with minimal jargon. Default is "neutral" (existing behaviour).            */
+export type Tone =
+  | "neutral"
+  | "casual"
+  | "conversational"
+  | "friendly"
+  | "professional"
+  | "formal"
+  | "scholarly";
+
+export const TONES: Tone[] = [
+  "neutral",
+  "casual",
+  "conversational",
+  "friendly",
+  "professional",
+  "formal",
+  "scholarly",
+];
+
+/** Short human label + one-line hint for each teaching tone (UI). */
+export const TONE_LABEL: Record<Tone, string> = {
+  neutral: "Neutral",
+  casual: "Casual",
+  conversational: "Conversational",
+  friendly: "Friendly",
+  professional: "Professional",
+  formal: "Formal",
+  scholarly: "Scholarly",
+};
+
+export const TONE_HINT: Record<Tone, string> = {
+  neutral: "Balanced and clear — the default voice.",
+  casual: "Easygoing, everyday words, little jargon.",
+  conversational: "Chatty and direct, like a friend explaining.",
+  friendly: "Warm and encouraging, gently supportive.",
+  professional: "Polished and businesslike, to the point.",
+  formal: "Precise and impersonal, carefully structured.",
+  scholarly: "Technical and academic, full field terminology.",
+};
+
 /* ---------------- Slide deck model (generation contract) ---------- */
 
 export type SlideComponent =

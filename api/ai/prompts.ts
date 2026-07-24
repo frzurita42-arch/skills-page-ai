@@ -6,6 +6,35 @@ import { z } from "zod";
 
 export const levelSchema = z.enum(["A0", "A1", "A2", "B1", "B2", "C1", "C2"]);
 export const imageStyleSchema = z.enum(["sketch", "watercolor", "flat", "photo", "none"]);
+export const toneSchema = z.enum([
+  "neutral",
+  "casual",
+  "conversational",
+  "friendly",
+  "professional",
+  "formal",
+  "scholarly",
+]);
+
+/** How each teaching tone should shape the deck's voice and terminology.
+ *  Tone is a register dial layered ON TOP of the CEFR reading level — it
+ *  changes voice and jargon load, never how much material is taught. */
+const TONE_DIRECTIVE: Record<string, string> = {
+  neutral:
+    "a balanced, clear teaching voice — neither chatty nor stiff. Explain plainly and let the subject lead.",
+  casual:
+    "an easygoing, everyday voice. Use plain words, short sentences, and the occasional aside; introduce only the field terms that are truly necessary and gloss them in plain language. Favour understanding over precise jargon.",
+  conversational:
+    "a direct, conversational voice — address the reader as \"you\", ask the occasional rhetorical question, and explain ideas the way you would to a curious friend. Keep terminology light and always unpacked.",
+  friendly:
+    "a warm, encouraging voice. Reassure the reader, celebrate small wins, and frame difficulty as normal. Keep jargon modest and always explained.",
+  professional:
+    "a polished, professional voice — clear, efficient, and confident, the way a good industry trainer briefs a team. Use standard terminology precisely but without showing off.",
+  formal:
+    "a formal, impersonal register — full sentences, careful structure, no slang or contractions. Define terms exactly and maintain an objective distance.",
+  scholarly:
+    "a scholarly, academic register — technically precise and dense with the field's proper terminology, assuming an engaged reader. Use exact terms of art (with a brief gloss on first use), reference mechanisms and edge cases, and argue with rigour.",
+};
 export const templateSchema = z.enum(["course", "restaurant", "service", "shop", "other"]);
 
 export const slideComponentSchema = z.discriminatedUnion("type", [
@@ -159,9 +188,11 @@ export interface LayoutTemplateForPrompt {
 export function buildSlidesSystemPrompt(opts: {
   level: string;
   imageStyle: string;
+  tone?: string;
   previouslyTaught: string | null;
   layoutTemplates?: LayoutTemplateForPrompt[];
 }): string {
+  const toneDirective = TONE_DIRECTIVE[opts.tone ?? "neutral"] ?? TONE_DIRECTIVE.neutral;
   // Minimum number of DISTINCT explanatory paragraphs a teaching slide must
   // carry, scaled to the CEFR band. Higher levels demand a fuller page: an
   // advanced (C1/C2) reader gets several substantial paragraphs, not one line.
@@ -218,6 +249,7 @@ TEACHING RULES (non-negotiable):
    Match sentence length and word choice to the level: a low level means SIMPLER language, not shallower coverage; a high level means denser, more sophisticated language.
    LENGTH scales with level too: higher levels get LONGER text in general — A0/A1 prose paragraphs are 1-2 short sentences; A2/B1 are ~2-4 sentences; B2 are full multi-sentence paragraphs; C1/C2 prose paragraphs are substantial and challenging (roughly 4-7 dense sentences each), giving the advanced reader more to work through. This is a general rule, not absolute: a genuinely simple point may still be stated briefly at any level — don't pad — but by default a higher-level reader should get more, lengthier, more demanding text.
    PARAGRAPH FLOOR (hard requirement for level "${opts.level}"): every teaching slide MUST present at least ${paraFloor} DISTINCT explanatory paragraph${paraFloor > 1 ? "s" : ""} of body text. Count paragraphs across the slide's Text/prose steps: either emit several prose components, or give a prose component a "paragraphs" array with ${paraFloor}+ separate entries — a slide with a single short paragraph at this level is WRONG. Each paragraph must make a different point (setup, mechanism, worked detail, implication), never restate another. A visual (image/table/chart/diagram) does NOT count toward this floor; it is in addition to the ${paraFloor} paragraph${paraFloor > 1 ? "s" : ""}.
+9. TEACHING TONE — write the whole deck in ${toneDirective} Tone sets the VOICE and how much field-specific terminology you lean on; it does NOT change the reading level's sentence complexity or how much you teach. Keep this voice consistent across every slide, including quiz questions and explanations.
 ${memory}${templates}
 OUTPUT: STRICT JSON ONLY (no markdown fences, no commentary) matching exactly:
 {"slides":[{"title":"...","components":[...],"quiz":{"kind":"mcq","question":"...","options":["a","b","c","d"],"correctIndex":0,"explanation":"..."}}],"level":"${opts.level}","imageStyle":"${opts.imageStyle}","topic":"..."}
