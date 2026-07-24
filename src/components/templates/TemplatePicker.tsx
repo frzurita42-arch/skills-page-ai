@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -37,10 +38,17 @@ function OptionLabel({ t, withSequence }: { t: SlideTemplate; withSequence: bool
   );
 }
 
+type PanelRect = { left: number; top: number; width: number; maxHeight: number };
+
 /**
  * A per-slide layout picker. Replaces the native <select> so the subject
  * section (STEM/Humanities/General) can be colour-coded — native <option>
  * text can't be styled per word.
+ *
+ * The open panel is rendered in a PORTAL on document.body with fixed
+ * positioning so it is never clipped or z-index-trapped by the collapsible
+ * Advanced section it lives in (whose animation wrapper creates its own
+ * stacking + overflow context).
  */
 export default function TemplatePicker({
   value,
@@ -53,12 +61,46 @@ export default function TemplatePicker({
   onChange: (name: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [rect, setRect] = useState<PanelRect | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLUListElement>(null);
 
+  // Position the portal panel under (or above) the trigger, based on its
+  // on-screen rect. Recomputed on open and on any scroll/resize while open.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const el = triggerRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const gap = 4;
+      const below = window.innerHeight - r.bottom - gap;
+      const above = r.top - gap;
+      const openUp = below < 240 && above > below;
+      setRect({
+        left: r.left,
+        top: openUp ? r.top : r.bottom + gap,
+        width: r.width,
+        maxHeight: Math.min(288, Math.max(140, (openUp ? above : below) - 8)),
+      });
+    };
+    place();
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
+    return () => {
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('resize', place);
+    };
+  }, [open]);
+
+  // Close on outside click (trigger + portal panel both count as "inside")
+  // and on Escape.
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (triggerRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+      setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
@@ -78,9 +120,16 @@ export default function TemplatePicker({
     setOpen(false);
   };
 
+  const optionClasses = (active: boolean) =>
+    cn(
+      'flex w-full items-center gap-2 whitespace-nowrap rounded-wobble-sm px-2.5 py-1.5 text-left font-heading text-sm text-ink hover:bg-paper-2',
+      active && 'bg-paper-2',
+    );
+
   return (
-    <div ref={ref} className="relative min-w-[180px] flex-1">
+    <div className="relative min-w-[180px] flex-1">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
@@ -95,54 +144,56 @@ export default function TemplatePicker({
         />
       </button>
 
-      <AnimatePresence>
-        {open && (
-          <motion.ul
-            role="listbox"
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.12 }}
-            className="absolute left-0 top-full z-50 mt-1 max-h-72 w-max min-w-full max-w-[min(88vw,560px)] overflow-y-auto rounded-wobble-sm border-2 border-ink bg-paper-3 p-1 shadow-offset"
-          >
-            <li role="option" aria-selected={!value}>
-              <button
-                type="button"
-                onClick={() => pick(null)}
-                className={cn(
-                  'flex w-full items-center gap-2 whitespace-nowrap rounded-wobble-sm px-2.5 py-1.5 text-left font-heading text-sm text-ink hover:bg-paper-2',
-                  !value && 'bg-paper-2',
-                )}
-              >
-                <Check className={cn('h-3.5 w-3.5 shrink-0', !value ? 'text-ink' : 'opacity-0')} />
-                Auto (AI chooses)
-              </button>
-            </li>
-            {templates.map((t) => (
-              <li key={String(t.id)} role="option" aria-selected={value === t.name}>
-                <button
-                  type="button"
-                  onClick={() => pick(t.name)}
-                  className={cn(
-                    'flex w-full items-center gap-2 whitespace-nowrap rounded-wobble-sm px-2.5 py-1.5 text-left font-heading text-sm text-ink hover:bg-paper-2',
-                    value === t.name && 'bg-paper-2',
-                  )}
-                >
-                  <Check
-                    className={cn(
-                      'h-3.5 w-3.5 shrink-0',
-                      value === t.name ? 'text-ink' : 'opacity-0',
-                    )}
-                  />
-                  <span>
-                    <OptionLabel t={t} withSequence />
-                  </span>
+      {createPortal(
+        <AnimatePresence>
+          {open && rect && (
+            <motion.ul
+              ref={panelRef}
+              role="listbox"
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.12 }}
+              style={{
+                position: 'fixed',
+                left: rect.left,
+                top: rect.top,
+                minWidth: rect.width,
+                maxWidth: 'min(88vw, 560px)',
+                maxHeight: rect.maxHeight,
+              }}
+              className="z-[100] w-max overflow-y-auto rounded-wobble-sm border-2 border-ink bg-paper-3 p-1 shadow-offset"
+            >
+              <li role="option" aria-selected={!value}>
+                <button type="button" onClick={() => pick(null)} className={optionClasses(!value)}>
+                  <Check className={cn('h-3.5 w-3.5 shrink-0', !value ? 'text-ink' : 'opacity-0')} />
+                  Auto (AI chooses)
                 </button>
               </li>
-            ))}
-          </motion.ul>
-        )}
-      </AnimatePresence>
+              {templates.map((t) => (
+                <li key={String(t.id)} role="option" aria-selected={value === t.name}>
+                  <button
+                    type="button"
+                    onClick={() => pick(t.name)}
+                    className={optionClasses(value === t.name)}
+                  >
+                    <Check
+                      className={cn(
+                        'h-3.5 w-3.5 shrink-0',
+                        value === t.name ? 'text-ink' : 'opacity-0',
+                      )}
+                    />
+                    <span>
+                      <OptionLabel t={t} withSequence />
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </motion.ul>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
     </div>
   );
 }
