@@ -182,6 +182,9 @@ export interface RepoSummary {
   runCount: number;
   /** Lessons the current viewer has passed in this repo (0 for guests). */
   myCompletedCount: number;
+  /** Units the viewer has fully completed — every lesson in the unit passed
+      (0 for guests). Drives the repo card's progress strip. */
+  myCompletedUnits: number;
   isPublic: boolean;
   favorite: boolean;
   ownerName: string | null;

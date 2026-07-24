@@ -32,16 +32,17 @@ const NAV_ITEMS = [
   { to: '/lesson-path', label: 'Lesson Path', icon: Route },
   { to: '/slides', label: 'Slides', icon: Presentation },
   { to: '/chat', label: 'Chat', icon: MessageCircle },
-  { to: '/runs', label: 'Presentation runs', icon: PlayCircle },
   { to: '/about', label: 'About', icon: Info },
 ];
 
 // Staff-only. Moderators see the first two (Dashboard + Users); admins see
-// all of them — so "Slide templates" and the platform config stay admin-only.
+// all of them — so Presentation runs, Slide templates, and the platform
+// config stay admin-only.
 const ADMIN_ITEMS = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/admin/users', label: 'Users', icon: Users },
   { to: '/admin/moderators', label: 'Moderators', icon: ShieldCheck },
+  { to: '/runs', label: 'Presentation runs', icon: PlayCircle },
   { to: '/templates', label: 'Slide templates', icon: LayoutTemplate },
   { to: '/admin/settings', label: 'Platform', icon: SlidersHorizontal },
 ];

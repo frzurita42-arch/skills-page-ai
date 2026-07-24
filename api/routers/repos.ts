@@ -99,9 +99,12 @@ async function repoSummaries(repoRows: Repo[], userId: number | undefined): Prom
   for (const repo of repoRows) {
     const repoUnits = await db.select().from(units).where(eq(units.repoId, repo.id));
     let lessonCount = 0;
+    // Lesson ids grouped by unit, so we can tell when a whole unit is done.
+    const unitLessonIds: number[][] = [];
     for (const u of repoUnits) {
       const ls = await db.select({ id: lessons.id }).from(lessons).where(eq(lessons.unitId, u.id));
       lessonCount += ls.length;
+      unitLessonIds.push(ls.map((l) => l.id));
     }
     const repoRuns = await db
       .select({
@@ -122,6 +125,10 @@ async function repoSummaries(repoRows: Repo[], userId: number | undefined): Prom
         }
       }
     }
+    // A unit counts as complete when it has lessons and every one is passed.
+    const myCompletedUnits = unitLessonIds.filter(
+      (ids) => ids.length > 0 && ids.every((id) => passedLessonIds.has(id)),
+    ).length;
     let ownerName: string | null = null;
     if (repo.ownerId) {
       const owner = await db.query.users.findFirst({ where: eq(users.id, repo.ownerId) });
@@ -137,6 +144,7 @@ async function repoSummaries(repoRows: Repo[], userId: number | undefined): Prom
       lessonCount,
       runCount: repoRuns.length,
       myCompletedCount: passedLessonIds.size,
+      myCompletedUnits,
       isPublic: repo.isPublic,
       favorite: favs.has(repo.slug),
       ownerName,

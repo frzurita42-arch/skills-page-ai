@@ -144,10 +144,16 @@ export function studyUrl(toolSlug: string, seed: LessonSeed): string {
 export function ProgressStrip({
   played,
   total,
+  noun = 'lessons',
+  label = 'played',
   className,
 }: {
   played: number;
   total: number;
+  /** what each segment represents (for the aria label) */
+  noun?: string;
+  /** trailing word after the count, e.g. "played" or "done" */
+  label?: string;
   className?: string;
 }) {
   const clampedTotal = Math.max(1, total);
@@ -157,7 +163,7 @@ export function ProgressStrip({
       <div
         className="flex h-2.5 flex-1 gap-[3px]"
         role="img"
-        aria-label={`${clampedPlayed} of ${clampedTotal} lessons played`}
+        aria-label={`${clampedPlayed} of ${clampedTotal} ${noun} ${label}`}
       >
         {Array.from({ length: clampedTotal }, (_, i) => (
           <span
@@ -174,7 +180,7 @@ export function ProgressStrip({
         ))}
       </div>
       <span className="micro whitespace-nowrap text-[0.62rem] text-ink-faint">
-        {clampedPlayed}/{clampedTotal} played
+        {clampedPlayed}/{clampedTotal} {label}
       </span>
     </div>
   );
