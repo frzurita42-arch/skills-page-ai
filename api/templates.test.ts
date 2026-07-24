@@ -5,6 +5,7 @@ import {
   templatesForSubjectAndLevel,
   slideConformsToTemplate,
   slideConformsToAny,
+  bestMatchingTemplate,
   sectionForTags,
   isGradable,
   GRADABLE_TYPES,
@@ -100,6 +101,15 @@ describe("slide conformance to templates", () => {
     const t = BUILTIN_SLIDE_TEMPLATES.find((x) => x.name === "Read the table")!; // prose + table + mcq2
     const shape = { componentTypes: ["prose", "table", "stickynote"], hasQuiz: true };
     expect(slideConformsToTemplate(shape, t)).toBe(true);
+  });
+
+  it("bestMatchingTemplate labels a table slide with a TABLE layout, not an all-text one", () => {
+    // a slide with 1 prose + a table + a typed quiz (the reported case)
+    const shape = { componentTypes: ["prose", "table"], hasQuiz: true };
+    const best = bestMatchingTemplate(shape, BUILTIN_SLIDE_TEMPLATES);
+    expect(best).not.toBeNull();
+    // the chosen template must itself contain a table
+    expect(best!.components).toContain("table");
   });
 
   it("every built-in template is self-conforming (its own shape satisfies it)", () => {

@@ -339,13 +339,29 @@ export function slideConformsToAny(shape: SlideShape, templates: SlideTemplate[]
   return templates.some((t) => slideConformsToTemplate(shape, t));
 }
 
-/** The most specific template a slide conforms to (most component steps), or
- *  null — used to label which layout a non-pinned slide ended up matching. */
+/** The template that best reflects a non-pinned slide's actual shape — used to
+ *  LABEL which layout it ended up matching. Prefers templates whose visual
+ *  components (table/chart/image/code/formula/diagram) match the slide's, so a
+ *  slide that contains a table is labelled with a TABLE layout, not a
+ *  same-length all-text one. Ties break toward more components. */
 export function bestMatchingTemplate(
   shape: SlideShape,
   templates: SlideTemplate[],
 ): SlideTemplate | null {
   const matches = templates.filter((t) => slideConformsToTemplate(shape, t));
   if (matches.length === 0) return null;
-  return matches.reduce((a, b) => (b.components.length > a.components.length ? b : a));
+  const slideVisuals = new Set(shape.componentTypes.filter((c) => c !== "prose"));
+  const score = (t: SlideTemplate): number => {
+    const tv = new Set<string>(t.components.filter((c) => !isGradable(c) && c !== "prose"));
+    let inter = 0;
+    let extra = 0;
+    tv.forEach((v) => (slideVisuals.has(v) ? inter++ : extra++));
+    let missing = 0;
+    slideVisuals.forEach((v) => {
+      if (!tv.has(v)) missing++;
+    });
+    // reward shared visuals, penalize visuals only one side has; size breaks ties
+    return inter * 100 - extra * 10 - missing * 10 + t.components.length;
+  };
+  return matches.reduce((a, b) => (score(b) > score(a) ? b : a));
 }
