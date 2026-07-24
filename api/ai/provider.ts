@@ -326,6 +326,184 @@ export async function completeText(opts: {
   return null;
 }
 
+/* ------------------------------------------------------------------ */
+/* Vision: read image(s) + a prompt and return text. Used to grade a    */
+/* handwritten worked solution on the scratchpad. Uses the TEXT keys     */
+/* (the same models accept images); providers without vision are skipped */
+/* ------------------------------------------------------------------ */
+
+export interface VisionImage {
+  /** e.g. "image/png" */
+  mime: string;
+  /** base64 payload WITHOUT the data: prefix */
+  b64: string;
+}
+
+async function callGeminiVision(
+  key: ResolvedKey,
+  system: string,
+  userText: string,
+  images: VisionImage[],
+  maxTokens: number,
+): Promise<string> {
+  const base = (key.baseUrl || DEFAULT_BASE_URLS.gemini).replace(/\/$/, "");
+  const parts = [
+    { text: userText },
+    ...images.map((im) => ({ inlineData: { mimeType: im.mime, data: im.b64 } })),
+  ];
+  const models = key.model
+    ? [key.model, ...GEMINI_TEXT_MODELS.filter((m) => m !== key.model)]
+    : GEMINI_TEXT_MODELS;
+  let notFound: Error | null = null;
+  for (const model of models) {
+    const res = await fetch(
+      `${base}/models/${model}:generateContent?key=${encodeURIComponent(key.apiKey)}`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ...(system ? { systemInstruction: { parts: [{ text: system }] } } : {}),
+          contents: [{ role: "user", parts }],
+          generationConfig: { maxOutputTokens: maxTokens, responseMimeType: "application/json" },
+        }),
+        signal: AbortSignal.timeout(60_000),
+      },
+    );
+    if (res.status === 404) {
+      notFound = new Error(`Gemini model ${model} not found (404)`);
+      continue;
+    }
+    if (!res.ok) throw new Error(`Gemini vision ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const data = (await res.json()) as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
+    };
+    const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("");
+    if (!text) throw new Error("Gemini vision returned no content");
+    return text;
+  }
+  throw notFound ?? new Error("No Gemini vision model available");
+}
+
+async function callOpenAIVision(
+  key: ResolvedKey,
+  system: string,
+  userText: string,
+  images: VisionImage[],
+  maxTokens: number,
+): Promise<string> {
+  const base = (key.baseUrl || DEFAULT_BASE_URLS.openai).replace(/\/$/, "");
+  const res = await fetch(`${base}/chat/completions`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${key.apiKey}` },
+    body: JSON.stringify({
+      model: key.model || "gpt-4o-mini",
+      max_tokens: Math.min(maxTokens, 16384),
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: system },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: userText },
+            ...images.map((im) => ({
+              type: "image_url",
+              image_url: { url: `data:${im.mime};base64,${im.b64}` },
+            })),
+          ],
+        },
+      ],
+    }),
+    signal: AbortSignal.timeout(60_000),
+  });
+  if (!res.ok) throw new Error(`OpenAI vision ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) throw new Error("OpenAI vision returned no content");
+  return text;
+}
+
+async function callAnthropicVision(
+  key: ResolvedKey,
+  system: string,
+  userText: string,
+  images: VisionImage[],
+  maxTokens: number,
+): Promise<string> {
+  const base = (key.baseUrl || DEFAULT_BASE_URLS.anthropic).replace(/\/$/, "");
+  const res = await fetch(`${base}/messages`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": key.apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: key.model || DEFAULT_MODELS.anthropic,
+      max_tokens: Math.min(maxTokens, 8192),
+      system,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: userText },
+            ...images.map((im) => ({
+              type: "image",
+              source: { type: "base64", media_type: im.mime, data: im.b64 },
+            })),
+          ],
+        },
+      ],
+    }),
+    signal: AbortSignal.timeout(60_000),
+  });
+  if (!res.ok) throw new Error(`Anthropic vision ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const data = (await res.json()) as { content?: { type: string; text?: string }[] };
+  const text = data.content?.find((c) => c.type === "text")?.text;
+  if (!text) throw new Error("Anthropic vision returned no text");
+  return text;
+}
+
+/**
+ * Vision completion: send image(s) + a prompt, get text back. Cascades the
+ * text keys (all three providers accept images). Returns null when no key
+ * works, so the caller can fall back.
+ */
+export async function completeVision(opts: {
+  userId?: number;
+  system: string;
+  userText: string;
+  images: VisionImage[];
+  maxTokens?: number;
+}): Promise<CompletionResult | null> {
+  const candidates = await resolveKeyCandidates(opts.userId, "text");
+  if (candidates.length === 0) return null;
+  const maxTokens = opts.maxTokens ?? 500;
+  for (const key of candidates) {
+    try {
+      let text: string;
+      switch (key.provider) {
+        case "gemini":
+          text = await callGeminiVision(key, opts.system, opts.userText, opts.images, maxTokens);
+          break;
+        case "openai":
+          text = await callOpenAIVision(key, opts.system, opts.userText, opts.images, maxTokens);
+          break;
+        case "anthropic":
+          text = await callAnthropicVision(key, opts.system, opts.userText, opts.images, maxTokens);
+          break;
+      }
+      return { text, provider: key.provider, source: key.source };
+    } catch (err) {
+      console.warn(
+        `[ai/vision] ${key.provider} (${key.source}) failed, trying next:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
+  return null;
+}
+
 /**
  * Minimal provider ping used by keys.test. Text/tts keys get a one-token
  * round trip; image keys get a cheap endpoint check against the image model

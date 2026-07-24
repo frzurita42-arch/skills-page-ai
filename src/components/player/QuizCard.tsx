@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Pencil, Plus, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -10,6 +10,7 @@ import { SquiggleDivider } from '../sketch/Squiggle';
 import { Kara } from './SlideComponents';
 import AnnotationLayer, { type AnnTool } from './AnnotationLayer';
 import AnnotationToolbar from './AnnotationToolbar';
+import { rasterizeAnnotations, pageHasMarks } from './rasterize';
 
 const LETTERS = ['A', 'B', 'C', 'D'];
 /** Text answers (fill-blank / typed) get this many tries before Next unlocks. */
@@ -313,6 +314,8 @@ function SolveCard({
   const [attempts, setAttempts] = useState(answer ? 1 : 0);
   const [grading, setGrading] = useState(false);
   const gradeTyped = trpc.generate.gradeTyped.useMutation();
+  const gradeVisual = trpc.generate.gradeVisual.useMutation();
+  const utils = trpc.useUtils();
 
   // scratchpad: at least one blank page; the player owns/saves the pages
   const pages = scratchPages && scratchPages.length > 0 ? scratchPages : [[]];
@@ -321,6 +324,8 @@ function SolveCard({
   const [color, setColor] = useState('#2E2820');
   const [width, setWidth] = useState(3);
   const safePage = Math.min(pageIdx, pages.length - 1);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const anyMarks = pages.some(pageHasMarks);
 
   const setPage = (i: number, marks: SlideAnnotation[]) => {
     if (review) return;
@@ -336,31 +341,70 @@ function SolveCard({
 
   const triesLeft = Math.max(0, MAX_TEXT_TRIES - attempts);
   const canRetry = !!result && !result.correct && !solved;
+  // can we submit? scratchpad mode needs drawn work; text mode needs text
+  const canSubmit = scratchpad ? anyMarks : !!text.trim();
 
-  const submit = useCallback(async () => {
-    if (solved || review || grading || !text.trim()) return;
-    setGrading(true);
-    let res: { correct: boolean; feedback?: string };
-    try {
-      res = await gradeTyped.mutateAsync({
-        question: quiz.question,
-        reference: quiz.answer ?? quiz.explanation,
-        answer: text,
-      });
-    } catch {
-      res = { correct: false, feedback: "Couldn't grade that — compare with the worked solution." };
-    } finally {
-      setGrading(false);
-    }
+  const finishAttempt = (res: { correct: boolean; feedback?: string }, recordText: string) => {
     const nowAttempts = attempts + 1;
-    if (attempts === 0) onAnswer({ text, correct: res.correct });
+    if (attempts === 0) onAnswer({ text: recordText, correct: res.correct });
     setAttempts(nowAttempts);
     setResult(res);
     if (res.correct || nowAttempts >= MAX_TEXT_TRIES) {
       setSolved(true);
       onSolved?.();
     }
-  }, [solved, review, grading, text, quiz, attempts, onAnswer, onSolved, gradeTyped]);
+  };
+
+  const submit = useCallback(async () => {
+    if (solved || review || grading || !canSubmit) return;
+    setGrading(true);
+    try {
+      if (scratchpad) {
+        // grade the HANDWRITTEN work: rasterise every non-empty page → images
+        const w = boxRef.current?.clientWidth ?? 680;
+        const h = boxRef.current?.clientHeight ?? 440;
+        const images = pages
+          .filter(pageHasMarks)
+          .map((p) => rasterizeAnnotations(p, w, h))
+          .filter(Boolean);
+        let res: { correct: boolean; feedback?: string };
+        try {
+          const r = await gradeVisual.mutateAsync({
+            question: quiz.question,
+            reference: quiz.answer ?? quiz.explanation,
+            explanation: quiz.explanation,
+            images,
+          });
+          res = { correct: r.correct, feedback: r.feedback };
+          if (r.charged > 0) void utils.auth.me.invalidate();
+        } catch (e) {
+          res = {
+            correct: false,
+            feedback:
+              e instanceof Error && e.message.includes('INSUFFICIENT_TOKENS')
+                ? 'Not enough tokens to check your work — top up in Settings.'
+                : "Couldn't check your work right now.",
+          };
+        }
+        finishAttempt(res, '');
+      } else {
+        let res: { correct: boolean; feedback?: string };
+        try {
+          res = await gradeTyped.mutateAsync({
+            question: quiz.question,
+            reference: quiz.answer ?? quiz.explanation,
+            answer: text,
+          });
+        } catch {
+          res = { correct: false, feedback: "Couldn't grade that — compare with the worked solution." };
+        }
+        finishAttempt(res, text);
+      }
+    } finally {
+      setGrading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [solved, review, grading, canSubmit, scratchpad, text, quiz, attempts, pages]);
 
   return (
     <section className="mt-10" aria-label="Solve">
@@ -390,7 +434,10 @@ function SolveCard({
               hasMarks={pages[safePage].length > 0}
             />
           </div>
-          <div className="relative h-[440px] w-full overflow-hidden rounded-wobble-sm border-2 border-ink bg-paper-3 shadow-offset [background-image:repeating-linear-gradient(transparent,transparent_31px,rgba(46,40,32,0.08)_32px)]">
+          <div
+            ref={boxRef}
+            className="relative h-[440px] w-full overflow-hidden rounded-wobble-sm border-2 border-ink bg-paper-3 shadow-offset [background-image:repeating-linear-gradient(transparent,transparent_31px,rgba(46,40,32,0.08)_32px)]"
+          >
             <AnnotationLayer
               key={safePage}
               annotations={pages[safePage]}
@@ -443,34 +490,48 @@ function SolveCard({
         </div>
       )}
 
-      {/* final answer — the AI grades this leniently (right idea counts).
-          With no scratchpad it becomes the main answer space, so give it room. */}
-      <label className="micro mt-5 block text-ink-soft">
-        {scratchpad ? 'Your final answer' : 'Your answer'}
-      </label>
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        disabled={solved || grading || review}
-        rows={scratchpad ? 2 : 6}
-        placeholder={
-          scratchpad ? 'e.g. x = 3/2, or 12.5 m/s…' : 'Work through the problem and give your answer…'
-        }
-        className="mt-1 w-full resize-y rounded-wobble-sm border-2 border-ink bg-paper-3 px-3.5 py-2.5 text-[0.95rem] text-ink shadow-offset outline-none focus:border-blue disabled:opacity-70"
-      />
+      {/* Answer space ONLY when the scratchpad is off — then the typed box is
+          the answer (with room). With the scratchpad on, the AI reads the
+          drawn work itself, so there is no separate answer box. */}
+      {!scratchpad && (
+        <>
+          <label className="micro mt-5 block text-ink-soft">Your answer</label>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            disabled={solved || grading || review}
+            rows={6}
+            placeholder="Work through the problem and give your answer…"
+            className="mt-1 w-full resize-y rounded-wobble-sm border-2 border-ink bg-paper-3 px-3.5 py-2.5 text-[0.95rem] text-ink shadow-offset outline-none focus:border-blue disabled:opacity-70"
+          />
+        </>
+      )}
 
       {!solved && !review && (
-        <button
-          type="button"
-          onClick={submit}
-          disabled={grading || !text.trim()}
-          className={cn(
-            'mt-3 inline-flex items-center gap-1.5 rounded-wobble-sm border-2 border-ink bg-yellow px-3.5 py-1.5 font-heading text-sm font-bold text-ink shadow-offset transition-transform hover:-translate-y-0.5 disabled:opacity-50',
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={submit}
+            disabled={grading || !canSubmit}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-wobble-sm border-2 border-ink bg-yellow px-3.5 py-1.5 font-heading text-sm font-bold text-ink shadow-offset transition-transform hover:-translate-y-0.5 disabled:opacity-50',
+            )}
+          >
+            <Send className="h-4 w-4" />
+            {grading
+              ? scratchpad
+                ? 'Checking your work…'
+                : 'Checking…'
+              : canRetry
+                ? `Try again (${triesLeft} left)`
+                : scratchpad
+                  ? 'Submit work'
+                  : 'Submit answer'}
+          </button>
+          {scratchpad && (
+            <span className="micro text-ink-faint">The AI reads your pages · 6 🪙 per check</span>
           )}
-        >
-          <Send className="h-4 w-4" />
-          {grading ? 'Checking…' : canRetry ? `Try again (${triesLeft} left)` : 'Submit answer'}
-        </button>
+        </div>
       )}
 
       {result && (
@@ -488,8 +549,8 @@ function SolveCard({
           {result.feedback ? `${result.feedback} ` : ''}
           {!result.correct && !solved && (
             <span className="mt-1 block text-sm text-ink-soft">
-              {triesLeft} {triesLeft === 1 ? 'try' : 'tries'} left — check your working and refine the
-              final answer.
+              {triesLeft} {triesLeft === 1 ? 'try' : 'tries'} left —{' '}
+              {scratchpad ? 'revise your working and resubmit.' : 'check your working and refine the answer.'}
             </span>
           )}
           {solved && !result.correct && quiz.answer && (

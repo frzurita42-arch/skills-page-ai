@@ -5,7 +5,7 @@ import { createRouter, publicQuery } from "../middleware";
 import { authedProcedure } from "../procedures";
 import { getDb } from "../queries/connection";
 import { lessons, repos, slideTools, units, users } from "@db/schema";
-import { completeText, generateImage, userHasKey } from "../ai/provider";
+import { completeText, completeVision, generateImage, userHasKey, type VisionImage } from "../ai/provider";
 import { mockCoachReply, mockDeck, mockLessonPath } from "../ai/mock";
 import {
   buildLessonPathPrompt,
@@ -43,6 +43,8 @@ import type { CoachReply, SlideDeck } from "@contracts/types";
 
 const GUEST_MAX_SLIDES = 6;
 const MAX_SLIDES = 15;
+/** Token fee for one AI vision review of a handwritten worked solution. */
+const VISION_GRADE_COST = 6;
 
 /**
  * Offline demo content (mock decks/lesson paths) is opt-in. By default a
@@ -691,7 +693,7 @@ export const generateRouter = createRouter({
             {
               role: "system",
               content:
-                'You grade a student\'s short typed answer against a reference answer. Be lenient about wording, spelling, and phrasing — reward correct meaning, not exact words. Reply STRICT JSON ONLY: {"correct":true|false,"feedback":"one short encouraging sentence"}.',
+                'You grade a student\'s typed answer against a reference answer. Judge MEANING: reward the right idea even with different wording, minor spelling slips, or imprecise terminology. BUT be strict about actual correctness — mark it WRONG if the answer is empty, random characters/gibberish, off-topic, or gives a different value/result than the reference (for a numeric or procedural answer the value must essentially match). Do NOT pass an answer just because it is non-empty. Reply STRICT JSON ONLY: {"correct":true|false,"feedback":"one short sentence of why"}.',
             },
             {
               role: "user",
@@ -726,6 +728,97 @@ export const generateRouter = createRouter({
           ? "Looks right — you covered the key idea."
           : "Missing the key idea — compare with the explanation.",
       };
+    }),
+
+  /**
+   * Grade a HANDWRITTEN worked solution: the student's scratchpad pages are
+   * sent as images to a vision model, which reads the work across all pages
+   * and judges whether the problem was solved correctly. Charges a small
+   * token fee up front (refunded if the check can't run), since a vision
+   * review costs more than a text one.
+   */
+  gradeVisual: publicQuery
+    .input(
+      z.object({
+        question: z.string().min(1).max(2000),
+        reference: z.string().min(1).max(2000),
+        explanation: z.string().max(4000).default(""),
+        // scratchpad pages as data URIs (data:image/png;base64,...)
+        images: z.array(z.string().max(4_000_000)).min(1).max(8),
+      }),
+    )
+    .mutation(async ({ ctx, input }): Promise<{ correct: boolean; feedback: string; charged: number }> => {
+      // parse the data URIs into { mime, b64 }
+      const images: VisionImage[] = [];
+      for (const uri of input.images) {
+        const m = uri.match(/^data:(.+?);base64,(.+)$/);
+        if (m) images.push({ mime: m[1], b64: m[2] });
+      }
+      if (images.length === 0) {
+        return { correct: false, feedback: "No worked solution was captured.", charged: 0 };
+      }
+
+      // charge a small fee up front (signed-in only) for the AI vision review
+      let charged = 0;
+      const reason = `grade-visual: ${input.question.slice(0, 40)}`;
+      if (ctx.user) {
+        try {
+          await applyTokenDelta(ctx.user.id, -VISION_GRADE_COST, reason);
+          charged = VISION_GRADE_COST;
+        } catch {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: `INSUFFICIENT_TOKENS: an AI check of your work costs ${VISION_GRADE_COST} 🪙, and your balance is too low.`,
+          });
+        }
+      }
+
+      try {
+        const result = await completeVision({
+          userId: ctx.user?.id,
+          system:
+            'You grade a student\'s HANDWRITTEN worked solution, shown as one or more scratchpad page images (in order). Read all the pages, follow the working, and judge whether the PROBLEM WAS SOLVED CORRECTLY — the method may differ from the reference as long as the reasoning is valid and the final result matches. Mark it WRONG if the pages are blank, illegible scribbles, off-topic, or reach an incorrect result. Reply STRICT JSON ONLY: {"correct":true|false,"feedback":"one short sentence on what was right or where it went wrong"}.',
+          userText: `PROBLEM: ${input.question}\nCORRECT FINAL ANSWER: ${input.reference}\nWORKED SOLUTION (reference): ${input.explanation}\n\nThe images are the student's ${images.length} scratchpad page(s), in order. Did the student solve it correctly? Reply JSON only.`,
+          images,
+          maxTokens: 400,
+        });
+        if (result) {
+          const parsed = JSON.parse(extractJson(result.text)) as {
+            correct?: boolean;
+            feedback?: string;
+          };
+          if (typeof parsed.correct === "boolean") {
+            return {
+              correct: parsed.correct,
+              feedback:
+                (parsed.feedback && String(parsed.feedback).slice(0, 300)) ||
+                (parsed.correct ? "Correct working." : "Not quite — check your steps."),
+              charged,
+            };
+          }
+        }
+        // vision unavailable / unparseable → refund and let them proceed
+        if (charged && ctx.user) {
+          await refundTokens(ctx.user.id, charged, `refund: ${reason}`);
+          charged = 0;
+        }
+        return {
+          correct: false,
+          feedback: "Couldn't read your work automatically — make sure it's legible, or move on.",
+          charged,
+        };
+      } catch (err) {
+        if (charged && ctx.user) {
+          await refundTokens(ctx.user.id, charged, `refund: ${reason}`);
+          charged = 0;
+        }
+        console.warn("[gradeVisual] failed:", err instanceof Error ? err.message : err);
+        return {
+          correct: false,
+          feedback: "Couldn't check your work right now — please try again.",
+          charged,
+        };
+      }
     }),
 
 })
