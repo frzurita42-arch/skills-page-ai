@@ -384,7 +384,6 @@ function SolveCard({
               onColor={setColor}
               onWidth={setWidth}
               onClear={clearPage}
-              onClose={() => undefined}
               hasMarks={pages[safePage].length > 0}
             />
           </div>

@@ -95,6 +95,9 @@ export default function AnnotationLayer({
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (!editable || !active) return;
+    // Keep the event from reaching an ancestor drag handler (the slide's
+    // swipe-to-navigate) — otherwise dragging to draw slides the whole page.
+    e.stopPropagation();
     if (editingText !== null) return; // let the textarea handle it
     const [x, y] = localPoint(e);
     if (tool === 'text') {
@@ -115,6 +118,7 @@ export default function AnnotationLayer({
 
   const onPointerMove = (e: React.PointerEvent) => {
     if (!editable || !active || !drawing.current) return;
+    e.stopPropagation();
     const [x, y] = localPoint(e);
     if (tool === 'eraser') {
       eraseAt(x, y);
@@ -123,8 +127,9 @@ export default function AnnotationLayer({
     }
   };
 
-  const onPointerUp = () => {
+  const onPointerUp = (e: React.PointerEvent) => {
     if (!editable || !active) return;
+    e.stopPropagation();
     drawing.current = false;
     if (tool === 'pen' && draft && draft.length >= 4) {
       const stroke: AnnStroke = { kind: 'stroke', color, width, points: draft };

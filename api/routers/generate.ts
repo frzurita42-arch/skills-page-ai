@@ -501,10 +501,13 @@ export const generateRouter = createRouter({
                 const structOk = pinned
                   ? slideConformsToTemplate(shape, pinned, true)
                   : slideConformsToAny(shape, allowedTemplates);
-                // and — regardless of layout — a teaching slide must carry the
-                // CEFR paragraph floor of distinct body-text paragraphs, so a
-                // C1 slide can't ship as one short line. Count paragraphs
-                // across every prose component.
+                // A "solve" slide is a problem statement — its length should
+                // fit the problem (a math/physics problem is often one concise
+                // paragraph), so it is exempt from the CEFR paragraph floor.
+                if (s.quiz?.kind === "solve") return !structOk;
+                // Otherwise a teaching slide must carry the CEFR paragraph floor
+                // of distinct body paragraphs, so a C1 slide can't ship as one
+                // short line. Count paragraphs across every prose component.
                 const paraCount = s.components.reduce(
                   (n, c) => n + (c.type === "prose" ? c.paragraphs.length : 0),
                   0,

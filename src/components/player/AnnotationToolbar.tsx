@@ -30,7 +30,8 @@ export default function AnnotationToolbar({
   onColor: (c: string) => void;
   onWidth: (w: number) => void;
   onClear: () => void;
-  onClose: () => void;
+  /** omit to hide the close button (e.g. an always-on scratchpad toolbar) */
+  onClose?: () => void;
   hasMarks: boolean;
 }) {
   const toolBtn = (t: AnnTool, Icon: typeof Pencil, label: string) => (
@@ -121,15 +122,17 @@ export default function AnnotationToolbar({
       >
         <Trash2 className="h-4 w-4" strokeWidth={2} />
       </button>
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Close annotation tools"
-        title="Done"
-        className="flex h-8 w-8 items-center justify-center rounded-wobble-sm border-2 border-transparent text-ink-soft transition-colors hover:border-dashed hover:border-ink hover:text-ink"
-      >
-        <X className="h-4 w-4" strokeWidth={2} />
-      </button>
+      {onClose && (
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close annotation tools"
+          title="Done"
+          className="flex h-8 w-8 items-center justify-center rounded-wobble-sm border-2 border-transparent text-ink-soft transition-colors hover:border-dashed hover:border-ink hover:text-ink"
+        >
+          <X className="h-4 w-4" strokeWidth={2} />
+        </button>
+      )}
     </div>
   );
 }

@@ -137,6 +137,9 @@ export default function DeckPlayer({
   const currentAnswer = answers[index];
   const nextUnlocked = !slide.quiz || (currentAnswer?.solved ?? false);
   const isLast = index === total - 1;
+  // On a solve slide the whole page is a scratchpad you draw on — swipe-drag
+  // would fight the pencil, so disable it (Back/Next still navigate).
+  const slideHasSolve = slide.quiz?.kind === 'solve';
 
   const goNext = useCallback(() => {
     if (inReview) return;
@@ -281,7 +284,7 @@ export default function DeckPlayer({
               animate="center"
               exit="exit"
               transition={{ duration: 0.35, ease: EASE }}
-              drag={reduced || annotateOn ? false : 'x'}
+              drag={reduced || annotateOn || slideHasSolve ? false : 'x'}
               dragConstraints={{ left: 0, right: 0 }}
               dragElastic={0.15}
               onDragEnd={(_, info) => {
