@@ -27,10 +27,10 @@ const ROLE_CHIP: Record<string, string> = {
 };
 
 const NAV_ITEMS = [
-  { to: '/', label: 'Chat', icon: MessageCircle, end: true },
+  { to: '/', label: 'Repos', icon: LibraryBig, end: true },
   { to: '/lesson-path', label: 'Lesson Path', icon: Route },
   { to: '/slides', label: 'Slides', icon: Presentation },
-  { to: '/repos', label: 'Repos', icon: LibraryBig },
+  { to: '/chat', label: 'Chat', icon: MessageCircle },
   { to: '/templates', label: 'Slide templates', icon: LayoutTemplate },
   { to: '/runs', label: 'Presentation runs', icon: PlayCircle },
   { to: '/about', label: 'About', icon: Info },

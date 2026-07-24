@@ -21,7 +21,9 @@ export default function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route path="/" element={<Home />} />
+        {/* Repos is the default home; the Coach chat lives at /chat */}
+        <Route path="/" element={<Repos />} />
+        <Route path="/chat" element={<Home />} />
         <Route path="/lesson-path" element={<LessonPath />} />
         <Route path="/repos" element={<Repos />} />
         <Route path="/repos/:slug" element={<Repository />} />
@@ -37,7 +39,7 @@ export default function App() {
         <Route path="/admin/users" element={<AdminUsers />} />
         <Route path="/admin/moderators" element={<AdminModerators />} />
         <Route path="/admin/settings" element={<AdminSettings />} />
-        <Route path="*" element={<Home />} />
+        <Route path="*" element={<Repos />} />
       </Route>
     </Routes>
   );
