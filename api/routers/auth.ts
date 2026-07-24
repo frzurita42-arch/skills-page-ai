@@ -1,0 +1,118 @@
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
+import { eq, sql } from "drizzle-orm";
+import { createRouter, publicQuery } from "../middleware";
+import { authedProcedure } from "../procedures";
+import { getDb } from "../queries/connection";
+import { users, tokenLedger, type User } from "@db/schema";
+import { hashPassword, verifyPassword, signAuthToken } from "../auth-utils";
+import type { SessionUser } from "@contracts/types";
+
+function toSessionUser(u: User): SessionUser {
+  return {
+    id: u.id,
+    email: u.email,
+    name: u.name,
+    role: u.role,
+    tokenBalance: u.tokenBalance,
+    createdAt: u.createdAt,
+  };
+}
+
+const STARTER_TOKENS = 50;
+
+export const authRouter = createRouter({
+  register: publicQuery
+    .input(
+      z.object({
+        email: z.string().email().max(320),
+        password: z.string().min(8, "Password must be at least 8 characters").max(128),
+        name: z.string().min(1).max(255),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const email = input.email.toLowerCase().trim();
+      const existing = await db.query.users.findFirst({ where: eq(users.email, email) });
+      if (existing) {
+        throw new TRPCError({ code: "CONFLICT", message: "That email already has a notebook" });
+      }
+      const [{ id }] = await db
+        .insert(users)
+        .values({
+          email,
+          name: input.name.trim(),
+          passwordHash: hashPassword(input.password),
+          role: "user",
+          tokenBalance: STARTER_TOKENS,
+        })
+        .returning({ id: users.id });
+      await db.insert(tokenLedger).values({
+        userId: id,
+        delta: STARTER_TOKENS,
+        reason: "welcome bonus",
+        balanceAfter: STARTER_TOKENS,
+      });
+      const user = (await db.query.users.findFirst({ where: eq(users.id, id) }))!;
+      return { token: signAuthToken({ sub: user.id, email: user.email }), user: toSessionUser(user) };
+    }),
+
+  login: publicQuery
+    // `email` accepts a plain identifier too: bare usernames resolve to a user
+    // (special-case "admin" → the seeded admin account, or a case-insensitive
+    // exact name match). Same error either way — no user enumeration.
+    .input(z.object({ email: z.string().min(1).max(320), password: z.string().min(1) }))
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const identifier = input.email.trim();
+      const lowered = identifier.toLowerCase();
+      let user: User | undefined;
+      if (identifier.includes("@")) {
+        user = await db.query.users.findFirst({ where: eq(users.email, lowered) });
+      } else if (lowered === "admin") {
+        user = await db.query.users.findFirst({ where: eq(users.email, "admin@sketchlearn.app") });
+      } else {
+        user = await db.query.users.findFirst({
+          where: sql`LOWER(${users.name}) = ${lowered}`,
+        });
+      }
+      if (!user || !verifyPassword(input.password, user.passwordHash)) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Email or password doesn't match" });
+      }
+      return { token: signAuthToken({ sub: user.id, email: user.email }), user: toSessionUser(user) };
+    }),
+
+  me: publicQuery.query(({ ctx }) => {
+    return ctx.user ? toSessionUser(ctx.user) : null;
+  }),
+
+  logout: authedProcedure.mutation(() => {
+    // JWT is stateless — the client discards the token. Endpoint exists for symmetry.
+    return { ok: true as const };
+  }),
+
+  updateProfile: authedProcedure
+    .input(
+      z.object({
+        name: z.string().min(1).max(255).optional(),
+        currentPassword: z.string().min(1).optional(),
+        newPassword: z.string().min(8).max(128).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const db = getDb();
+      const set: Partial<Pick<User, "name" | "passwordHash">> = {};
+      if (input.name) set.name = input.name.trim();
+      if (input.newPassword) {
+        if (!input.currentPassword || !verifyPassword(input.currentPassword, ctx.user.passwordHash)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Current password doesn't match" });
+        }
+        set.passwordHash = hashPassword(input.newPassword);
+      }
+      if (Object.keys(set).length > 0) {
+        await db.update(users).set(set).where(eq(users.id, ctx.user.id));
+      }
+      const fresh = (await db.query.users.findFirst({ where: eq(users.id, ctx.user.id) }))!;
+      return toSessionUser(fresh);
+    }),
+});
