@@ -32,6 +32,7 @@ import {
   templatesForSubjectAndLevel,
   slideConformsToAny,
   slideConformsToTemplate,
+  GRADABLE_TYPES,
   TEMPLATE_COMPONENT_LABELS,
 } from "@contracts/slide-templates";
 import { isStemTopic } from "@contracts/stem";
@@ -387,11 +388,18 @@ export const generateRouter = createRouter({
           name ? catalog.find((t) => t.name === name) ?? null : null,
         );
       const planLines = pinnedPlan
-        .map((t, i) =>
-          t
-            ? `- Slide ${i + 1}: use layout "${t.name}" = ${t.components.map((c) => TEMPLATE_COMPONENT_LABELS[c]).join(" -> ")}`
-            : null,
-        )
+        .map((t, i) => {
+          if (!t) return null;
+          // spell out the exact deck component types the slide's JSON must
+          // contain, and name the non-text pieces that must NOT be dropped
+          const content = t.components.filter((c) => !GRADABLE_TYPES.includes(c));
+          const hasEval = t.components.some((c) => GRADABLE_TYPES.includes(c));
+          const mustInclude = content
+            .filter((c) => c !== "prose")
+            .map((c) => `a ${c} component (${TEMPLATE_COMPONENT_LABELS[c]})`);
+          const typeArray = `[${content.map((c) => `"${c}"`).join(", ")}]`;
+          return `  • Slide ${i + 1} — layout "${t.name}": the slide's "components" array MUST contain these types, in this order: ${typeArray}${hasEval ? ', and the slide MUST have a "quiz"' : ""}.${mustInclude.length ? ` You MUST actually build ${mustInclude.join(" and ")} with real content on this slide — do NOT omit ${mustInclude.length > 1 ? "them" : "it"} or replace ${mustInclude.length > 1 ? "them" : "it"} with more paragraphs.` : ""}`;
+        })
         .filter(Boolean);
 
       const systemPrompt = buildSlidesSystemPrompt({
@@ -405,7 +413,7 @@ export const generateRouter = createRouter({
         instructions && instructions !== topic ? `INSTRUCTIONS: ${instructions}` : null,
         `Write exactly ${slideCount} slides.`,
         planLines.length > 0
-          ? `SLIDE PLAN — the user chose a specific layout for these slides; use EXACTLY these configurations (all their steps, in order) for the given slide numbers, and choose a fitting layout for any slide not listed:\n${planLines.join("\n")}`
+          ? `SLIDE PLAN (MANDATORY) — the user has PINNED an exact layout for the slides listed below. This overrides your own layout choice for those slides: you MUST build each listed slide with exactly the component types shown, including every table/chart/image/code/formula/diagram called for (with real content about the topic — e.g. a topic-relevant table even if the layout name mentions grammar). For any slide number NOT listed, choose a fitting layout from the catalog.\n${planLines.join("\n")}`
           : null,
         input.seed
           ? `This is lesson ${input.seed.lessonSeq} of ${input.seed.lessonSeqTotal} ("${input.seed.lessonTitle}", unit "${input.seed.unitTitle}") in the repository "${input.seed.repoSlug}".`
@@ -415,10 +423,14 @@ export const generateRouter = createRouter({
         .join("\n");
 
       let deck: SlideDeck | null = null;
-      let lastAttempt: SlideDeck | null = null; // best under-delivering try, as a fallback
+      let lastAttempt: SlideDeck | null = null; // best non-conforming try, as a fallback
       let usedMock = false;
+      // A pinned SLIDE PLAN is an explicit user request, so give the model
+      // more chances to honor it exactly before we accept a miss.
+      const hasPlan = pinnedPlan.some(Boolean);
+      const maxAttempts = hasPlan ? 3 : 2;
       try {
-        for (let attempt = 0; attempt < 2 && deck === null; attempt++) {
+        for (let attempt = 0; attempt < maxAttempts && deck === null; attempt++) {
           try {
             const result = await completeText({
               userId: ctx.user?.id,
@@ -429,7 +441,7 @@ export const generateRouter = createRouter({
                   content:
                     attempt === 0
                       ? userPrompt
-                      : `${userPrompt}\n\nReminder: STRICT JSON ONLY, exactly the requested shape. Return EXACTLY ${slideCount} slides — no fewer. EVERY slide MUST follow one of the SLIDE LAYOUT TEMPLATES exactly — include all of its steps, so any image/chart/table/diagram/formula/code is paired with the text that explains it. Never a slide that is only a visual and a question.`,
+                      : `${userPrompt}\n\nReminder: STRICT JSON ONLY, exactly the requested shape. Return EXACTLY ${slideCount} slides — no fewer. EVERY slide MUST follow one of the SLIDE LAYOUT TEMPLATES exactly — include all of its steps, so any image/chart/table/diagram/formula/code is paired with the text that explains it. Never a slide that is only a visual and a question.${hasPlan ? " Your previous attempt did NOT honor the MANDATORY SLIDE PLAN — for each pinned slide, the 'components' array MUST include the exact table/chart/image/code/formula/diagram it lists, built with real content. Do not drop them." : ""}`,
                 },
               ],
               // A full deck is a large JSON; leave generous headroom so the
@@ -462,19 +474,15 @@ export const generateRouter = createRouter({
                   : !slideConformsToAny(shape, allowedTemplates);
               });
             // The model sometimes under-delivers (e.g. 3 slides when 8 were
-            // asked). Retry once demanding the full count before accepting.
+            // asked). Retry (up to maxAttempts) before accepting a miss.
             const tooFewSlides = parsedDeck.slides.length < slideCount;
-            if (attempt === 0 && (nonConforming || tooFewSlides)) {
-              if (tooFewSlides) {
-                console.warn(
-                  `[generate.slides] model returned ${parsedDeck.slides.length}/${slideCount} slides — retrying once`,
-                );
-              } else {
-                console.warn(
-                  "[generate.slides] a slide did not match any approved template — retrying once",
-                );
-              }
-              // remember the fullest attempt in case the retry also falls short
+            if (attempt < maxAttempts - 1 && (nonConforming || tooFewSlides)) {
+              console.warn(
+                tooFewSlides
+                  ? `[generate.slides] model returned ${parsedDeck.slides.length}/${slideCount} slides — retry ${attempt + 1}/${maxAttempts - 1}`
+                  : `[generate.slides] a slide did not match its ${hasPlan ? "pinned" : "approved"} template — retry ${attempt + 1}/${maxAttempts - 1}`,
+              );
+              // keep the fullest attempt so far as a fallback
               if (!lastAttempt || parsedDeck.slides.length > lastAttempt.slides.length) {
                 lastAttempt = parsedDeck;
               }

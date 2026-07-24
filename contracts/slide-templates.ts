@@ -307,13 +307,20 @@ export interface SlideShape {
 export function slideConformsToTemplate(shape: SlideShape, t: SlideTemplate): boolean {
   const needsContent = t.components.filter((c) => !isGradable(c));
   const needsQuiz = t.components.some((c) => isGradable(c));
-  // template content must be a multiset subset of the slide's content
+  // Every NON-prose structural component the template calls for (table, chart,
+  // image, code, latex, svg, stickynote) must be present in the slide, by
+  // count. Prose COUNT is soft: a template's "prose, prose" expresses text
+  // density (handled by the level prompt), and models legitimately emit one
+  // prose component with several paragraphs — so we only require that the
+  // slide has at least one prose when the template calls for any.
   const have = [...shape.componentTypes];
   for (const step of needsContent) {
+    if (step === "prose") continue;
     const idx = have.indexOf(step);
     if (idx === -1) return false;
     have.splice(idx, 1);
   }
+  if (needsContent.includes("prose") && !shape.componentTypes.includes("prose")) return false;
   if (needsQuiz && !shape.hasQuiz) return false;
   return true;
 }

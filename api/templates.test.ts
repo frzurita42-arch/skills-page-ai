@@ -85,6 +85,17 @@ describe("slide conformance to templates", () => {
     expect(slideConformsToTemplate({ componentTypes: ["prose", "chart"], hasQuiz: true }, t)).toBe(true);
   });
 
+  it("prose COUNT is soft but the structural component is hard-required", () => {
+    // "Grammar deep dive" = prose, table, prose, shortanswer (needs 2 prose + a table)
+    const t = BUILTIN_SLIDE_TEMPLATES.find((x) => x.name === "Grammar deep dive")!;
+    // one prose (several paragraphs) + a table + a quiz → conforms (prose count soft)
+    expect(slideConformsToTemplate({ componentTypes: ["prose", "table"], hasQuiz: true }, t)).toBe(true);
+    // but dropping the table → does NOT conform (this was the reported bug)
+    expect(slideConformsToTemplate({ componentTypes: ["prose"], hasQuiz: true }, t)).toBe(false);
+    // no prose at all → does not conform
+    expect(slideConformsToTemplate({ componentTypes: ["table"], hasQuiz: true }, t)).toBe(false);
+  });
+
   it("extra components are allowed (template content is a subset)", () => {
     const t = BUILTIN_SLIDE_TEMPLATES.find((x) => x.name === "Read the table")!; // prose + table + mcq2
     const shape = { componentTypes: ["prose", "table", "stickynote"], hasQuiz: true };
