@@ -193,6 +193,10 @@ const HUMANITIES_TEMPLATES: SlideTemplate[] = [
   bi("Key term", "A1", ["prose", "stickynote", "quiz"], ["humanities"]),
   bi("True or false history", "A1", ["prose", "mcq2"], ["history", "civics"]),
   bi("Fill the sentence", "A1", ["prose", "fillblank"], ["language", "esl"]),
+  // grammar rules | examples table + fill-the-blank
+  bi("Grammar table", "A1", ["prose", "table", "fillblank"], ["language", "esl", "grammar"]),
+  // humanities graphs (timelines / trends)
+  bi("Read the timeline", "A1", ["prose", "chart", "mcq2"], ["history", "humanities"]),
 
   // intermediate (2-3 texts)
   bi("Close reading", "B1", ["prose", "prose", "quiz"], ["humanities", "literature"]),
@@ -205,6 +209,10 @@ const HUMANITIES_TEMPLATES: SlideTemplate[] = [
   bi("Dialogue practice", "B1", ["prose", "prose", "fillblank"], ["language", "esl"]),
   bi("Two viewpoints", "B1", ["prose", "table", "prose", "shortanswer"], ["philosophy", "civics"]),
   bi("Timeline reasoning", "B1", ["prose", "prose", "quiz"], ["history"]),
+  // grammar rules | examples table, explained, then checked
+  bi("Grammar in context", "B1", ["prose", "table", "prose", "quiz"], ["language", "esl", "grammar"]),
+  // humanities graph read + interpret
+  bi("Historical trends", "B1", ["prose", "chart", "prose", "quiz"], ["history", "humanities"]),
 
   // advanced (3-4 dense texts + aid)
   bi("Scholar reading", "C1", ["prose", "prose", "prose", "shortanswer"], ["humanities", "reading"]),
@@ -217,6 +225,10 @@ const HUMANITIES_TEMPLATES: SlideTemplate[] = [
   bi("Rhetoric breakdown", "C1", ["prose", "prose", "prose", "quiz"], ["writing", "language"]),
   bi("Ethics debate", "C1", ["prose", "prose", "prose", "shortanswer"], ["philosophy", "civics"]),
   bi("Advanced ESL reading", "C1", ["prose", "prose", "prose", "fillblank"], ["esl", "language"]),
+  // dense grammar rules | examples table with typed answer
+  bi("Grammar deep dive", "C1", ["prose", "table", "prose", "shortanswer"], ["language", "writing", "grammar"]),
+  // humanities data argument from a graph
+  bi("Data in history", "C1", ["prose", "chart", "prose", "prose", "shortanswer"], ["history", "humanities"]),
 ];
 
 /* ---------------- General: 10 (untagged, level-spread) ---------------- */
@@ -231,6 +243,12 @@ const GENERAL_TEMPLATES: SlideTemplate[] = [
   bi("Deep explainer", "C1", ["prose", "prose", "prose", "shortanswer"], []),
   bi("Case study", "C1", ["prose", "prose", "table", "prose", "shortanswer"], []),
   bi("Synthesis", "C1", ["prose", "prose", "prose", "quiz"], []),
+  // Tables & graphs available to EVERY subject (STEM + humanities + general),
+  // so the STEM table/graph shapes are reusable anywhere.
+  bi("Table at a glance", "A1", ["prose", "table", "mcq2"], []),
+  bi("Read the chart", "A1", ["prose", "chart", "quiz"], []),
+  bi("Interpret the graph", "B1", ["prose", "chart", "prose", "quiz"], []),
+  bi("Graph analysis (general)", "C1", ["prose", "chart", "prose", "shortanswer"], []),
 ];
 
 export const BUILTIN_SLIDE_TEMPLATES: SlideTemplate[] = [

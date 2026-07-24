@@ -526,6 +526,29 @@ export const generateRouter = createRouter({
       // put the answer first, so otherwise every question is "A").
       deck = shuffleQuizAnswers(deck);
 
+      // Eagerly generate ONLY the first slide's image inline so slide 1 opens
+      // with its picture already in place (no visible wait on the opening
+      // slide). Every other slide's image still streams in lazily in the
+      // player. Costs one image's latency, not the whole deck's.
+      if (input.imageStyle !== "none" && deck.slides.length > 0) {
+        const firstImg = deck.slides[0].components.find((c) => c.type === "image");
+        if (firstImg && firstImg.type === "image" && !firstImg.imageUrl) {
+          try {
+            const url = await generateImage({
+              userId: ctx.user?.id,
+              prompt: firstImg.prompt,
+              style: input.imageStyle,
+            });
+            if (url) firstImg.imageUrl = url;
+          } catch (err) {
+            console.warn(
+              "[generate.slides] first-slide image failed (player will lazy-load it):",
+              err instanceof Error ? err.message : err,
+            );
+          }
+        }
+      }
+
       // NOTE: images are NOT generated here. Generating up to N images inline
       // (each up to 60s) was the dominant cause of the long "dealing your
       // deck" wait. The deck now returns as soon as the text is ready, and the
