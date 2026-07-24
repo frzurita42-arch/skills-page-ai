@@ -400,8 +400,17 @@ export const generateRouter = createRouter({
           const mustInclude = content
             .filter((c) => c !== "prose")
             .map((c) => `a ${c} component (${TEMPLATE_COMPONENT_LABELS[c]})`);
+          const proseCount = content.filter((c) => c === "prose").length;
           const typeArray = `[${content.map((c) => `"${c}"`).join(", ")}]`;
-          return `  • Slide ${i + 1} — layout "${t.name}": the slide's "components" array MUST contain these types, in this order: ${typeArray}${hasEval ? ', and the slide MUST have a "quiz"' : ""}.${mustInclude.length ? ` You MUST actually build ${mustInclude.join(" and ")} with real content on this slide — do NOT omit ${mustInclude.length > 1 ? "them" : "it"} or replace ${mustInclude.length > 1 ? "them" : "it"} with more paragraphs.` : ""}`;
+          // This layout expects N SEPARATE text blocks (each its own "prose"
+          // component, rendered as its own row) — the player lays them out in
+          // document order, so two paragraphs must be two prose components, not
+          // one long block, or the "text → table → text" shape collapses.
+          const proseRule =
+            proseCount >= 2
+              ? ` This layout has ${proseCount} separate text sections: emit ${proseCount} distinct "prose" components (each a real paragraph in its own array slot, in the order shown) — do NOT merge them into one.`
+              : "";
+          return `  • Slide ${i + 1} — layout "${t.name}": the slide's "components" array MUST contain these types, in this order: ${typeArray}${hasEval ? ', and the slide MUST have a "quiz"' : ""}.${mustInclude.length ? ` You MUST actually build ${mustInclude.join(" and ")} with real content on this slide — do NOT omit ${mustInclude.length > 1 ? "them" : "it"} or replace ${mustInclude.length > 1 ? "them" : "it"} with more paragraphs.` : ""}${proseRule}`;
         })
         .filter(Boolean);
 
