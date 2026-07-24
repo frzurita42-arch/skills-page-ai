@@ -65,6 +65,32 @@ export const TEMPLATE_COMPONENT_LABELS: Record<TemplateComponentType, string> = 
   shortanswer: "Typed answer",
 };
 
+/** Compact labels for tight spaces (e.g. a <select> option, where text can't
+ *  be styled smaller) — used to spell out a template's content sequence. */
+export const TEMPLATE_COMPONENT_SHORT: Record<TemplateComponentType, string> = {
+  prose: "Text",
+  latex: "Formula",
+  chart: "Graph",
+  svg: "Diagram",
+  table: "Table",
+  stickynote: "Note",
+  image: "Image",
+  code: "Code",
+  quiz: "MCQ",
+  mcq2: "2-opt",
+  fillblank: "Fill-in",
+  shortanswer: "Typed",
+};
+
+/** A one-line "Text · Table · Text · Typed" summary of a template's content
+ *  distribution, in order — for showing the shape next to its name. */
+export function templateSequenceLabel(
+  components: TemplateComponentType[],
+  sep = " · ",
+): string {
+  return components.map((c) => TEMPLATE_COMPONENT_SHORT[c] ?? c).join(sep);
+}
+
 // Template levels are the same CEFR scale as decks (A0-C2).
 export type TemplateLevel = Level;
 export const TEMPLATE_LEVELS: TemplateLevel[] = LEVELS;

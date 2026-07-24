@@ -37,7 +37,7 @@ import DeckPlayer from '@/components/player/DeckPlayer';
 import TemplateBar from '@/components/templates/TemplateBar';
 
 import { isStemTopic } from '@contracts/stem';
-import { templatesForSubjectAndLevel } from '@contracts/slide-templates';
+import { templatesForSubjectAndLevel, templateSequenceLabel } from '@contracts/slide-templates';
 
 const STYLE_PRESETS: Exclude<ImageStyle, 'none'>[] = [
   'sketch',
@@ -722,7 +722,7 @@ function ToolStudio({
                           <option value="">Auto (AI chooses)</option>
                           {pickableTemplates.map((t) => (
                             <option key={String(t.id)} value={t.name}>
-                              {t.name} ({t.level})
+                              {t.name} ({t.level}) — {templateSequenceLabel(t.components)}
                             </option>
                           ))}
                         </select>
