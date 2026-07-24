@@ -37,6 +37,19 @@ export function levelTier(level: Level): LevelTier {
 export const IMAGE_STYLES: ImageStyle[] = ["sketch", "watercolor", "flat", "photo", "none"];
 export const REPO_TEMPLATES: RepoTemplate[] = ["course", "restaurant", "service", "shop", "other"];
 
+/**
+ * What a repo is FOR — teaching, or showcasing something to buy/hire.
+ * "commercial" repos (restaurant menus, service offers, shop items) present a
+ * product and end on a contact/order step instead of a quiz; "education" repos
+ * (courses) teach and evaluate. Drives which packets/templates are offered.
+ */
+export type RepoPurpose = "education" | "commercial";
+export function repoPurpose(template: RepoTemplate): RepoPurpose {
+  return template === "restaurant" || template === "service" || template === "shop"
+    ? "commercial"
+    : "education";
+}
+
 /* ---------------- Teaching tone (voice/register of the deck) --------
  * Tone is INDEPENDENT of CEFR level: level sets reading difficulty
  * (vocabulary + sentence complexity), tone sets voice and how much

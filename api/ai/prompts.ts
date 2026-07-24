@@ -189,20 +189,26 @@ export function buildSlidesSystemPrompt(opts: {
   level: string;
   imageStyle: string;
   tone?: string;
+  purpose?: "education" | "commercial";
   previouslyTaught: string | null;
   layoutTemplates?: LayoutTemplateForPrompt[];
 }): string {
   const toneDirective = TONE_DIRECTIVE[opts.tone ?? "neutral"] ?? TONE_DIRECTIVE.neutral;
+  const commercial = opts.purpose === "commercial";
   // Minimum number of DISTINCT explanatory paragraphs a teaching slide must
   // carry, scaled to the CEFR band. Higher levels demand a fuller page: an
   // advanced (C1/C2) reader gets several substantial paragraphs, not one line.
-  const paraFloor = ["C1", "C2"].includes(opts.level)
-    ? 4
-    : ["B1", "B2"].includes(opts.level)
-      ? 3
-      : ["A2"].includes(opts.level)
-        ? 2
-        : 1;
+  // Commercial showcases are exempt — listing copy should be as long as it
+  // needs, not padded to a floor.
+  const paraFloor = commercial
+    ? 1
+    : ["C1", "C2"].includes(opts.level)
+      ? 4
+      : ["B1", "B2"].includes(opts.level)
+        ? 3
+        : ["A2"].includes(opts.level)
+          ? 2
+          : 1;
 
   const memory = opts.previouslyTaught
     ? `
@@ -225,9 +231,20 @@ VISUAL STUDY: a template tagged [anatomy] (text · image · text · evaluation) 
 `
       : "";
 
-  return `You are the SketchLearn teaching engine. You write evaluated slide decks that teach ONE topic deeply.
-
-TEACHING RULES (non-negotiable):
+  return `You are the SketchLearn ${commercial ? "showcase" : "teaching"} engine. You write ${commercial ? "short, persuasive slide presentations that SHOWCASE ONE item (a dish, a service, or a product) so a viewer wants it" : "evaluated slide decks that teach ONE topic deeply"}.
+${
+  commercial
+    ? `
+SHOWCASE MODE — this is a MENU / SERVICE / SHOP listing, NOT a lesson:
+- Present ONE item and make it appealing: what it is, why it's worth choosing, what makes it special (story, ingredients/materials, craftsmanship, benefits). Write it like great menu or catalog copy, adapted to the chosen tone and level.
+- NO quizzes and NO evaluations — the commercial layout templates have no quiz step, so never add one. Do NOT test the viewer.
+- Keep it tight: usually 3-4 slides. Photos matter — use the image steps for vivid, specific shots of the item. Tables are for ingredients / specs / what's-included.
+- Do NOT put contact details, prices, or "order now" text in the slides — the app adds the contact/order step at the end of the presentation itself.
+- The last slide should land the pitch (why choose this), leaving the viewer ready to act.
+`
+    : ""
+}
+${commercial ? "SHOWCASE" : "TEACHING"} RULES (non-negotiable):
 1. NO greeting/welcome/outline slide — start teaching immediately on slide 1.
 2. EVERY slide MUST be built from ONE of the SLIDE LAYOUT TEMPLATES listed below — use that template's exact component configuration (its component types, in the given order). Do NOT invent a slide shape that is not in the catalog, and do NOT drop any of a template's steps. Because every template pairs its visual/data steps with explanatory text, this means a slide is never just an image (or just a chart/table/diagram/formula/code) next to a question — the text step explains, in words, what the visual shows, what to notice in it, and what it means, and the quiz tests that explanation. Slides build introduce -> develop -> apply; never restate an earlier point; the deck reads as ONE continuous piece of teaching, with at most a one-clause stitch between slides.
 3. Choose components deliberately per concept from this palette: prose, chart (bar/line/pie/area with real plausible data), latex, svg (a diagram description the app sketches), table (compact, few columns), stickynote (max ONE per deck, for a mnemonic or key warning), image (a vivid visual with an alt text and a generation prompt), code (short snippet).

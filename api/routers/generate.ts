@@ -30,7 +30,7 @@ import { applyTokenDelta, refundTokens } from "../tokens";
 import { buildPreviouslyTaught } from "../memory";
 import { loadTemplateCatalog } from "./templates";
 import {
-  templatesForSubjectAndLevel,
+  templatesForContext,
   slideConformsToAny,
   slideConformsToTemplate,
   bestMatchingTemplate,
@@ -39,7 +39,7 @@ import {
 } from "@contracts/slide-templates";
 import { isStemTopic } from "@contracts/stem";
 import { typedOverlapCorrect } from "@contracts/grade";
-import type { CoachReply, SlideDeck } from "@contracts/types";
+import { repoPurpose, type CoachReply, type SlideDeck } from "@contracts/types";
 
 const GUEST_MAX_SLIDES = 6;
 const MAX_SLIDES = 15;
@@ -329,9 +329,11 @@ export const generateRouter = createRouter({
       let topic = input.topic ?? tool.topic;
       let instructions = input.instructions ?? tool.instructions;
       let previouslyTaught: string | null = null;
+      let purpose: import("@contracts/types").RepoPurpose = "education";
       if (input.seed) {
         const repo = await db.query.repos.findFirst({ where: eq(repos.slug, input.seed.repoSlug) });
         if (repo) {
+          purpose = repoPurpose(repo.template);
           const repoUnits = await db.select().from(units).where(eq(units.repoId, repo.id));
           const unitIds = repoUnits.map((u) => u.id);
           for (const unitId of unitIds) {
@@ -377,11 +379,11 @@ export const generateRouter = createRouter({
       // conforms to an approved configuration (so text is guaranteed because
       // every template pairs its visuals with a text step).
       const catalog = await loadTemplateCatalog();
-      const allowedTemplates = templatesForSubjectAndLevel(
-        catalog,
-        isStemTopic(topic),
-        input.level,
-      );
+      const allowedTemplates = templatesForContext(catalog, {
+        purpose,
+        stem: isStemTopic(topic),
+        level: input.level,
+      });
       // Minimum distinct body paragraphs a teaching slide must carry at this
       // CEFR band — a C1 deck must not ship slides with a single short line.
       // Mirrors the PARAGRAPH FLOOR stated in the system prompt.
@@ -434,6 +436,7 @@ export const generateRouter = createRouter({
         level: input.level,
         imageStyle: input.imageStyle,
         tone: input.tone,
+        purpose,
         previouslyTaught,
         layoutTemplates,
       });
@@ -503,10 +506,10 @@ export const generateRouter = createRouter({
                 const structOk = pinned
                   ? slideConformsToTemplate(shape, pinned, true)
                   : slideConformsToAny(shape, allowedTemplates);
-                // A "solve" slide is a problem statement — its length should
-                // fit the problem (a math/physics problem is often one concise
-                // paragraph), so it is exempt from the CEFR paragraph floor.
-                if (s.quiz?.kind === "solve") return !structOk;
+                // A "solve" slide is a problem statement, and commercial
+                // showcase slides are listing copy — both should be as long as
+                // they need, so they're exempt from the CEFR paragraph floor.
+                if (purpose === "commercial" || s.quiz?.kind === "solve") return !structOk;
                 // Otherwise a teaching slide must carry the CEFR paragraph floor
                 // of distinct body paragraphs, so a C1 slide can't ship as one
                 // short line. Count paragraphs across every prose component.

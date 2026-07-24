@@ -231,6 +231,26 @@ export function flavorsForTags(tags: string[]): TemplateFlavor[] {
   return TEMPLATE_FLAVORS.filter((f) => tags.some((t) => f.tags.includes(t))).map((f) => f.id);
 }
 
+/** Tags that mark a template as a COMMERCIAL showcase (menu / service / shop)
+ *  rather than an education slide. Commercial templates present an item and
+ *  end on a persuasive close, with no graded quiz. */
+export const COMMERCIAL_TAGS = [
+  "commercial",
+  "menu",
+  "restaurant",
+  "food",
+  "service",
+  "shop",
+  "product",
+  "marketplace",
+];
+export function isCommercialTemplate(tags: string[]): boolean {
+  return tags.some((t) => COMMERCIAL_TAGS.includes(t));
+}
+export function templatePurpose(tags: string[]): "education" | "commercial" {
+  return isCommercialTemplate(tags) ? "commercial" : "education";
+}
+
 /* ------------------------------------------------------------------ */
 /* Built-in catalog                                                     */
 /* Density by level: beginner = 1 short text; intermediate = 2-3 texts; */
@@ -386,10 +406,27 @@ const GENERAL_TEMPLATES: SlideTemplate[] = [
   bi("Graph analysis (general)", "C1", ["prose", "chart", "prose", "shortanswer"], []),
 ];
 
+/* ---------------- Commercial: showcase an item (no quiz) ---------------- */
+/* For menus, services and shops: present a product with photos and copy and  */
+/* end on a persuasive close. These carry NO gradable step — the whole        */
+/* presentation ends on a contact/order screen, not a quiz. Levels still tune */
+/* text length + tone, so a listing can be punchy or richly detailed.         */
+const COMMERCIAL_TEMPLATES: SlideTemplate[] = [
+  bi("Hero shot", "A1", ["image", "prose"], ["commercial"]),
+  bi("Snapshot", "A1", ["image", "prose", "prose"], ["commercial"]),
+  bi("Show & tell", "B1", ["prose", "image", "prose"], ["commercial"]),
+  bi("What's included", "B1", ["prose", "table", "prose"], ["commercial"]),
+  bi("Why choose this", "B1", ["prose", "prose", "image"], ["commercial"]),
+  bi("The details", "B1", ["prose", "image", "table", "prose"], ["commercial"]),
+  bi("The story behind it", "C1", ["prose", "prose", "image", "prose"], ["commercial"]),
+  bi("Full showcase", "C1", ["prose", "image", "prose", "table", "prose"], ["commercial"]),
+];
+
 export const BUILTIN_SLIDE_TEMPLATES: SlideTemplate[] = [
   ...STEM_TEMPLATES,
   ...HUMANITIES_TEMPLATES,
   ...GENERAL_TEMPLATES,
+  ...COMMERCIAL_TEMPLATES,
 ];
 
 /* ------------------------------------------------------------------ */
@@ -401,16 +438,20 @@ export interface LessonPacket {
   id: string;
   name: string;
   description: string;
+  /** who this packet is for — only shown for repos of that purpose */
+  purpose: "education" | "commercial";
   /** built-in template NAMES, in order, pinned onto slides 1..N */
   templates: string[];
 }
 
 export const LESSON_PACKETS: LessonPacket[] = [
+  /* ---- education ---- */
   {
     id: "math-practice",
     name: "Math practice",
     description:
       "See it solved, then solve it: two worked solutions each ending in a step-check question, then two problems you solve yourself on the scratchpad.",
+    purpose: "education",
     templates: [
       "Solution walkthrough",
       "Step-by-step solved",
@@ -423,6 +464,7 @@ export const LESSON_PACKETS: LessonPacket[] = [
     name: "Medicine & health",
     description:
       "Image- and graph-led: an illustrated concept, clinical data on a graph, a diagram deep-dive, and a data-reasoning check — ideal for anatomy, health and biology.",
+    purpose: "education",
     templates: [
       "Anatomy illustrated",
       "Clinical data graph",
@@ -435,6 +477,7 @@ export const LESSON_PACKETS: LessonPacket[] = [
     name: "Philosophy & ideas",
     description:
       "Reading and argument: a close reading, a thesis to argue, a critical analysis, and a comparison of traditions — for philosophy and the humanities.",
+    purpose: "education",
     templates: [
       "Scholar reading",
       "Argue a thesis",
@@ -447,6 +490,7 @@ export const LESSON_PACKETS: LessonPacket[] = [
     name: "Finance & economics",
     description:
       "Data-driven: a graph analysis, table-based data reasoning, a data-driven argument, and a model to interpret — for money, markets and business.",
+    purpose: "education",
     templates: [
       "Graph analysis",
       "Data reasoning",
@@ -459,6 +503,7 @@ export const LESSON_PACKETS: LessonPacket[] = [
     name: "Visual study (anatomy)",
     description:
       "See it, describe it, check it: every slide shows an item as an image, explains it in the text around it, and evaluates a different way — multiple choice, typed answer, fill-in, and this-or-that. Ideal for anatomy, biology and any visual subject.",
+    purpose: "education",
     templates: [
       "Anatomy illustrated",
       "Anatomy — describe it",
@@ -466,7 +511,76 @@ export const LESSON_PACKETS: LessonPacket[] = [
       "Anatomy — spot it",
     ],
   },
+  {
+    id: "language-drill",
+    name: "Language drill",
+    description:
+      "Practice a language point: a rule in context, a passage to read, a dialogue to complete, and a cloze fill-in — for ESL and language learning.",
+    purpose: "education",
+    templates: [
+      "Grammar in context",
+      "Read a passage",
+      "Dialogue practice",
+      "Grammar cloze",
+    ],
+  },
+  {
+    id: "lab-experiment",
+    name: "Lab experiment",
+    description:
+      "Run the method: set up the diagram, record the data in a table, read the results on a graph, and reason about cause and effect — for science labs.",
+    purpose: "education",
+    templates: [
+      "Diagram deep dive",
+      "Data reasoning",
+      "Graph analysis",
+      "Cause and effect",
+    ],
+  },
+  {
+    id: "timeline-history",
+    name: "Timeline & history",
+    description:
+      "Tell the story over time: a narrative with an image, trends on a timeline graph, timeline reasoning, and a primary source to interpret — for history.",
+    purpose: "education",
+    templates: [
+      "Narrative + image",
+      "Historical trends",
+      "Timeline reasoning",
+      "Interpret a source",
+    ],
+  },
+  /* ---- commercial (menu / service / shop) ---- */
+  {
+    id: "menu-item",
+    name: "Menu item",
+    description:
+      "Sell a dish: a hero photo, the story behind it, what's in it, and why to order it. No quiz — the presentation ends on how to order and contact you.",
+    purpose: "commercial",
+    templates: ["Hero shot", "The story behind it", "What's included", "Why choose this"],
+  },
+  {
+    id: "service-offer",
+    name: "Service offer",
+    description:
+      "Pitch a service: a hero photo, what it does, what's included, and why to hire you. Ends on how to get in touch — perfect for 'why hire me'.",
+    purpose: "commercial",
+    templates: ["Hero shot", "Show & tell", "The details", "Why choose this"],
+  },
+  {
+    id: "marketplace-listing",
+    name: "Marketplace listing",
+    description:
+      "Showcase a product: a hero photo, what it is, the details/specs, and why to buy it. Ends on how to contact you to purchase.",
+    purpose: "commercial",
+    templates: ["Hero shot", "Show & tell", "The details", "Why choose this"],
+  },
 ];
+
+/** Packets that fit a repo's purpose (education vs commercial). */
+export function packetsForPurpose(purpose: "education" | "commercial"): LessonPacket[] {
+  return LESSON_PACKETS.filter((p) => p.purpose === purpose);
+}
 
 /**
  * Filter the catalog for a topic classification: STEM topics drop
@@ -496,12 +610,34 @@ export function templatesForSubjectAndLevel(
   stem: boolean,
   level: TemplateLevel,
 ): SlideTemplate[] {
-  const bySubject = templatesForSubject(all, stem);
+  // education-only (commercial templates never surface in a course)
+  const bySubject = templatesForSubject(all, stem).filter(
+    (t) => templatePurpose(t.tags) === "education",
+  );
   // Match by TIER (A0-A2 light, B1-B2 mid, C1-C2 dense) so the whole catalog
   // stays usable across the CEFR scale; an exact-level match is also included.
   const tier = levelTier(level);
   const byTier = bySubject.filter((t) => t.level === level || levelTier(t.level) === tier);
   return byTier.length > 0 ? byTier : bySubject;
+}
+
+/**
+ * The layouts offered for a repo, aware of its PURPOSE:
+ *  - education → subject + level filtering (as before), no commercial layouts.
+ *  - commercial → the commercial showcase set, filtered by level tier only
+ *    (subject sections don't apply to a menu/service/shop).
+ */
+export function templatesForContext(
+  all: SlideTemplate[],
+  opts: { purpose: "education" | "commercial"; stem: boolean; level: TemplateLevel },
+): SlideTemplate[] {
+  if (opts.purpose === "commercial") {
+    const commercial = all.filter((t) => templatePurpose(t.tags) === "commercial");
+    const tier = levelTier(opts.level);
+    const byTier = commercial.filter((t) => t.level === opts.level || levelTier(t.level) === tier);
+    return byTier.length > 0 ? byTier : commercial;
+  }
+  return templatesForSubjectAndLevel(all, opts.stem, opts.level);
 }
 
 /* ------------------------------------------------------------------ */

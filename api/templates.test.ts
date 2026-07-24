@@ -11,18 +11,22 @@ import {
   GRADABLE_TYPES,
   TEMPLATE_COMPONENT_LABELS,
   TEMPLATE_LEVELS,
+  templatePurpose,
 } from "@contracts/slide-templates";
 import { levelTier } from "@contracts/types";
 
 describe("slide-template catalog", () => {
-  it("every built-in has a name, level, components, valid labels, and a gradable step", () => {
+  it("every built-in has a name, level, components, valid labels; education ones are gradable", () => {
     for (const t of BUILTIN_SLIDE_TEMPLATES) {
       expect(t.name.length).toBeGreaterThan(0);
       expect(TEMPLATE_LEVELS).toContain(t.level);
       expect(t.components.length).toBeGreaterThan(0);
       for (const c of t.components) expect(TEMPLATE_COMPONENT_LABELS[c]).toBeTruthy();
-      // every template must be scoreable
-      expect(t.components.some((c) => isGradable(c)), t.name).toBe(true);
+      // every EDUCATION template must be scoreable; commercial showcases end on
+      // a contact/order close instead of a quiz, so they carry no gradable step
+      if (templatePurpose(t.tags) === "education") {
+        expect(t.components.some((c) => isGradable(c)), t.name).toBe(true);
+      }
     }
   });
 
@@ -37,9 +41,11 @@ describe("slide-template catalog", () => {
     expect(gen.length).toBeGreaterThanOrEqual(10);
   });
 
-  it("higher-tier templates carry denser text than lower-tier ones", () => {
+  it("higher-tier education templates carry denser text than lower-tier ones", () => {
     const avgProse = (tier: "light" | "dense") => {
-      const set = BUILTIN_SLIDE_TEMPLATES.filter((t) => levelTier(t.level) === tier);
+      const set = BUILTIN_SLIDE_TEMPLATES.filter(
+        (t) => levelTier(t.level) === tier && templatePurpose(t.tags) === "education",
+      );
       return set.reduce((n, t) => n + t.components.filter((c) => c === "prose").length, 0) /
         Math.max(1, set.length);
     };

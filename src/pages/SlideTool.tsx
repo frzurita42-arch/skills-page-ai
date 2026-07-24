@@ -38,7 +38,8 @@ import TemplateBar from '@/components/templates/TemplateBar';
 import TemplatePicker from '@/components/templates/TemplatePicker';
 
 import { isStemTopic } from '@contracts/stem';
-import { templatesForSubjectAndLevel, LESSON_PACKETS, type LessonPacket } from '@contracts/slide-templates';
+import { templatesForContext, packetsForPurpose, type LessonPacket } from '@contracts/slide-templates';
+import { repoPurpose } from '@contracts/types';
 
 const STYLE_PRESETS: Exclude<ImageStyle, 'none'>[] = [
   'sketch',
@@ -242,17 +243,22 @@ function ToolStudio({
   );
 
   // Advanced options: templates the AI may be pinned to, filtered to this
-  // deck's subject + level (same set the generator validates against).
+  // deck's PURPOSE (education vs commercial), subject + level.
   const templatesQuery = trpc.templates.list.useQuery();
+  const purpose = useMemo(
+    () => repoPurpose(repoQuery.data?.template ?? 'course'),
+    [repoQuery.data],
+  );
   const pickableTemplates = useMemo(
     () =>
-      templatesForSubjectAndLevel(
-        templatesQuery.data ?? [],
-        isStemTopic(topic),
+      templatesForContext(templatesQuery.data ?? [], {
+        purpose,
+        stem: isStemTopic(topic),
         level,
-      ),
-    [templatesQuery.data, topic, level],
+      }),
+    [templatesQuery.data, purpose, topic, level],
   );
+  const packets = useMemo(() => packetsForPurpose(purpose), [purpose]);
   // Resolve a pinned template by name against the FULL catalog (not just the
   // filtered pickable set) so a packet-pinned template from another level
   // still shows its badges, sequence and bar.
@@ -701,13 +707,16 @@ function ToolStudio({
 
                 <div className="mb-3 border-t-2 border-dashed border-pencil" />
 
-                {/* Lesson packets — one-click recommended template plans */}
+                {/* Lesson packets — one-click recommended plans, filtered to
+                    this repo's purpose (education vs menu/service/shop) */}
                 <div className="mb-4">
                   <span className="micro mb-1 block font-semibold text-ink-soft">
-                    Lesson packet — a recommended set of slides for an activity
+                    {purpose === 'commercial'
+                      ? 'Showcase packet — a recommended set of slides to present your item'
+                      : 'Lesson packet — a recommended set of slides for an activity'}
                   </span>
                   <div className="flex flex-wrap gap-2">
-                    {LESSON_PACKETS.map((p) => (
+                    {packets.map((p) => (
                       <button
                         key={p.id}
                         type="button"
