@@ -16,7 +16,7 @@ import type { CourseMemoryEntry } from '@contracts/types';
 export default function CourseMemoryPanel({ slug }: { slug: string }) {
   const memory = trpc.repos.courseMemory.useQuery({ slug });
   const entries = memory.data ?? [];
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<number | null>(null);
 
   return (

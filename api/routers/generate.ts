@@ -470,9 +470,11 @@ export const generateRouter = createRouter({
                   hasQuiz: !!s.quiz,
                 };
                 const pinned = pinnedPlan[i];
-                // a pinned slide must match its chosen template; others any allowed
+                // a pinned slide must match its chosen template EXACTLY (strict
+                // prose count, so every text block it lists is produced);
+                // others just need to match any allowed layout
                 return pinned
-                  ? !slideConformsToTemplate(shape, pinned)
+                  ? !slideConformsToTemplate(shape, pinned, true)
                   : !slideConformsToAny(shape, allowedTemplates);
               });
             // The model sometimes under-delivers (e.g. 3 slides when 8 were

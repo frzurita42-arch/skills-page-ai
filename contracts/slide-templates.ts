@@ -304,15 +304,19 @@ export interface SlideShape {
   hasQuiz: boolean;
 }
 
-export function slideConformsToTemplate(shape: SlideShape, t: SlideTemplate): boolean {
+export function slideConformsToTemplate(
+  shape: SlideShape,
+  t: SlideTemplate,
+  strictProse = false,
+): boolean {
   const needsContent = t.components.filter((c) => !isGradable(c));
   const needsQuiz = t.components.some((c) => isGradable(c));
   // Every NON-prose structural component the template calls for (table, chart,
   // image, code, latex, svg, stickynote) must be present in the slide, by
-  // count. Prose COUNT is soft: a template's "prose, prose" expresses text
-  // density (handled by the level prompt), and models legitimately emit one
-  // prose component with several paragraphs — so we only require that the
-  // slide has at least one prose when the template calls for any.
+  // count. Prose count is SOFT by default (a "prose, prose" template expresses
+  // density and models emit one prose with several paragraphs) — only require
+  // ≥1. When strictProse is set (used for USER-PINNED slides), require the
+  // exact prose count too, so a pinned "text → table → text" yields both texts.
   const have = [...shape.componentTypes];
   for (const step of needsContent) {
     if (step === "prose") continue;
@@ -320,7 +324,9 @@ export function slideConformsToTemplate(shape: SlideShape, t: SlideTemplate): bo
     if (idx === -1) return false;
     have.splice(idx, 1);
   }
-  if (needsContent.includes("prose") && !shape.componentTypes.includes("prose")) return false;
+  const proseNeeded = needsContent.filter((c) => c === "prose").length;
+  const proseHave = shape.componentTypes.filter((c) => c === "prose").length;
+  if (strictProse ? proseHave < proseNeeded : proseNeeded > 0 && proseHave < 1) return false;
   if (needsQuiz && !shape.hasQuiz) return false;
   return true;
 }
