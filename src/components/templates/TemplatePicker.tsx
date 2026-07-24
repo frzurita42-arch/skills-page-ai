@@ -3,23 +3,50 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Check, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
-  isMathTemplate,
+  flavorsForTags,
   sectionForTags,
   templateSequenceLabel,
+  TEMPLATE_FLAVORS,
   TEMPLATE_SECTION_LABEL,
   type SlideTemplate,
+  type TemplateFlavor,
   type TemplateSection,
 } from '@contracts/slide-templates';
 
-/** Small red π badge marking a math/physics/worked-problem template. */
-export function MathBadge() {
+/** Colour per subject flavour (the legend uses the same map). */
+export const FLAVOR_STYLE: Record<TemplateFlavor, string> = {
+  math: 'border-red bg-red-soft text-red',
+  medicine: 'border-green bg-green-soft text-green',
+  finance: 'border-orange bg-yellow-soft text-orange',
+  philosophy: 'border-purple bg-purple-soft text-purple',
+};
+
+/** One coloured subject glyph. */
+export function FlavorBadge({ id }: { id: TemplateFlavor }) {
+  const f = TEMPLATE_FLAVORS.find((x) => x.id === id)!;
   return (
     <span
-      title="Math / physics slide"
-      className="mr-1 inline-flex h-4 w-4 items-center justify-center rounded-full border border-red bg-red-soft align-[-1px] font-display text-[0.7rem] font-bold leading-none text-red"
+      title={f.label}
+      className={cn(
+        'mr-1 inline-flex h-4 w-4 items-center justify-center rounded-full border align-[-1px] font-display text-[0.7rem] font-bold leading-none',
+        FLAVOR_STYLE[id],
+      )}
     >
-      π
+      {f.symbol}
     </span>
+  );
+}
+
+/** All the subject badges a template qualifies for (may be several). */
+export function TemplateBadges({ tags }: { tags: string[] }) {
+  const flavors = flavorsForTags(tags);
+  if (flavors.length === 0) return null;
+  return (
+    <>
+      {flavors.map((id) => (
+        <FlavorBadge key={id} id={id} />
+      ))}
+    </>
   );
 }
 
@@ -44,7 +71,7 @@ function SectionTag({ t }: { t: SlideTemplate }) {
 function OptionLabel({ t, withSequence }: { t: SlideTemplate; withSequence: boolean }) {
   return (
     <>
-      {isMathTemplate(t.tags) && <MathBadge />}
+      <TemplateBadges tags={t.tags} />
       {t.name} · <SectionTag t={t} /> ({t.level})
       {withSequence ? ` — ${templateSequenceLabel(t.components)}` : ''}
     </>

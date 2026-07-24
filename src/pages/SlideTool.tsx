@@ -209,6 +209,9 @@ function ToolStudio({
   const [advancedOpen, setAdvancedOpen] = useState(false);
   // Advanced: teaching tone / voice for the whole deck (register + jargon).
   const [tone, setTone] = useState<Tone>('neutral');
+  // Advanced: solve slides use the freehand scratchpad (on) or a plain answer
+  // box (off) as the way to submit a worked solution.
+  const [useScratchpad, setUseScratchpad] = useState(true);
   // Advanced: pinned layout template per slide (name | null = auto). Index i → slide i+1.
   const [templatePlan, setTemplatePlan] = useState<(string | null)[]>([]);
   // Apply a lesson packet: pin its templates onto the first slides (growing
@@ -365,6 +368,7 @@ function ToolStudio({
         slidePlan={result.slidePlan}
         voiceURI={voiceURI}
         nextLessonTitle={nextLessonTitle}
+        scratchpadEnabled={useScratchpad}
         onExit={() => {
           setMode('config');
           setResult(null);
@@ -719,6 +723,27 @@ function ToolStudio({
                     Applying a packet pins its slides below — you can still tweak any of them.
                   </p>
                 </div>
+
+                <div className="mb-3 border-t-2 border-dashed border-pencil" />
+
+                {/* Solve-slide answer mode: scratchpad vs. plain answer box */}
+                <label className="mb-4 flex cursor-pointer items-start gap-2.5">
+                  <input
+                    type="checkbox"
+                    checked={useScratchpad}
+                    onChange={(e) => setUseScratchpad(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-[#2E2820]"
+                  />
+                  <span className="text-sm">
+                    <span className="font-heading font-semibold text-ink">
+                      Annotation scratchpad on solve slides
+                    </span>
+                    <span className="micro block text-ink-faint">
+                      On: learners work the problem out on a paginated blank scratchpad. Off: they get
+                      a plain answer box instead. Either way they type a final answer that's checked.
+                    </span>
+                  </span>
+                </label>
 
                 <div className="mb-3 border-t-2 border-dashed border-pencil" />
 

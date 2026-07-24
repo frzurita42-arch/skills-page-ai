@@ -26,13 +26,13 @@ import {
   TEMPLATE_LEVELS,
   GRADABLE_TYPES,
   sectionForTags,
-  isMathTemplate,
+  TEMPLATE_FLAVORS,
   type TemplateComponentType,
   type TemplateLevel,
   type TemplateSection,
   type SlideTemplate,
 } from '@contracts/slide-templates';
-import { MathBadge } from '@/components/templates/TemplatePicker';
+import { TemplateBadges, FlavorBadge } from '@/components/templates/TemplatePicker';
 
 const EASE = [0.22, 1, 0.36, 1] as [number, number, number, number];
 const PAGE_SIZE = 6;
@@ -93,6 +93,22 @@ export default function Templates() {
           it is suggested for the right courses.
         </p>
       </StickyNote>
+
+      {/* subject-badge legend */}
+      <div className="mb-6 rounded-wobble-sm border-2 border-dashed border-pencil bg-paper-3/60 p-4">
+        <p className="micro mb-2 font-semibold text-ink-soft">
+          Subject badges — a template can carry more than one
+        </p>
+        <div className="flex flex-wrap gap-x-6 gap-y-2">
+          {TEMPLATE_FLAVORS.map((f) => (
+            <span key={f.id} className="flex items-center gap-1.5 text-sm text-ink">
+              <FlavorBadge id={f.id} />
+              <span className="font-heading font-semibold">{f.label}</span>
+              <span className="text-[0.7rem] text-ink-faint">— {f.hint}</span>
+            </span>
+          ))}
+        </div>
+      </div>
 
       {!isGuest && (
         <div className="mb-6">
@@ -236,7 +252,7 @@ function TemplateSection({
               <div className="mb-2 flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <h3 className="font-heading text-lg font-bold text-ink">
-                    {isMathTemplate(t.tags) && <MathBadge />}
+                    <TemplateBadges tags={t.tags} />
                     {t.name}
                   </h3>
                   <Chip

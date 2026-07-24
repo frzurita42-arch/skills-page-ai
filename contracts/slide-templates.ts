@@ -176,6 +176,61 @@ export function isMathTemplate(tags: string[]): boolean {
   return tags.some((t) => MATH_TAGS.includes(t));
 }
 
+/**
+ * Subject "flavours" — a small badge (symbol) on a template so both the AI
+ * and the user can see at a glance what field it suits. A template can carry
+ * SEVERAL flavours (e.g. a medical chart is medicine + finance-style data).
+ * Colours live in the UI; here we keep the symbol, label, and the tags that
+ * trigger each flavour.
+ */
+export type TemplateFlavor = "math" | "medicine" | "finance" | "philosophy";
+
+export interface FlavorMeta {
+  id: TemplateFlavor;
+  /** short glyph shown in the badge */
+  symbol: string;
+  label: string;
+  /** one-line legend description */
+  hint: string;
+  tags: string[];
+}
+
+export const TEMPLATE_FLAVORS: FlavorMeta[] = [
+  {
+    id: "math",
+    symbol: "π",
+    label: "Math & physics",
+    hint: "Worked problems, formulas, and solve-it-yourself exercises.",
+    tags: MATH_TAGS,
+  },
+  {
+    id: "medicine",
+    symbol: "✚",
+    label: "Medicine, health & biology",
+    hint: "Image- and diagram-led slides for anatomy, health and life science.",
+    tags: ["medicine", "health", "biology", "anatomy", "science", "chemistry"],
+  },
+  {
+    id: "finance",
+    symbol: "$",
+    label: "Finance & economics",
+    hint: "Data, tables and graphs for money, markets and business.",
+    tags: ["finance", "economics", "business", "accounting", "data", "statistics"],
+  },
+  {
+    id: "philosophy",
+    symbol: "Φ",
+    label: "Philosophy & humanities",
+    hint: "Reading, argument and interpretation for ideas and texts.",
+    tags: ["philosophy", "humanities", "history", "literature", "ethics", "civics", "reading"],
+  },
+];
+
+/** All flavours a template qualifies for, by its tags (may be several). */
+export function flavorsForTags(tags: string[]): TemplateFlavor[] {
+  return TEMPLATE_FLAVORS.filter((f) => tags.some((t) => f.tags.includes(t))).map((f) => f.id);
+}
+
 /* ------------------------------------------------------------------ */
 /* Built-in catalog                                                     */
 /* Density by level: beginner = 1 short text; intermediate = 2-3 texts; */
@@ -223,6 +278,9 @@ const STEM_TEMPLATES: SlideTemplate[] = [
   bi("Solution walkthrough", "B1", ["prose", "latex", "prose", "quiz"], ["math", "physics", "worked-example"]),
   bi("Step-by-step solved", "B1", ["prose", "latex", "latex", "quiz"], ["math", "algebra", "worked-example"]),
   bi("Worked on a graph", "B1", ["prose", "chart", "prose", "quiz"], ["math", "physics", "worked-example"]),
+  // medicine / health / biology — image- and graph-led explainers
+  bi("Anatomy illustrated", "B1", ["prose", "image", "prose", "quiz"], ["biology", "medicine", "health"]),
+  bi("Clinical data graph", "B1", ["prose", "chart", "prose", "shortanswer"], ["medicine", "health", "data"]),
   // problem-solving: a statement to work out on a paginated scratchpad
   bi("Solve the problem", "B1", ["prose", "solve"], ["math", "physics", "problem-solving"]),
   bi("Solve with a graph", "B1", ["prose", "chart", "solve"], ["math", "physics", "problem-solving"]),
@@ -354,6 +412,42 @@ export const LESSON_PACKETS: LessonPacket[] = [
       "Step-by-step solved",
       "Solve the problem",
       "Solve with a diagram",
+    ],
+  },
+  {
+    id: "medicine-health",
+    name: "Medicine & health",
+    description:
+      "Image- and graph-led: an illustrated concept, clinical data on a graph, a diagram deep-dive, and a data-reasoning check — ideal for anatomy, health and biology.",
+    templates: [
+      "Anatomy illustrated",
+      "Clinical data graph",
+      "Diagram deep dive",
+      "Data reasoning",
+    ],
+  },
+  {
+    id: "philosophy-ideas",
+    name: "Philosophy & ideas",
+    description:
+      "Reading and argument: a close reading, a thesis to argue, a critical analysis, and a comparison of traditions — for philosophy and the humanities.",
+    templates: [
+      "Scholar reading",
+      "Argue a thesis",
+      "Critical analysis",
+      "Compare traditions",
+    ],
+  },
+  {
+    id: "finance-economics",
+    name: "Finance & economics",
+    description:
+      "Data-driven: a graph analysis, table-based data reasoning, a data-driven argument, and a model to interpret — for money, markets and business.",
+    templates: [
+      "Graph analysis",
+      "Data reasoning",
+      "Data-driven argument",
+      "Model & interpret",
     ],
   },
 ];

@@ -38,6 +38,8 @@ export interface QuizCardProps {
       the run) and a setter to update them */
   scratchPages?: SlideAnnotation[][];
   onScratchChange?: (pages: SlideAnnotation[][]) => void;
+  /** solve worksheets: show the freehand scratchpad (true) or a plain box */
+  scratchpad?: boolean;
 }
 
 /** kind defaults to mcq for older decks */
@@ -301,6 +303,7 @@ function SolveCard({
   current,
   scratchPages,
   onScratchChange,
+  scratchpad = true,
 }: QuizCardProps) {
   const [text, setText] = useState(answer?.firstText ?? '');
   const [solved, setSolved] = useState(answer?.solved ?? false);
@@ -373,7 +376,7 @@ function SolveCard({
       </p>
 
       {/* worked-solution scratchpad — paginated blank pages you draw on */}
-      {!review && (
+      {!review && scratchpad && (
         <div className="mt-4">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <AnnotationToolbar
@@ -440,14 +443,19 @@ function SolveCard({
         </div>
       )}
 
-      {/* final answer — the AI grades this leniently (right idea counts) */}
-      <label className="micro mt-5 block text-ink-soft">Your final answer</label>
+      {/* final answer — the AI grades this leniently (right idea counts).
+          With no scratchpad it becomes the main answer space, so give it room. */}
+      <label className="micro mt-5 block text-ink-soft">
+        {scratchpad ? 'Your final answer' : 'Your answer'}
+      </label>
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         disabled={solved || grading || review}
-        rows={2}
-        placeholder="e.g. x = 3/2, or 12.5 m/s…"
+        rows={scratchpad ? 2 : 6}
+        placeholder={
+          scratchpad ? 'e.g. x = 3/2, or 12.5 m/s…' : 'Work through the problem and give your answer…'
+        }
         className="mt-1 w-full resize-y rounded-wobble-sm border-2 border-ink bg-paper-3 px-3.5 py-2.5 text-[0.95rem] text-ink shadow-offset outline-none focus:border-blue disabled:opacity-70"
       />
 

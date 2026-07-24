@@ -28,6 +28,8 @@ export interface DeckPlayerProps {
   slidePlan?: SlidePlanInfo[];
   voiceURI: string | null;
   nextLessonTitle: string | null;
+  /** solve slides use the freehand scratchpad (true) or a plain answer box */
+  scratchpadEnabled?: boolean;
   onExit: () => void;
 }
 
@@ -50,6 +52,7 @@ export default function DeckPlayer({
   slidePlan,
   voiceURI,
   nextLessonTitle,
+  scratchpadEnabled = true,
   onExit,
 }: DeckPlayerProps) {
   const reduced = useReducedMotion();
@@ -371,6 +374,7 @@ export default function DeckPlayer({
                       onSolved={inReview ? () => undefined : handleSolved}
                       review={inReview}
                       current={readAloud.currentKey}
+                      scratchpad={scratchpadEnabled}
                       scratchPages={scratch[viewingIdx]}
                       onScratchChange={(pages) =>
                         setScratch((prev) => ({ ...prev, [viewingIdx]: pages }))
