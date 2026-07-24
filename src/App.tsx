@@ -16,6 +16,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminUsers from './pages/AdminUsers';
 import AdminModerators from './pages/AdminModerators';
 import AdminSettings from './pages/AdminSettings';
+import AdminGate from './components/admin/AdminGate';
 
 export default function App() {
   return (
@@ -29,7 +30,15 @@ export default function App() {
         <Route path="/repos/:slug" element={<Repository />} />
         <Route path="/slides" element={<Slides />} />
         <Route path="/slides/:slug" element={<SlideTool />} />
-        <Route path="/templates" element={<Templates />} />
+        {/* Slide templates are an admin-only management surface */}
+        <Route
+          path="/templates"
+          element={
+            <AdminGate minRole="admin">
+              <Templates />
+            </AdminGate>
+          }
+        />
         <Route path="/runs" element={<Runs />} />
         <Route path="/runs/:runId/replay" element={<Replay />} />
         <Route path="/about" element={<About />} />
