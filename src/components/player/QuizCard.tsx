@@ -10,6 +10,8 @@ import { SquiggleDivider } from '../sketch/Squiggle';
 import { Kara } from './SlideComponents';
 
 const LETTERS = ['A', 'B', 'C', 'D'];
+/** Text answers (fill-blank / typed) get this many tries before Next unlocks. */
+const MAX_TEXT_TRIES = 3;
 
 export interface QuizAnswer {
   /** logged first-try correctness (what scoring uses) */
@@ -165,44 +167,41 @@ function TextAnswerCard({
 
   const submit = useCallback(async () => {
     if (solved || review || grading || !text.trim()) return;
+    // Grade this attempt. Typed answers are graded leniently by the AI on
+    // MEANING (spelling / wording / terminology don't have to be exact — the
+    // right idea counts); fill-blank checks the accepted answers.
+    let res: { correct: boolean; feedback?: string };
     if (kind === 'fillblank') {
       const accepted = [quiz.answer ?? '', ...(quiz.acceptableAnswers ?? [])].filter(Boolean);
-      const correct = isFillBlankCorrect(text, accepted);
-      if (attempts === 0) onAnswer({ text, correct });
-      setAttempts((a) => a + 1);
-      setResult({ correct });
-      if (correct) {
-        setSolved(true);
-        onSolved?.();
+      res = { correct: isFillBlankCorrect(text, accepted) };
+    } else {
+      setGrading(true);
+      try {
+        res = await gradeTyped.mutateAsync({
+          question: quiz.question,
+          reference: quiz.answer ?? quiz.explanation,
+          answer: text,
+        });
+      } catch {
+        res = { correct: false, feedback: "Couldn't grade that — see the explanation." };
+      } finally {
+        setGrading(false);
       }
-      return;
     }
-    // typed → grade with AI (server), fall back handled server-side
-    setGrading(true);
-    try {
-      const res = await gradeTyped.mutateAsync({
-        question: quiz.question,
-        reference: quiz.answer ?? quiz.explanation,
-        answer: text,
-      });
-      if (attempts === 0) onAnswer({ text, correct: res.correct });
-      setAttempts((a) => a + 1);
-      setResult(res);
-      // typed answers are subjective — proceeding is allowed after grading
+    const nowAttempts = attempts + 1;
+    if (attempts === 0) onAnswer({ text, correct: res.correct }); // first try is what scoring logs
+    setAttempts(nowAttempts);
+    setResult(res);
+    // Correct → done. Otherwise the learner gets up to MAX_TEXT_TRIES attempts;
+    // only once those are spent does Next unlock (they may skip on).
+    if (res.correct || nowAttempts >= MAX_TEXT_TRIES) {
       setSolved(true);
       onSolved?.();
-    } catch {
-      if (attempts === 0) onAnswer({ text, correct: false });
-      setAttempts((a) => a + 1);
-      setResult({ correct: false, feedback: "Couldn't grade that — see the explanation." });
-      setSolved(true);
-      onSolved?.();
-    } finally {
-      setGrading(false);
     }
   }, [solved, review, grading, text, kind, quiz, attempts, onAnswer, onSolved, gradeTyped]);
 
-  const canRetry = kind === 'fillblank' && result && !result.correct && !solved;
+  const triesLeft = Math.max(0, MAX_TEXT_TRIES - attempts);
+  const canRetry = !!result && !result.correct && !solved;
 
   return (
     <section className="mt-10" aria-label="Quick check">
@@ -239,7 +238,11 @@ function TextAnswerCard({
           )}
         >
           <Send className="h-4 w-4" />
-          {grading ? 'Checking…' : canRetry ? 'Try again' : 'Check answer'}
+          {grading
+            ? 'Checking…'
+            : canRetry
+              ? `Try again (${triesLeft} left)`
+              : 'Check answer'}
         </button>
       )}
 
@@ -254,13 +257,23 @@ function TextAnswerCard({
             )}
           >
             <span className="font-bold">
-              {result.correct ? 'Correct — ' : 'Not quite — '}
+              {result.correct ? 'Correct — ' : solved ? 'Not quite — ' : 'Close, but not there yet — '}
             </span>
             {result.feedback ? `${result.feedback} ` : ''}
-            {!result.correct && kind === 'fillblank' && quiz.answer && (
-              <span>Answer: <span className="font-bold">{quiz.answer}</span>. </span>
+            {/* still has tries: nudge, don't reveal the answer yet */}
+            {!result.correct && !solved && (
+              <span className="mt-1 block text-sm text-ink-soft">
+                {triesLeft} {triesLeft === 1 ? 'try' : 'tries'} left — you just need the right idea,
+                not the exact words.
+              </span>
             )}
-            <span className="block text-sm text-ink-soft">{quiz.explanation}</span>
+            {/* out of tries (or correct): reveal the reference + explanation */}
+            {solved && !result.correct && kind === 'fillblank' && quiz.answer && (
+              <span className="block">
+                Answer: <span className="font-bold">{quiz.answer}</span>.
+              </span>
+            )}
+            {solved && <span className="block text-sm text-ink-soft">{quiz.explanation}</span>}
           </motion.div>
         </AnimatePresence>
       )}

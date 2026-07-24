@@ -117,7 +117,7 @@ export default function Replay() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.3, ease: EASE }}
-            className="relative"
+            className="relative mx-auto max-w-[720px]"
           >
             <div className="micro mb-1 text-ink-faint">
               Slide {safeIdx + 1} of {slides.length}

@@ -50,7 +50,7 @@ function ProseView({
   current: string | null;
 }) {
   return (
-    <div className="max-w-[68ch] text-[1.05rem] leading-[1.8] text-ink">
+    <div className="w-full text-[1.05rem] leading-[1.8] text-ink">
       {paragraphs.map((p, pi) => (
         // Justify so every full line spans the same width — the body text
         // reads as an evenly distributed block instead of a ragged edge.

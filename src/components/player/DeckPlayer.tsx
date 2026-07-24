@@ -287,7 +287,10 @@ export default function DeckPlayer({
                 else if (info.offset.x > 80) goBack();
               }}
               className={cn(
-                'relative mx-auto max-w-[1080px] px-5 pb-32 pt-8 sm:px-8',
+                // one fixed reading column, centred on the page — text, tables,
+                // charts and the quiz all share this width so nothing stretches
+                // edge-to-edge on wide screens
+                'relative mx-auto max-w-[720px] px-5 pb-32 pt-8 sm:px-8',
                 annotateOn ? '' : 'cursor-grab active:cursor-grabbing',
               )}
             >
