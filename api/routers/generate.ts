@@ -376,6 +376,16 @@ export const generateRouter = createRouter({
         isStemTopic(topic),
         input.level,
       );
+      // Minimum distinct body paragraphs a teaching slide must carry at this
+      // CEFR band — a C1 deck must not ship slides with a single short line.
+      // Mirrors the PARAGRAPH FLOOR stated in the system prompt.
+      const paraFloor = ["C1", "C2"].includes(input.level)
+        ? 4
+        : ["B1", "B2"].includes(input.level)
+          ? 3
+          : input.level === "A2"
+            ? 2
+            : 1;
       const layoutTemplates = allowedTemplates.map((t) => ({
         name: t.name,
         tags: t.tags,
@@ -483,9 +493,18 @@ export const generateRouter = createRouter({
                 // a pinned slide must match its chosen template EXACTLY (strict
                 // prose count, so every text block it lists is produced);
                 // others just need to match any allowed layout
-                return pinned
-                  ? !slideConformsToTemplate(shape, pinned, true)
-                  : !slideConformsToAny(shape, allowedTemplates);
+                const structOk = pinned
+                  ? slideConformsToTemplate(shape, pinned, true)
+                  : slideConformsToAny(shape, allowedTemplates);
+                // and — regardless of layout — a teaching slide must carry the
+                // CEFR paragraph floor of distinct body-text paragraphs, so a
+                // C1 slide can't ship as one short line. Count paragraphs
+                // across every prose component.
+                const paraCount = s.components.reduce(
+                  (n, c) => n + (c.type === "prose" ? c.paragraphs.length : 0),
+                  0,
+                );
+                return !structOk || paraCount < paraFloor;
               });
             // The model sometimes under-delivers (e.g. 3 slides when 8 were
             // asked). Retry (up to maxAttempts) before accepting a miss.
@@ -588,10 +607,22 @@ export const generateRouter = createRouter({
           return { template: pinned.name, pinned: true, components: pinned.components as string[] };
         }
         const match = bestMatchingTemplate(shape, allowedTemplates);
+        // Show the slide's ACTUAL component sequence (not the matched
+        // template's ideal one) so the badge never claims more text sections
+        // than the slide really has. Append the real quiz kind as its step.
+        const quizStep =
+          s.quiz &&
+          ({ mcq: "quiz", mcq2: "mcq2", fillblank: "fillblank", typed: "shortanswer" }[
+            s.quiz.kind ?? "mcq"
+          ] as string);
+        const realComponents = [
+          ...s.components.map((c) => c.type),
+          ...(quizStep ? [quizStep] : []),
+        ];
         return {
           template: match?.name ?? null,
           pinned: false,
-          components: (match?.components ?? shape.componentTypes) as string[],
+          components: realComponents,
         };
       });
 

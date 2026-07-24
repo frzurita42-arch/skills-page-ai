@@ -162,6 +162,17 @@ export function buildSlidesSystemPrompt(opts: {
   previouslyTaught: string | null;
   layoutTemplates?: LayoutTemplateForPrompt[];
 }): string {
+  // Minimum number of DISTINCT explanatory paragraphs a teaching slide must
+  // carry, scaled to the CEFR band. Higher levels demand a fuller page: an
+  // advanced (C1/C2) reader gets several substantial paragraphs, not one line.
+  const paraFloor = ["C1", "C2"].includes(opts.level)
+    ? 4
+    : ["B1", "B2"].includes(opts.level)
+      ? 3
+      : ["A2"].includes(opts.level)
+        ? 2
+        : 1;
+
   const memory = opts.previouslyTaught
     ? `
 PREVIOUSLY TAUGHT in this course — treat every item below as slides that already exist earlier in this same course. HARD anti-repetition rules:
@@ -206,6 +217,7 @@ TEACHING RULES (non-negotiable):
    - C2 (mastery): near-native academic register, sophisticated argument, subtlety and exceptions, no hand-holding.
    Match sentence length and word choice to the level: a low level means SIMPLER language, not shallower coverage; a high level means denser, more sophisticated language.
    LENGTH scales with level too: higher levels get LONGER text in general — A0/A1 prose paragraphs are 1-2 short sentences; A2/B1 are ~2-4 sentences; B2 are full multi-sentence paragraphs; C1/C2 prose paragraphs are substantial and challenging (roughly 4-7 dense sentences each), giving the advanced reader more to work through. This is a general rule, not absolute: a genuinely simple point may still be stated briefly at any level — don't pad — but by default a higher-level reader should get more, lengthier, more demanding text.
+   PARAGRAPH FLOOR (hard requirement for level "${opts.level}"): every teaching slide MUST present at least ${paraFloor} DISTINCT explanatory paragraph${paraFloor > 1 ? "s" : ""} of body text. Count paragraphs across the slide's Text/prose steps: either emit several prose components, or give a prose component a "paragraphs" array with ${paraFloor}+ separate entries — a slide with a single short paragraph at this level is WRONG. Each paragraph must make a different point (setup, mechanism, worked detail, implication), never restate another. A visual (image/table/chart/diagram) does NOT count toward this floor; it is in addition to the ${paraFloor} paragraph${paraFloor > 1 ? "s" : ""}.
 ${memory}${templates}
 OUTPUT: STRICT JSON ONLY (no markdown fences, no commentary) matching exactly:
 {"slides":[{"title":"...","components":[...],"quiz":{"kind":"mcq","question":"...","options":["a","b","c","d"],"correctIndex":0,"explanation":"..."}}],"level":"${opts.level}","imageStyle":"${opts.imageStyle}","topic":"..."}

@@ -351,6 +351,7 @@ export function bestMatchingTemplate(
   const matches = templates.filter((t) => slideConformsToTemplate(shape, t));
   if (matches.length === 0) return null;
   const slideVisuals = new Set(shape.componentTypes.filter((c) => c !== "prose"));
+  const slideProse = shape.componentTypes.filter((c) => c === "prose").length;
   const score = (t: SlideTemplate): number => {
     const tv = new Set<string>(t.components.filter((c) => !isGradable(c) && c !== "prose"));
     let inter = 0;
@@ -360,8 +361,13 @@ export function bestMatchingTemplate(
     slideVisuals.forEach((v) => {
       if (!tv.has(v)) missing++;
     });
-    // reward shared visuals, penalize visuals only one side has; size breaks ties
-    return inter * 100 - extra * 10 - missing * 10 + t.components.length;
+    // Reward shared visuals, penalize visuals only one side has, and keep the
+    // labelled template's TEXT density close to the slide's real one — so a
+    // one-paragraph slide is not labelled a four-"Text" layout. Size breaks
+    // remaining ties.
+    const tProse = t.components.filter((c) => c === "prose").length;
+    const proseGap = Math.abs(tProse - slideProse);
+    return inter * 100 - extra * 10 - missing * 10 - proseGap * 12 + t.components.length;
   };
   return matches.reduce((a, b) => (score(b) > score(a) ? b : a));
 }
