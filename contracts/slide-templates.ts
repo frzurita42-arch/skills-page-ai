@@ -279,8 +279,12 @@ const STEM_TEMPLATES: SlideTemplate[] = [
   bi("Step-by-step solved", "B1", ["prose", "latex", "latex", "quiz"], ["math", "algebra", "worked-example"]),
   bi("Worked on a graph", "B1", ["prose", "chart", "prose", "quiz"], ["math", "physics", "worked-example"]),
   // medicine / health / biology — image- and graph-led explainers
-  bi("Anatomy illustrated", "B1", ["prose", "image", "prose", "quiz"], ["biology", "medicine", "health"]),
+  bi("Anatomy illustrated", "B1", ["prose", "image", "prose", "quiz"], ["biology", "medicine", "health", "anatomy"]),
   bi("Clinical data graph", "B1", ["prose", "chart", "prose", "shortanswer"], ["medicine", "health", "data"]),
+  // visual study — SEE an item, DESCRIBE it, then evaluate (text·image·text·eval)
+  bi("Anatomy — describe it", "B1", ["prose", "image", "prose", "shortanswer"], ["biology", "medicine", "anatomy"]),
+  bi("Anatomy — label it", "B1", ["prose", "image", "prose", "fillblank"], ["biology", "medicine", "anatomy"]),
+  bi("Anatomy — spot it", "B1", ["prose", "image", "prose", "mcq2"], ["biology", "science", "anatomy"]),
   // problem-solving: a statement to work out on a paginated scratchpad
   bi("Solve the problem", "B1", ["prose", "solve"], ["math", "physics", "problem-solving"]),
   bi("Solve with a graph", "B1", ["prose", "chart", "solve"], ["math", "physics", "problem-solving"]),
@@ -448,6 +452,18 @@ export const LESSON_PACKETS: LessonPacket[] = [
       "Data reasoning",
       "Data-driven argument",
       "Model & interpret",
+    ],
+  },
+  {
+    id: "visual-study",
+    name: "Visual study (anatomy)",
+    description:
+      "See it, describe it, check it: every slide shows an item as an image, explains it in the text around it, and evaluates a different way — multiple choice, typed answer, fill-in, and this-or-that. Ideal for anatomy, biology and any visual subject.",
+    templates: [
+      "Anatomy illustrated",
+      "Anatomy — describe it",
+      "Anatomy — label it",
+      "Anatomy — spot it",
     ],
   },
 ];

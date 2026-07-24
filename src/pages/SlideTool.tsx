@@ -253,9 +253,12 @@ function ToolStudio({
       ),
     [templatesQuery.data, topic, level],
   );
+  // Resolve a pinned template by name against the FULL catalog (not just the
+  // filtered pickable set) so a packet-pinned template from another level
+  // still shows its badges, sequence and bar.
   const templateByName = useMemo(
-    () => new Map(pickableTemplates.map((t) => [t.name, t])),
-    [pickableTemplates],
+    () => new Map((templatesQuery.data ?? []).map((t) => [t.name, t])),
+    [templatesQuery.data],
   );
   // pre-fill instructions with the lesson objective once the repo loads
   useEffect(() => {
@@ -760,6 +763,12 @@ function ToolStudio({
                   {Array.from({ length: slideCount }, (_, i) => {
                     const chosenName = templatePlan[i] ?? '';
                     const chosen = chosenName ? templateByName.get(chosenName) : undefined;
+                    // include a pinned template that's outside this deck's
+                    // filtered set (e.g. a packet slide) so it lists + displays
+                    const pickerOptions =
+                      chosen && !pickableTemplates.some((t) => t.name === chosen.name)
+                        ? [chosen, ...pickableTemplates]
+                        : pickableTemplates;
                     return (
                       <div
                         key={i}
@@ -770,7 +779,8 @@ function ToolStudio({
                         </span>
                         <TemplatePicker
                           value={chosenName}
-                          templates={pickableTemplates}
+                          templates={pickerOptions}
+                          selectedTemplate={chosen ?? null}
                           onChange={(v) =>
                             setTemplatePlan((prev) => {
                               const next = prev.slice();
@@ -780,9 +790,7 @@ function ToolStudio({
                             })
                           }
                         />
-                        {chosen && (
-                          <TemplateBar components={chosen.components} className="ml-auto" />
-                        )}
+                        {chosen && <TemplateBar components={chosen.components} />}
                       </div>
                     );
                   })}

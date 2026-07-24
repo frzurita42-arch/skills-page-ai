@@ -110,11 +110,15 @@ function OptionLabel({ t, withSequence }: { t: SlideTemplate; withSequence: bool
 export default function TemplatePicker({
   value,
   templates,
+  selectedTemplate,
   onChange,
 }: {
   /** selected template name, or '' for Auto */
   value: string;
   templates: SlideTemplate[];
+  /** the resolved selected template (may be outside `templates`, e.g. a
+   *  packet slide from another level) — used for the button display */
+  selectedTemplate?: SlideTemplate | null;
   onChange: (name: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -137,7 +141,9 @@ export default function TemplatePicker({
     };
   }, [open]);
 
-  const selected = value ? templates.find((t) => t.name === value) : undefined;
+  const selected = value
+    ? (selectedTemplate ?? templates.find((t) => t.name === value))
+    : undefined;
 
   const pick = (name: string | null) => {
     onChange(name);
@@ -151,7 +157,8 @@ export default function TemplatePicker({
     );
 
   return (
-    <div ref={ref} className="min-w-[180px] flex-1">
+    // fixed width so every slide's picker lines up (the recipe bar flows after)
+    <div ref={ref} className="w-full sm:w-[340px] sm:shrink-0">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
