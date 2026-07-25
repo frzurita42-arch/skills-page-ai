@@ -10,8 +10,8 @@ import {
   slugify,
   slideDeckSchema,
   lessonPathSchema,
-} from "./prompts";
-import { mockDeck, mockLessonPath, mockCoachReply } from "./mock";
+} from "./prompts.js";
+import { mockDeck, mockLessonPath, mockCoachReply } from "./mock.js";
 import { isStemTopic } from "@contracts/stem";
 
 describe("isStemTopic", () => {

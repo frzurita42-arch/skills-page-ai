@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { publicQuery } from "./middleware";
+import { publicQuery } from "./middleware.js";
 
 /**
  * Role-gated procedures, built on top of the graft's `publicQuery`

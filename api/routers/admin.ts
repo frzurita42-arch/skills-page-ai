@@ -1,10 +1,10 @@
 import { z } from "zod";
 import { desc, eq, gte } from "drizzle-orm";
-import { createRouter } from "../middleware";
-import { adminProcedure, moderatorProcedure } from "../procedures";
-import { getDb } from "../queries/connection";
+import { createRouter } from "../middleware.js";
+import { adminProcedure, moderatorProcedure } from "../procedures.js";
+import { getDb } from "../queries/connection.js";
 import { payments, repos, runs, slideTools, tokenLedger, users } from "@db/schema";
-import { getSettings, saveSettings } from "../settings";
+import { getSettings, saveSettings } from "../settings.js";
 import type { AdminDashboard, AiProvider, AppSettings, RunRow } from "@contracts/types";
 
 const settingsSchema = z.object({

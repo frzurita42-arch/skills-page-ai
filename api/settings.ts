@@ -1,4 +1,4 @@
-import { getDb } from "./queries/connection";
+import { getDb } from "./queries/connection.js";
 import { settings } from "@db/schema";
 import { eq } from "drizzle-orm";
 import type { AppSettings } from "@contracts/types";

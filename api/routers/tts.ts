@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { createRouter, publicQuery } from "../middleware";
-import { listTtsVoices, ttsSpeak, userHasTts, type TtsVoice } from "../ai/provider";
+import { createRouter, publicQuery } from "../middleware.js";
+import { listTtsVoices, ttsSpeak, userHasTts, type TtsVoice } from "../ai/provider.js";
 
 /**
  * Text-to-speech read-aloud (ElevenLabs, BYOK). Public procedures: a guest or a

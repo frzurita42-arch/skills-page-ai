@@ -1,8 +1,8 @@
 import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
-import { getDb } from "./queries/connection";
+import { getDb } from "./queries/connection.js";
 import { users, type User } from "@db/schema";
 import { eq } from "drizzle-orm";
-import { verifyAuthToken } from "./auth-utils";
+import { verifyAuthToken } from "./auth-utils.js";
 
 export type TrpcContext = {
   req: Request;

@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { and, eq, like, or, desc } from "drizzle-orm";
-import { createRouter, publicQuery } from "../middleware";
-import { authedProcedure } from "../procedures";
-import { getDb } from "../queries/connection";
+import { createRouter, publicQuery } from "../middleware.js";
+import { authedProcedure } from "../procedures.js";
+import { getDb } from "../queries/connection.js";
 import {
   customizations,
   favorites,
@@ -16,9 +16,9 @@ import {
   type Repo,
   type User,
 } from "@db/schema";
-import { repoRef, slugify, templateSchema } from "../ai/prompts";
-import { generateImage } from "../ai/provider";
-import { courseMemory } from "../memory";
+import { repoRef, slugify, templateSchema } from "../ai/prompts.js";
+import { generateImage } from "../ai/provider.js";
+import { courseMemory } from "../memory.js";
 import { isPassingScore } from "@contracts/progress";
 import { repoPurpose } from "@contracts/types";
 import type { RepoDetail, RepoLesson, RepoSummary, RepoUnit, LessonRunRow, Level, SlideDeck, RepoPurpose } from "@contracts/types";

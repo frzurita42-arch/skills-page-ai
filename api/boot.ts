@@ -1,5 +1,5 @@
-import app from "./app";
-import { env } from "./lib/env";
+import app from "./app.js";
+import { env } from "./lib/env.js";
 
 /**
  * Self-hosted entry (`node dist/boot.js`): the single Node process serves BOTH
@@ -10,7 +10,7 @@ export default app;
 
 if (env.isProduction) {
   const { serve } = await import("@hono/node-server");
-  const { serveStaticFiles } = await import("./lib/vite");
+  const { serveStaticFiles } = await import("./lib/vite.js");
   serveStaticFiles(app);
 
   const port = parseInt(process.env.PORT || "3000");

@@ -1,12 +1,12 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq } from "drizzle-orm";
-import { createRouter } from "../middleware";
-import { authedProcedure, moderatorProcedure, adminProcedure } from "../procedures";
-import { getDb } from "../queries/connection";
+import { createRouter } from "../middleware.js";
+import { authedProcedure, moderatorProcedure, adminProcedure } from "../procedures.js";
+import { getDb } from "../queries/connection.js";
 import { repos, ticketRequests, tickets, users } from "@db/schema";
-import { ticketPrice } from "../cost";
-import { countAvailable, grantToUser, sellToModerator } from "../tickets";
+import { ticketPrice } from "../cost.js";
+import { countAvailable, grantToUser, sellToModerator } from "../tickets.js";
 import type { MyTicketGroup, TicketRequestRow } from "@contracts/types";
 
 export const ticketsRouter = createRouter({

@@ -1,12 +1,12 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { desc, eq } from "drizzle-orm";
-import { createRouter } from "../middleware";
-import { authedProcedure, moderatorProcedure } from "../procedures";
-import { getDb } from "../queries/connection";
+import { createRouter } from "../middleware.js";
+import { authedProcedure, moderatorProcedure } from "../procedures.js";
+import { getDb } from "../queries/connection.js";
 import { payments, users, type Payment } from "@db/schema";
-import { getSettings } from "../settings";
-import { applyTokenDelta } from "../tokens";
+import { getSettings } from "../settings.js";
+import { applyTokenDelta } from "../tokens.js";
 import type { PaymentRow } from "@contracts/types";
 
 async function toPaymentRow(db: ReturnType<typeof getDb>, p: Payment): Promise<PaymentRow> {

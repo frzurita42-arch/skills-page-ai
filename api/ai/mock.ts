@@ -7,7 +7,7 @@ import type {
   Slide,
   SlideComponent,
 } from "@contracts/types";
-import type { LessonPathDraft } from "./prompts";
+import type { LessonPathDraft } from "./prompts.js";
 import { isStemTopic } from "@contracts/stem";
 import { levelTier } from "@contracts/types";
 

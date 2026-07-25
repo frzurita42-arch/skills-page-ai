@@ -1,4 +1,4 @@
-import { getDb } from "./queries/connection";
+import { getDb } from "./queries/connection.js";
 import { lessons, units, lessonLogs } from "@db/schema";
 import { and, eq, inArray, lt } from "drizzle-orm";
 import type { CourseMemoryEntry, LessonLogSlide } from "@contracts/types";

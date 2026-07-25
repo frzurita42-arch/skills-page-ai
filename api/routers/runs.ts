@@ -1,11 +1,11 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { createRouter, publicQuery } from "../middleware";
-import { authedProcedure, moderatorProcedure } from "../procedures";
-import { getDb } from "../queries/connection";
+import { createRouter, publicQuery } from "../middleware.js";
+import { authedProcedure, moderatorProcedure } from "../procedures.js";
+import { getDb } from "../queries/connection.js";
 import { lessons, repos, runs, slideTools, units, lessonLogs } from "@db/schema";
-import { imageStyleSchema, levelSchema } from "../ai/prompts";
+import { imageStyleSchema, levelSchema } from "../ai/prompts.js";
 import type { LessonLogSlide, RunDetail, RunReplay, RunRow, RunSlideDetail, SlideDeck } from "@contracts/types";
 
 const perSlideSchema = z.object({

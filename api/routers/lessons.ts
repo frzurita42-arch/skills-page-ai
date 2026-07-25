@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { asc, eq, inArray } from "drizzle-orm";
-import { createRouter } from "../middleware";
-import { authedProcedure } from "../procedures";
-import { getDb } from "../queries/connection";
+import { createRouter } from "../middleware.js";
+import { authedProcedure } from "../procedures.js";
+import { getDb } from "../queries/connection.js";
 import { lessons, repos, units, type Repo, type User } from "@db/schema";
 
 /* ------------------------------------------------------------------ */

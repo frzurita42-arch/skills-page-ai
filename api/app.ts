@@ -2,9 +2,9 @@ import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { HttpBindings } from "@hono/node-server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
-import { appRouter } from "./router";
-import { createContext } from "./context";
-import { ensureCefrLevelEnum } from "./lib/migrate-levels";
+import { appRouter } from "./router.js";
+import { createContext } from "./context.js";
+import { ensureCefrLevelEnum } from "./lib/migrate-levels.js";
 import {
   ensureRunAnnotationsColumn,
   ensureCommercialSchema,
@@ -14,7 +14,7 @@ import {
   ensureSlideToolAuthoring,
   ensureElevenLabsProvider,
   ensureWalkthroughTemplate,
-} from "./lib/migrate-annotations";
+} from "./lib/migrate-annotations.js";
 
 /**
  * The tRPC/Hono API app, WITHOUT any host bootstrap. Import this from a host

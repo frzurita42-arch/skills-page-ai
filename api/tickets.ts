@@ -1,8 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { getDb } from "./queries/connection";
+import { getDb } from "./queries/connection.js";
 import { tickets, tokenLedger, users } from "@db/schema";
-import { ticketPrice } from "./cost";
+import { ticketPrice } from "./cost.js";
 
 /** How many unused tickets a user holds for one repo. */
 export async function countAvailable(userId: number, repoId: number): Promise<number> {

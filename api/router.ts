@@ -1,22 +1,22 @@
 import { sql } from "drizzle-orm";
-import { createRouter, publicQuery } from "./middleware";
-import { env } from "./lib/env";
-import { getDb } from "./queries/connection";
-import { authRouter } from "./routers/auth";
-import { generateRouter, coachChatProcedure } from "./routers/generate";
-import { reposRouter } from "./routers/repos";
-import { slideToolsRouter } from "./routers/slideTools";
-import { runsRouter } from "./routers/runs";
-import { lessonsRouter, unitsRouter } from "./routers/lessons";
-import { keysRouter } from "./routers/keys";
-import { tokensRouter } from "./routers/tokens";
-import { paymentsRouter } from "./routers/payments";
-import { usersRouter } from "./routers/users";
-import { adminRouter } from "./routers/admin";
-import { templatesRouter } from "./routers/templates";
-import { ordersRouter } from "./routers/orders";
-import { ticketsRouter } from "./routers/tickets";
-import { ttsRouter } from "./routers/tts";
+import { createRouter, publicQuery } from "./middleware.js";
+import { env } from "./lib/env.js";
+import { getDb } from "./queries/connection.js";
+import { authRouter } from "./routers/auth.js";
+import { generateRouter, coachChatProcedure } from "./routers/generate.js";
+import { reposRouter } from "./routers/repos.js";
+import { slideToolsRouter } from "./routers/slideTools.js";
+import { runsRouter } from "./routers/runs.js";
+import { lessonsRouter, unitsRouter } from "./routers/lessons.js";
+import { keysRouter } from "./routers/keys.js";
+import { tokensRouter } from "./routers/tokens.js";
+import { paymentsRouter } from "./routers/payments.js";
+import { usersRouter } from "./routers/users.js";
+import { adminRouter } from "./routers/admin.js";
+import { templatesRouter } from "./routers/templates.js";
+import { ordersRouter } from "./routers/orders.js";
+import { ticketsRouter } from "./routers/tickets.js";
+import { ttsRouter } from "./routers/tts.js";
 
 export const appRouter = createRouter({
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),

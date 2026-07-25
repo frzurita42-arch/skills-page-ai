@@ -1,11 +1,11 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, sql } from "drizzle-orm";
-import { createRouter, publicQuery } from "../middleware";
-import { authedProcedure } from "../procedures";
-import { getDb } from "../queries/connection";
+import { createRouter, publicQuery } from "../middleware.js";
+import { authedProcedure } from "../procedures.js";
+import { getDb } from "../queries/connection.js";
 import { users, tokenLedger, type User } from "@db/schema";
-import { hashPassword, verifyPassword, signAuthToken } from "../auth-utils";
+import { hashPassword, verifyPassword, signAuthToken } from "../auth-utils.js";
 import type { SessionUser } from "@contracts/types";
 
 function toSessionUser(u: User): SessionUser {

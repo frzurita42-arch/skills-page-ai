@@ -1,10 +1,10 @@
 import { z } from "zod";
 import { desc, eq } from "drizzle-orm";
-import { createRouter, publicQuery } from "../middleware";
-import { authedProcedure } from "../procedures";
-import { getDb } from "../queries/connection";
+import { createRouter, publicQuery } from "../middleware.js";
+import { authedProcedure } from "../procedures.js";
+import { getDb } from "../queries/connection.js";
 import { tokenLedger } from "@db/schema";
-import { getSettings } from "../settings";
+import { getSettings } from "../settings.js";
 import type { TokenLedgerRow } from "@contracts/types";
 
 export const tokensRouter = createRouter({

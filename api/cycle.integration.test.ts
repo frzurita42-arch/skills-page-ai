@@ -18,12 +18,12 @@
  */
 import { describe, it, expect, beforeAll } from "vitest";
 import { eq } from "drizzle-orm";
-import { appRouter } from "./router";
-import { getDb } from "./queries/connection";
+import { appRouter } from "./router.js";
+import { getDb } from "./queries/connection.js";
 import { customizations, users, slideTools, type User } from "@db/schema";
-import { ticketPrice } from "./cost";
-import { consumeOne, countAvailable } from "./tickets";
-import { applyTokenDelta } from "./tokens";
+import { ticketPrice } from "./cost.js";
+import { consumeOne, countAvailable } from "./tickets.js";
+import { applyTokenDelta } from "./tokens.js";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 

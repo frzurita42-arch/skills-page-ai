@@ -1,7 +1,7 @@
-import { getDb } from "../queries/connection";
+import { getDb } from "../queries/connection.js";
 import { apiKeys } from "@db/schema";
 import { and, eq } from "drizzle-orm";
-import { getSettings } from "../settings";
+import { getSettings } from "../settings.js";
 import type { AiCapability, AiProvider } from "@contracts/types";
 
 /* ------------------------------------------------------------------ */

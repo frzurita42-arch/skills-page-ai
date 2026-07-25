@@ -1,5 +1,5 @@
 import type { CostEstimate, ImageStyle, Level } from "@contracts/types";
-import { getSettings } from "./settings";
+import { getSettings } from "./settings.js";
 
 /**
  * The largest number of slides a single customization can request (mirrors

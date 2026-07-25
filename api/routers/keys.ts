@@ -1,12 +1,12 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { and, eq } from "drizzle-orm";
-import { createRouter } from "../middleware";
-import { authedProcedure } from "../procedures";
-import { getDb } from "../queries/connection";
+import { createRouter } from "../middleware.js";
+import { authedProcedure } from "../procedures.js";
+import { getDb } from "../queries/connection.js";
 import { apiKeys } from "@db/schema";
-import { maskApiKey } from "../auth-utils";
-import { testKey } from "../ai/provider";
+import { maskApiKey } from "../auth-utils.js";
+import { testKey } from "../ai/provider.js";
 import type { ApiKeyRow } from "@contracts/types";
 
 const providerSchema = z.enum(["openai", "anthropic", "gemini", "elevenlabs"]);

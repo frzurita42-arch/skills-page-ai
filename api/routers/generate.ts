@@ -1,12 +1,12 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
-import { createRouter, publicQuery } from "../middleware";
-import { authedProcedure, moderatorProcedure } from "../procedures";
-import { getDb } from "../queries/connection";
+import { createRouter, publicQuery } from "../middleware.js";
+import { authedProcedure, moderatorProcedure } from "../procedures.js";
+import { getDb } from "../queries/connection.js";
 import { lessons, repos, slideTools, units, users, type Repo } from "@db/schema";
-import { completeText, completeVision, generateImage, resolveProviderName, userHasKey, webResearch, type VisionImage } from "../ai/provider";
-import { mockCoachReply, mockDeck, mockLessonPath } from "../ai/mock";
+import { completeText, completeVision, generateImage, resolveProviderName, userHasKey, webResearch, type VisionImage } from "../ai/provider.js";
+import { mockCoachReply, mockDeck, mockLessonPath } from "../ai/mock.js";
 import {
   buildLessonPathPrompt,
   buildSlidesSystemPrompt,
@@ -24,12 +24,12 @@ import {
   slugify,
   templateSchema,
   toneSchema,
-} from "../ai/prompts";
-import { estimateCost } from "../cost";
-import { applyTokenDelta, refundTokens } from "../tokens";
-import { consumeOne, countAvailable } from "../tickets";
-import { buildPreviouslyTaught } from "../memory";
-import { loadTemplateCatalog } from "./templates";
+} from "../ai/prompts.js";
+import { estimateCost } from "../cost.js";
+import { applyTokenDelta, refundTokens } from "../tokens.js";
+import { consumeOne, countAvailable } from "../tickets.js";
+import { buildPreviouslyTaught } from "../memory.js";
+import { loadTemplateCatalog } from "./templates.js";
 import {
   templatesForContext,
   slideConformsToAny,
@@ -167,7 +167,7 @@ export const generateRouter = createRouter({
       const reason = `lesson-path: ${input.description.slice(0, 60)}`;
       await applyTokenDelta(ctx.user.id, -cost.total, reason);
 
-      let draft: import("../ai/prompts").LessonPathDraft;
+      let draft: import("../ai/prompts.js").LessonPathDraft;
       let usedMock = false;
       try {
         // Fold any uploaded attachment into reference material: text files
@@ -201,7 +201,7 @@ export const generateRouter = createRouter({
           lessonsPerUnit: input.lessonsPerUnit,
           reference: reference || undefined,
         });
-        let parsed: import("../ai/prompts").LessonPathDraft | null = null;
+        let parsed: import("../ai/prompts.js").LessonPathDraft | null = null;
         for (let attempt = 0; attempt < 2 && parsed === null; attempt++) {
           try {
             const result = await completeText({

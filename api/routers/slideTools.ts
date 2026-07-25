@@ -1,11 +1,11 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { and, eq, like, or, desc } from "drizzle-orm";
-import { createRouter, publicQuery } from "../middleware";
-import { authedProcedure } from "../procedures";
-import { getDb } from "../queries/connection";
+import { createRouter, publicQuery } from "../middleware.js";
+import { authedProcedure } from "../procedures.js";
+import { getDb } from "../queries/connection.js";
 import { favorites, runs, slideTools, users, type SlideTool, type User } from "@db/schema";
-import { imageStyleSchema, levelSchema, slugify, templateSchema } from "../ai/prompts";
+import { imageStyleSchema, levelSchema, slugify, templateSchema } from "../ai/prompts.js";
 import { TONES, repoPurpose } from "@contracts/types";
 import type { RepoTemplate, SlideDeck, SlideToolSummary, Tone } from "@contracts/types";
 

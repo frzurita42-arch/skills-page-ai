@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildLessonPathPrompt } from "./ai/prompts";
+import { buildLessonPathPrompt } from "./ai/prompts.js";
 
 describe("buildLessonPathPrompt", () => {
   it("folds attached reference material into the prompt", () => {
@@ -26,7 +26,7 @@ describe("buildLessonPathPrompt", () => {
   });
 });
 
-import { buildSlidesSystemPrompt } from "./ai/prompts";
+import { buildSlidesSystemPrompt } from "./ai/prompts.js";
 
 describe("buildSlidesSystemPrompt", () => {
   it("anchors a commercial deck to the exact product/subject", () => {
