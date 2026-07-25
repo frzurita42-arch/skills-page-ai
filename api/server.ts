@@ -1,21 +1,4 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { Hono } from "hono";
-import { bodyLimit } from "hono/body-limit";
-import type { HttpBindings } from "@hono/node-server";
-import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
-import { appRouter } from "./router.js";
-import { createContext } from "./context.js";
-import { ensureCefrLevelEnum } from "./lib/migrate-levels.js";
-import {
-  ensureRunAnnotationsColumn,
-  ensureCommercialSchema,
-  ensureTicketSchema,
-  ensureUserFavoriteType,
-  ensureCustomizationSchema,
-  ensureSlideToolAuthoring,
-  ensureElevenLabsProvider,
-  ensureWalkthroughTemplate,
-} from "./lib/migrate-annotations.js";
 
 /**
  * Vercel serverless entry. Vercel's Node runtime invokes the default export
@@ -33,36 +16,9 @@ import {
 type NodeListener = (req: IncomingMessage, res: ServerResponse) => void | Promise<void>;
 let listenerPromise: Promise<NodeListener> | null = null;
 
-const runMigrations = () => {
-  const warn = (label: string) => (err: unknown) =>
-    console.warn(`[migrate] ${label} skipped:`, err instanceof Error ? err.message : err);
-  void ensureCefrLevelEnum().catch(warn("CEFR level enum"));
-  void ensureRunAnnotationsColumn().catch(warn("run annotations column"));
-  void ensureCommercialSchema().catch(warn("commercial schema"));
-  void ensureTicketSchema().catch(warn("ticket schema"));
-  void ensureWalkthroughTemplate().catch(warn("walkthrough/news template enum"));
-  void ensureElevenLabsProvider().catch(warn("elevenlabs provider enum"));
-  void ensureUserFavoriteType().catch(warn("user-favorite enum"));
-  void ensureCustomizationSchema().catch(warn("customization schema"));
-  void ensureSlideToolAuthoring().catch(warn("slide-tool authoring"));
-};
-
-runMigrations();
-
-const app = new Hono<{ Bindings: HttpBindings }>();
-app.use(bodyLimit({ maxSize: 50 * 1024 * 1024 }));
-app.use("/api/trpc/*", async (c) => {
-  return fetchRequestHandler({
-    endpoint: "/api/trpc",
-    req: c.req.raw,
-    router: appRouter,
-    createContext,
-  });
-});
-app.all("/api/*", (c) => c.json({ error: "Not Found" }, 404));
-
 async function buildListener(): Promise<NodeListener> {
   const { getRequestListener } = await import("@hono/node-server");
+  const app = (await import("./app.js")).default;
   return getRequestListener(app.fetch);
 }
 
