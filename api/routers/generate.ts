@@ -40,7 +40,7 @@ import {
 } from "@contracts/slide-templates";
 import { isStemTopic } from "@contracts/stem";
 import { typedOverlapCorrect } from "@contracts/grade";
-import { repoPurpose, type CoachReply, type SlideDeck } from "@contracts/types";
+import { repoPurpose, templateFilterPurpose, type CoachReply, type SlideDeck } from "@contracts/types";
 
 const GUEST_MAX_SLIDES = 6;
 const MAX_SLIDES = 15;
@@ -327,7 +327,7 @@ export const generateRouter = createRouter({
         tone: toneSchema.default("neutral"),
         // Purpose override from the tool page's category selector. Commercial =
         // a product/menu/service showcase (no evaluations).
-        purpose: z.enum(["education", "commercial"]).optional(),
+        purpose: z.enum(["education", "commercial", "walkthrough"]).optional(),
         // Search the web for current facts about the topic first (accuracy for
         // real products / news / anything time-sensitive).
         webSearch: z.boolean().default(false),
@@ -356,6 +356,7 @@ export const generateRouter = createRouter({
       previouslyTaught: string | null;
       slidePlan: import("@contracts/types").SlidePlanInfo[];
       commercial: import("@contracts/types").CommercialInfo | null;
+      walkthrough: import("@contracts/types").WalkthroughInfo | null;
     }> => {
       const db = getDb();
       const tool = await db.query.slideTools.findFirst({
@@ -378,6 +379,7 @@ export const generateRouter = createRouter({
       // override refine it below.
       let purpose: import("@contracts/types").RepoPurpose = repoPurpose(tool.template);
       let commercial: import("@contracts/types").CommercialInfo | null = null;
+      let walkthrough: import("@contracts/types").WalkthroughInfo | null = null;
       let seedRepo: Repo | null = null;
       if (input.seed) {
         const repo = await db.query.repos.findFirst({ where: eq(repos.slug, input.seed.repoSlug) });
@@ -433,6 +435,22 @@ export const generateRouter = createRouter({
             repoSlug: null,
             lessonSeq: null,
           };
+        }
+      }
+      // Walkthrough decks end on an author/back screen — resolve the author
+      // (the seed repo's owner, or the standalone tool's owner) so the finish
+      // can link their profile. A null owner just omits the profile link.
+      if (purpose === "walkthrough") {
+        const ownerId = seedRepo?.ownerId ?? (!input.seed ? tool.ownerId : null);
+        if (ownerId) {
+          const owner = await db.query.users.findFirst({ where: eq(users.id, ownerId) });
+          if (owner) {
+            walkthrough = {
+              ownerId: owner.id,
+              ownerName: owner.name,
+              itemTitle: (input.seed?.lessonTitle || input.topic?.trim() || tool.name).slice(0, 255),
+            };
+          }
         }
       }
 
@@ -491,7 +509,7 @@ export const generateRouter = createRouter({
       // every template pairs its visuals with a text step).
       const catalog = await loadTemplateCatalog();
       const allowedTemplates = templatesForContext(catalog, {
-        purpose,
+        purpose: templateFilterPurpose(purpose),
         stem: isStemTopic(topic),
         level: input.level,
       });
@@ -708,9 +726,10 @@ export const generateRouter = createRouter({
         provider: usedMock ? null : textProvider,
         imageProvider,
       };
-      // Commercial (menu/service/shop) decks are pure showcases — never carry an
-      // evaluation, whatever the model (or the mock) returned.
-      if (purpose === "commercial") {
+      // Commercial showcases and walkthroughs never carry an evaluation —
+      // strip any quiz the model (or the mock) produced. Only true education
+      // decks keep quizzes.
+      if (purpose !== "education") {
         deck = { ...deck, slides: deck.slides.map((s) => ({ ...s, quiz: undefined })) };
       }
       // Guarantee every slide has explanatory text — no image-only slides ship
@@ -789,7 +808,7 @@ export const generateRouter = createRouter({
         const fresh = await db.query.users.findFirst({ where: eq(users.id, ctx.user.id) });
         balance = fresh?.tokenBalance ?? null;
       }
-      return { deck, usedMock, cost, balance, previouslyTaught, slidePlan, commercial };
+      return { deck, usedMock, cost, balance, previouslyTaught, slidePlan, commercial, walkthrough };
     }),
 
   /**

@@ -14,6 +14,7 @@ import {
   ensureCustomizationSchema,
   ensureSlideToolAuthoring,
   ensureElevenLabsProvider,
+  ensureWalkthroughTemplate,
 } from "./lib/migrate-annotations";
 
 // Best-effort schema catch-up on boot so an existing database accepts CEFR
@@ -46,6 +47,14 @@ void ensureCommercialSchema().catch((err) =>
 void ensureTicketSchema().catch((err) =>
   console.warn(
     "[migrate] ticket schema auto-migration skipped:",
+    err instanceof Error ? err.message : err,
+  ),
+);
+
+// Best-effort: allow the walkthrough template (template enum gains "walkthrough").
+void ensureWalkthroughTemplate().catch((err) =>
+  console.warn(
+    "[migrate] walkthrough template enum auto-migration skipped:",
     err instanceof Error ? err.message : err,
   ),
 );

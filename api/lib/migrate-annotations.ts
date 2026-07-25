@@ -226,6 +226,31 @@ export async function ensureSlideToolAuthoring(): Promise<void> {
 }
 
 /**
+ * Idempotently allow the "walkthrough" repo/tool template (explanation decks
+ * with no quiz) by adding it to the template enum on older databases.
+ * Best-effort at boot.
+ */
+export async function ensureWalkthroughTemplate(): Promise<void> {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) return;
+  const client = new Client({ connectionString });
+  await client.connect();
+  try {
+    const { rows } = await client.query<{ exists: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1 FROM pg_type t
+           JOIN pg_namespace n ON n.oid = t.typnamespace
+          WHERE n.nspname = 'sketchlearn' AND t.typname = 'template'
+       ) AS exists`,
+    );
+    if (!rows[0]?.exists) return;
+    await client.query(`ALTER TYPE sketchlearn."template" ADD VALUE IF NOT EXISTS 'walkthrough'`);
+  } finally {
+    await client.end();
+  }
+}
+
+/**
  * Idempotently allow storing an ElevenLabs API key: add the "elevenlabs" value
  * to the provider enum on older databases so text-to-speech keys can be saved.
  * Best-effort at boot.

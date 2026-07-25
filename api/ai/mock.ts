@@ -216,6 +216,7 @@ export function mockLessonPath(opts: {
     restaurant: ["Breakfast", "Lunch", "Dinner", "Drinks & Desserts", "Chef's Specials"],
     service: ["Diagnostics", "Standard Jobs", "Advanced Repairs", "Customer Care", "Safety"],
     shop: ["New Arrivals", "Bestsellers", "Collections", "Care & Materials", "Gift Picks"],
+    walkthrough: ["Overview", "How It Works", "Step by Step", "In Practice", "Wrapping Up"],
     other: ["Part One", "Part Two", "Part Three", "Part Four", "Part Five"],
   };
   const names = unitNames[template] ?? unitNames.other;
@@ -271,6 +272,8 @@ export function mockCoachReply(userText: string): CoachReply {
     service:
       "A service catalog teaches beautifully as lessons. Each service area becomes a unit, each job a lesson with a check-yourself quiz — and every finished run leaves a log so nothing gets re-taught.",
     shop: "A shop collection! Each category becomes a unit and each product a lesson-card that presents itself — perfect for training staff or showing customers around.",
+    walkthrough:
+      "A guided walkthrough! Each section becomes a unit and each topic an explanation-only deck — the viewer is walked through it with no quizzes, and can visit your profile or step back when they're done.",
     course:
       "A proper little course! I'll break it into units and lessons, and each lesson's objective becomes the prompt for an evaluated slide deck. Lesson 2 reads Lesson 1's log, so it never re-teaches what you already covered.",
   };

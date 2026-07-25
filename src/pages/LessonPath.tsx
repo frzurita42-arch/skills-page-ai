@@ -308,8 +308,8 @@ export default function LessonPath() {
       {/* template picker */}
       <section aria-label="Use-case template" className="mt-8">
         <SectionLabel label="What's this notebook for?" />
-        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {(['course', 'restaurant', 'service', 'shop'] as RepoTemplate[]).map((t, i) => {
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {(['course', 'walkthrough', 'restaurant', 'service', 'shop'] as RepoTemplate[]).map((t, i) => {
             const m = TEMPLATE_META[t];
             const selected = template === t;
             return (

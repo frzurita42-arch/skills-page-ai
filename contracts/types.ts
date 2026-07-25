@@ -10,7 +10,7 @@ export type Level = "A0" | "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
 /** Coarse difficulty tier used for template filtering & cost. */
 export type LevelTier = "light" | "mid" | "dense";
 export type ImageStyle = "sketch" | "watercolor" | "flat" | "photo" | "none";
-export type RepoTemplate = "course" | "restaurant" | "service" | "shop" | "other";
+export type RepoTemplate = "course" | "restaurant" | "service" | "shop" | "walkthrough" | "other";
 export type AiProvider = "openai" | "anthropic" | "gemini" | "elevenlabs";
 export type AiCapability = "text" | "image" | "tts";
 
@@ -35,19 +35,28 @@ export function levelTier(level: Level): LevelTier {
 }
 
 export const IMAGE_STYLES: ImageStyle[] = ["sketch", "watercolor", "flat", "photo", "none"];
-export const REPO_TEMPLATES: RepoTemplate[] = ["course", "restaurant", "service", "shop", "other"];
+export const REPO_TEMPLATES: RepoTemplate[] = ["course", "restaurant", "service", "shop", "walkthrough", "other"];
 
 /**
- * What a repo is FOR — teaching, or showcasing something to buy/hire.
+ * What a repo is FOR — teaching, showcasing something to buy/hire, or simply
+ * walking a viewer through an explanation.
  * "commercial" repos (restaurant menus, service offers, shop items) present a
- * product and end on a contact/order step instead of a quiz; "education" repos
- * (courses) teach and evaluate. Drives which packets/templates are offered.
+ * product and end on a contact/order step; "education" repos (courses) teach
+ * AND evaluate with quizzes; "walkthrough" repos explain WITHOUT any quiz and
+ * end on a simple "visit the author / go back" step. Drives which packets and
+ * templates are offered, whether quizzes appear, and the finish screen.
  */
-export type RepoPurpose = "education" | "commercial";
+export type RepoPurpose = "education" | "commercial" | "walkthrough";
 export function repoPurpose(template: RepoTemplate): RepoPurpose {
-  return template === "restaurant" || template === "service" || template === "shop"
-    ? "commercial"
-    : "education";
+  if (template === "restaurant" || template === "service" || template === "shop") return "commercial";
+  if (template === "walkthrough") return "walkthrough";
+  return "education";
+}
+
+/** Purpose used for template/packet filtering — a walkthrough draws from the
+ *  same explanatory (education) layouts, it just omits the quiz step. */
+export function templateFilterPurpose(purpose: RepoPurpose): "education" | "commercial" {
+  return purpose === "commercial" ? "commercial" : "education";
 }
 
 /* ---------------- Teaching tone (voice/register of the deck) --------
@@ -436,14 +445,25 @@ export interface CommercialInfo {
   lessonSeq: number | null;
 }
 
+/** Info the player needs to end a WALKTHROUGH (explanation) presentation: no
+ *  score and no order step — just a link to the author's profile and a way
+ *  back to where the viewer started. Null for other decks. */
+export interface WalkthroughInfo {
+  ownerId: number | null;
+  ownerName: string;
+  itemTitle: string;
+}
+
 /** A saved preset presentation the owner generated once, for viewers to watch
  *  without regenerating. Includes the seed + (for commercial repos) the
- *  owner's contact so the player can end on the contact/order screen. */
+ *  owner's contact, or (for walkthrough repos) the author info, so the player
+ *  can end on the right closing screen. */
 export interface LessonPreset {
   deck: SlideDeck;
   seed: LessonSeed;
   toolSlug: string;
   commercial: CommercialInfo | null;
+  walkthrough: WalkthroughInfo | null;
 }
 
 /** A lead: a viewer expressed interest / placed an order from a showcase. */

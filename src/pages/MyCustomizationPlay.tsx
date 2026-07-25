@@ -48,6 +48,7 @@ export default function MyCustomizationPlay() {
       voiceURI={null}
       nextLessonTitle={null}
       commercial={null}
+      walkthrough={null}
       onExit={back}
     />
   );

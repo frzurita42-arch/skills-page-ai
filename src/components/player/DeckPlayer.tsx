@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight, Flag, Pencil, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/hooks/useAuth';
-import type { LessonSeed, SlideDeck, SlidePlanInfo, SlideAnnotation, DeckAnnotations, CommercialInfo } from '@contracts/types';
+import type { LessonSeed, SlideDeck, SlidePlanInfo, SlideAnnotation, DeckAnnotations, CommercialInfo, WalkthroughInfo } from '@contracts/types';
 import SketchButton from '../sketch/SketchButton';
 import WashiTape from '../sketch/WashiTape';
 import { DoodleSparkle, DoodleStar, DoodleSpiral } from '../sketch/DoodleIcons';
@@ -13,6 +13,7 @@ import SlideComponentView, { Kara } from './SlideComponents';
 import QuizCard, { type QuizAnswer } from './QuizCard';
 import FinishScreen from './FinishScreen';
 import CommercialFinish from './CommercialFinish';
+import WalkthroughFinish from './WalkthroughFinish';
 import AnnotationLayer, { type AnnTool } from './AnnotationLayer';
 import AnnotationToolbar from './AnnotationToolbar';
 import { buildNarration } from './narration';
@@ -34,6 +35,8 @@ export interface DeckPlayerProps {
   scratchpadEnabled?: boolean;
   /** set for menu/service/shop decks — ends on a contact/order screen */
   commercial?: CommercialInfo | null;
+  /** set for walkthrough decks — ends on an author-profile / go-back screen */
+  walkthrough?: WalkthroughInfo | null;
   /** owner-only: save THIS generated deck as the item's preset (generate once).
    *  undefined → no button (viewers, or already a preset). */
   onSavePreset?: () => void;
@@ -63,6 +66,7 @@ export default function DeckPlayer({
   nextLessonTitle,
   scratchpadEnabled = true,
   commercial = null,
+  walkthrough = null,
   onSavePreset,
   savingPreset = false,
   presetSaved = false,
@@ -106,14 +110,15 @@ export default function DeckPlayer({
   const [slideImages, setSlideImages] = useState<Record<number, string>>({});
   const imgRequested = useRef<Set<number>>(new Set());
 
-  // Commercial (menu/service/shop/product) decks end on CommercialFinish, which
-  // has no quiz to grade — so record the play here instead. Without this the
-  // tool's card would keep showing "0 plays" after a real, finished showcase.
+  // Commercial (menu/service/shop/product) and walkthrough decks end on their
+  // own finish screens, which have no quiz to grade — so record the play here
+  // instead. Without this the tool's card would keep showing "0 plays" after a
+  // real, finished showcase or walkthrough.
   const runComplete = trpc.runs.complete.useMutation();
-  const commercialRunFired = useRef(false);
+  const nonGradedRunFired = useRef(false);
   useEffect(() => {
-    if (!finished || !commercial || commercialRunFired.current) return;
-    commercialRunFired.current = true;
+    if (!finished || !(commercial || walkthrough) || nonGradedRunFired.current) return;
+    nonGradedRunFired.current = true;
     runComplete.mutate(
       {
         toolSlug,
@@ -125,10 +130,20 @@ export default function DeckPlayer({
         playerName: user?.name,
         deck,
       },
-      { onSettled: () => void utils.slideTools.list.invalidate() },
+      {
+        onSettled: () => {
+          void utils.slideTools.list.invalidate();
+          // a walkthrough lesson (no quiz) auto-completes on play — refresh the
+          // repo so its lesson chip / next-up marker reflect the finished play
+          if (seed) {
+            void utils.repos.getBySlug.invalidate({ slug: seed.repoSlug });
+            void utils.repos.list.invalidate();
+          }
+        },
+      },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [finished, commercial]);
+  }, [finished, commercial, walkthrough]);
 
   const ensureImage = useCallback(
     async (idx: number) => {
@@ -304,6 +319,8 @@ export default function DeckPlayer({
       <div className="flex-1 overflow-y-auto" data-lenis-prevent>
         {finished && !inReview && commercial ? (
           <CommercialFinish commercial={commercial} onExit={onExit} />
+        ) : finished && !inReview && walkthrough ? (
+          <WalkthroughFinish walkthrough={walkthrough} onExit={onExit} />
         ) : finished && !inReview ? (
           <FinishScreen
             deck={deck}

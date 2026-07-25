@@ -24,6 +24,7 @@ import type {
   SlidePlanInfo,
   SlideToolSummary,
   Tone,
+  WalkthroughInfo,
 } from '@contracts/types';
 import { LEVELS, LEVEL_LABEL, levelTier, TONES, TONE_LABEL, TONE_HINT } from '@contracts/types';
 import SketchButton from '@/components/sketch/SketchButton';
@@ -42,11 +43,12 @@ import TemplatePicker from '@/components/templates/TemplatePicker';
 
 import { isStemTopic } from '@contracts/stem';
 import { templatesForContext, packetsForPurpose, type LessonPacket } from '@contracts/slide-templates';
-import { repoPurpose, type RepoTemplate } from '@contracts/types';
+import { repoPurpose, templateFilterPurpose, type RepoTemplate } from '@contracts/types';
 import { TemplateIcon } from '@/components/repo/shared';
 
 const CATEGORY_OPTS: { id: RepoTemplate; label: string; hint: string }[] = [
   { id: 'course', label: 'Lesson', hint: 'Teach a topic — quizzes & evaluations allowed' },
+  { id: 'walkthrough', label: 'Walkthrough', hint: 'Explain a topic — no quizzes, just a guided walkthrough' },
   { id: 'restaurant', label: 'Menu item', hint: 'Showcase a dish — no evaluations' },
   { id: 'service', label: 'Service', hint: 'Showcase a service — no evaluations' },
   { id: 'shop', label: 'Product', hint: 'Marketplace display — no evaluations' },
@@ -283,6 +285,7 @@ function ToolStudio({
     usedMock: boolean;
     slidePlan: SlidePlanInfo[];
     commercial: CommercialInfo | null;
+    walkthrough: WalkthroughInfo | null;
   } | null>(null);
   const canceledRef = useRef(false);
   // Captured when the owner presses "Generate & set preset" so the completion
@@ -313,13 +316,13 @@ function ToolStudio({
   const pickableTemplates = useMemo(
     () =>
       templatesForContext(templatesQuery.data ?? [], {
-        purpose,
+        purpose: templateFilterPurpose(purpose),
         stem: isStemTopic(topic),
         level,
       }),
     [templatesQuery.data, purpose, topic, level],
   );
-  const packets = useMemo(() => packetsForPurpose(purpose), [purpose]);
+  const packets = useMemo(() => packetsForPurpose(templateFilterPurpose(purpose)), [purpose]);
   // Resolve a pinned template by name against the FULL catalog (not just the
   // filtered pickable set) so a packet-pinned template from another level
   // still shows its badges, sequence and bar.
@@ -394,6 +397,7 @@ function ToolStudio({
             usedMock: res.usedMock,
             slidePlan: res.slidePlan,
             commercial: res.commercial,
+            walkthrough: res.walkthrough,
           });
           setTheaterDone(true);
           if (!isGuest) void utils.auth.me.invalidate();
@@ -515,6 +519,7 @@ function ToolStudio({
         nextLessonTitle={nextLessonTitle}
         scratchpadEnabled={useScratchpad}
         commercial={result.commercial}
+        walkthrough={result.walkthrough}
         onSavePreset={canPublishPreset ? handleSavePreset : undefined}
         savingPreset={setPreset.isPending}
         presetSaved={presetSaved}
@@ -642,7 +647,9 @@ function ToolStudio({
             <p className="mt-1.5 text-xs text-ink-faint">
               {purpose === 'commercial'
                 ? 'Showcase mode — no quizzes or AI-graded evaluations; only display templates are offered.'
-                : 'Lesson mode — evaluations and quizzes are available.'}
+                : purpose === 'walkthrough'
+                  ? 'Walkthrough mode — the AI explains and guides only; no quizzes, ends on a "visit author / go back" step.'
+                  : 'Lesson mode — evaluations and quizzes are available.'}
             </p>
           </motion.div>
         )}
@@ -827,8 +834,9 @@ function ToolStudio({
             </label>
           )}
 
-          {/* Evaluations are a lesson-only thing — hidden in showcase mode. */}
-          {purpose !== 'commercial' && (
+          {/* Evaluations are a lesson-only thing — hidden in showcase and
+              walkthrough (explanation-only) modes. */}
+          {purpose === 'education' && (
             <button
               type="button"
               role="switch"

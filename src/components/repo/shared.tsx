@@ -6,6 +6,7 @@ import {
   Wrench,
   ShoppingBag,
   BookOpen,
+  Compass,
 } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -72,6 +73,17 @@ export const TEMPLATE_META: Record<RepoTemplate, TemplateMeta> = {
     subjectLabel: 'Shop collection',
     subjectPlaceholder: 'e.g. Hand-thrown ceramics — mugs & bowls',
     audiencePlaceholder: 'e.g. gift hunters',
+  },
+  walkthrough: {
+    label: 'Walkthrough',
+    icon: Compass,
+    caption: 'Sections → Topics → Explanations',
+    unitNoun: 'Section',
+    lessonNoun: 'Topic',
+    objectiveNoun: 'Explanation',
+    subjectLabel: 'What to walk through',
+    subjectPlaceholder: 'e.g. How our onboarding works, explained end to end',
+    audiencePlaceholder: 'e.g. brand-new users',
   },
   other: {
     label: 'Other',

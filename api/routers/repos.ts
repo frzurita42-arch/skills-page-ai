@@ -567,10 +567,12 @@ export const reposRouter = createRouter({
         lessonSeqTotal,
       };
 
+      const purpose = repoPurpose(repo.template);
       let commercial: import("@contracts/types").CommercialInfo | null = null;
-      if (repoPurpose(repo.template) === "commercial" && repo.ownerId) {
+      let walkthrough: import("@contracts/types").WalkthroughInfo | null = null;
+      if (repo.ownerId && (purpose === "commercial" || purpose === "walkthrough")) {
         const owner = await db.query.users.findFirst({ where: eq(users.id, repo.ownerId) });
-        if (owner) {
+        if (owner && purpose === "commercial") {
           commercial = {
             owner: {
               name: owner.name,
@@ -582,6 +584,8 @@ export const reposRouter = createRouter({
             repoSlug: repo.slug,
             lessonSeq: lesson.globalSeq,
           };
+        } else if (owner && purpose === "walkthrough") {
+          walkthrough = { ownerId: owner.id, ownerName: owner.name, itemTitle: lesson.title };
         }
       }
 
@@ -590,6 +594,7 @@ export const reposRouter = createRouter({
         seed,
         toolSlug: repo.studyToolSlug ?? "",
         commercial,
+        walkthrough,
       };
     }),
 
@@ -671,6 +676,7 @@ export const reposRouter = createRouter({
         },
         toolSlug: row.toolSlug ?? repo.studyToolSlug ?? "",
         commercial: null,
+        walkthrough: null,
       };
     }),
 });

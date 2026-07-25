@@ -37,7 +37,7 @@ export default function PresetPlay() {
     );
   }
 
-  const { deck, seed, toolSlug, commercial } = query.data;
+  const { deck, seed, toolSlug, commercial, walkthrough } = query.data;
 
   return (
     <DeckPlayer
@@ -48,6 +48,7 @@ export default function PresetPlay() {
       voiceURI={null}
       nextLessonTitle={null}
       commercial={commercial}
+      walkthrough={walkthrough}
       onExit={back}
     />
   );

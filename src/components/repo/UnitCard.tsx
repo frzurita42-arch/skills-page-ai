@@ -27,7 +27,7 @@ import SketchButton from '@/components/sketch/SketchButton';
 import WashiTape from '@/components/sketch/WashiTape';
 import { DoodleCheck } from '@/components/sketch/DoodleIcons';
 import { trpc } from '@/providers/trpc';
-import type { LessonSeed, RepoLesson, RepoTemplate, RepoUnit } from '@contracts/types';
+import type { LessonSeed, RepoLesson, RepoPurpose, RepoTemplate, RepoUnit } from '@contracts/types';
 import { repoPurpose } from '@contracts/types';
 import { TEMPLATE_META, studyUrl } from './shared';
 
@@ -459,7 +459,7 @@ function LessonCard({
   seed: LessonSeed;
   objectiveLabel: string;
   studyToolSlug: string | null;
-  purpose: 'education' | 'commercial';
+  purpose: RepoPurpose;
   isNextUp: boolean;
   playedCount: number;
   isGuest: boolean;
@@ -484,7 +484,9 @@ function LessonCard({
   });
 
   const isOwner = !!controls;
-  const commercial = purpose === 'commercial';
+  // Commercial showcases AND walkthroughs share the "generate once, everyone
+  // watches the free preset" model — no quizzes, no per-viewer customization.
+  const presetOnly = purpose === 'commercial' || purpose === 'walkthrough';
   const setHref = studyToolSlug ? studyUrl(studyToolSlug, seed) : '';
   const playHref = `/repos/${seed.repoSlug}/play/${seed.lessonSeq}`;
   const editHref = `/repos/${seed.repoSlug}/play/${seed.lessonSeq}/edit`;
@@ -585,8 +587,9 @@ function LessonCard({
 
   /** The right button for this item, given purpose / ownership / preset. */
   const renderAction = () => {
-    // Menu / service / shop: generate ONCE, then everyone watches the preset.
-    if (commercial) {
+    // Menu / service / shop / walkthrough: generate ONCE, then everyone watches
+    // the preset (no quizzes, no per-viewer customization).
+    if (presetOnly) {
       if (lesson.hasPreset) {
         return (
           <span className="flex items-center gap-1.5">

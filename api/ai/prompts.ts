@@ -35,7 +35,7 @@ const TONE_DIRECTIVE: Record<string, string> = {
   scholarly:
     "a scholarly, academic register — technically precise and dense with the field's proper terminology, assuming an engaged reader. Use exact terms of art (with a brief gloss on first use), reference mechanisms and edge cases, and argue with rigour.",
 };
-export const templateSchema = z.enum(["course", "restaurant", "service", "shop", "other"]);
+export const templateSchema = z.enum(["course", "restaurant", "service", "shop", "walkthrough", "other"]);
 
 export const slideComponentSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("prose"), paragraphs: z.array(z.string().min(1)).min(1) }),
@@ -189,7 +189,7 @@ export function buildSlidesSystemPrompt(opts: {
   level: string;
   imageStyle: string;
   tone?: string;
-  purpose?: "education" | "commercial";
+  purpose?: "education" | "commercial" | "walkthrough";
   /** the exact topic/item this deck is about (e.g. a product name) */
   subject?: string;
   previouslyTaught: string | null;
@@ -197,6 +197,8 @@ export function buildSlidesSystemPrompt(opts: {
 }): string {
   const toneDirective = TONE_DIRECTIVE[opts.tone ?? "neutral"] ?? TONE_DIRECTIVE.neutral;
   const commercial = opts.purpose === "commercial";
+  // A walkthrough explains like a lesson but never tests — no quizzes at all.
+  const walkthrough = opts.purpose === "walkthrough";
   // Minimum number of DISTINCT explanatory paragraphs a teaching slide must
   // carry, scaled to the CEFR band. Higher levels demand a fuller page: an
   // advanced (C1/C2) reader gets several substantial paragraphs, not one line.
@@ -244,6 +246,16 @@ SHOWCASE MODE — this is a MENU / SERVICE / SHOP listing, NOT a lesson:
 - Keep it tight: usually 3-4 slides. Photos matter — use the image steps for vivid, specific shots of the item. Tables are for ingredients / specs / what's-included.
 - Do NOT put contact details, prices, or "order now" text in the slides — the app adds the contact/order step at the end of the presentation itself.
 - The last slide should land the pitch (why choose this), leaving the viewer ready to act.
+`
+    : ""
+}
+${
+  walkthrough
+    ? `
+WALKTHROUGH MODE — this is an EXPLANATION the viewer is guided through, NOT an evaluated lesson:
+- Teach and explain "${opts.subject ?? "the given topic"}" clearly and completely, building idea by idea, exactly like a good lesson — same depth and rigor.
+- BUT never test the viewer: emit NO quiz/evaluation on ANY slide. If a layout template lists an evaluation step, SKIP that step and end the slide on its explanatory content. Do not ask questions the viewer must answer.
+- The goal is understanding, not assessment — walk them through it and let the ideas land.
 `
     : ""
 }

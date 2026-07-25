@@ -53,7 +53,7 @@ CREATE SCHEMA IF NOT EXISTS sketchlearn;
 CREATE TYPE "sketchlearn"."role" AS ENUM ('user','moderator','admin');
 CREATE TYPE "sketchlearn"."provider" AS ENUM ('openai','anthropic','gemini','elevenlabs');
 CREATE TYPE "sketchlearn"."capability" AS ENUM ('text','image','tts');
-CREATE TYPE "sketchlearn"."template" AS ENUM ('course','restaurant','service','shop','other');
+CREATE TYPE "sketchlearn"."template" AS ENUM ('course','restaurant','service','shop','walkthrough','other');
 CREATE TYPE "sketchlearn"."level" AS ENUM ('A0','A1','A2','B1','B2','C1','C2');
 CREATE TYPE "sketchlearn"."imageStyle" AS ENUM ('sketch','watercolor','flat','photo','none');
 CREATE TYPE "sketchlearn"."status" AS ENUM ('pending','credited','rejected');

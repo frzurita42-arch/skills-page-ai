@@ -29,7 +29,7 @@ const GUEST_FREE_MESSAGES = 3;
 /* Types                                                               */
 /* ------------------------------------------------------------------ */
 
-type TemplateKind = 'course' | 'restaurant' | 'service' | 'shop';
+type TemplateKind = 'course' | 'restaurant' | 'service' | 'shop' | 'walkthrough';
 
 interface ActionCard {
   kind: 'lesson-path' | 'slide-tool' | 'resume';
@@ -78,6 +78,7 @@ const TEMPLATE_LABEL: Record<TemplateKind, string> = {
   restaurant: 'Restaurant',
   service: 'Service',
   shop: 'Shop',
+  walkthrough: 'Walkthrough',
 };
 
 /* ------------------------------------------------------------------ */
