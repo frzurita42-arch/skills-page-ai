@@ -468,6 +468,41 @@ export const reposRouter = createRouter({
       return { ok: true };
     }),
 
+  /**
+   * Owner / admin saves inline edits to an existing preset deck (title, prose,
+   * images, MCQ options, …). Unlike setLessonPreset this does NOT re-bake
+   * images — the edited deck already carries its image URLs — it just persists
+   * the edited deck, defensively stripping any education AI-graded evaluation
+   * that an edit might have introduced so the preset stays free to play.
+   */
+  updateLessonPreset: authedProcedure
+    .input(z.object({ repoSlug: z.string(), lessonSeq: z.number().int(), deck: z.unknown() }))
+    .mutation(async ({ ctx, input }): Promise<{ ok: true }> => {
+      const db = getDb();
+      const repo = await db.query.repos.findFirst({ where: eq(repos.slug, input.repoSlug) });
+      if (!repo) throw new TRPCError({ code: "NOT_FOUND", message: "Repository not found" });
+      if (!canEdit(repo, ctx.user)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only the owner can edit the preset" });
+      }
+      const lesson = await lessonBySeq(repo.id, input.lessonSeq);
+      if (!lesson) throw new TRPCError({ code: "NOT_FOUND", message: "Item not found" });
+      const deck = input.deck as SlideDeck;
+      const isEducation = repoPurpose(repo.template) === "education";
+      const cleaned: SlideDeck = {
+        ...deck,
+        slides: deck.slides.map((s) =>
+          isEducation && (s.quiz?.kind === "typed" || s.quiz?.kind === "solve")
+            ? { ...s, quiz: undefined }
+            : s,
+        ),
+      };
+      await db
+        .update(lessons)
+        .set({ presetDeckJson: cleaned, presetAt: new Date() })
+        .where(eq(lessons.id, lesson.id));
+      return { ok: true };
+    }),
+
   /** Owner removes the preset so it can be re-set. */
   deleteLessonPreset: authedProcedure
     .input(z.object({ repoSlug: z.string(), lessonSeq: z.number().int() }))

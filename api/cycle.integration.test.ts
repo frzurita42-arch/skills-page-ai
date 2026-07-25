@@ -131,6 +131,25 @@ describe.runIf(HAS_DB)("full coins ↔ tickets cycle", () => {
     (globalThis as Record<string, unknown>).__lessonSeq = lesson.globalSeq;
   });
 
+  it("2b) the owner can edit the saved preset inline; a non-owner cannot", async () => {
+    const repoSlug = (globalThis as Record<string, unknown>).__repoSlug as string;
+    const lessonSeq = (globalThis as Record<string, unknown>).__lessonSeq as number;
+    const current = await call().repos.lessonPreset({ repoSlug, lessonSeq });
+    const deck = current!.deck;
+    const edited = {
+      ...deck,
+      slides: deck.slides.map((s, i) => (i === 0 ? { ...s, title: "EDITED BY OWNER" } : s)),
+    };
+    // a non-owner student cannot edit someone else's preset
+    await expect(
+      call(student).repos.updateLessonPreset({ repoSlug, lessonSeq, deck: edited }),
+    ).rejects.toThrow(/Only the owner/);
+    // the owner can
+    await call(moderator).repos.updateLessonPreset({ repoSlug, lessonSeq, deck: edited });
+    const after = await call().repos.lessonPreset({ repoSlug, lessonSeq });
+    expect(after!.deck.slides[0].title).toBe("EDITED BY OWNER");
+  });
+
   it("3) a free user plays the preset with no credits and no tickets", async () => {
     const repoSlug = (globalThis as Record<string, unknown>).__repoSlug as string;
     const lessonSeq = (globalThis as Record<string, unknown>).__lessonSeq as number;

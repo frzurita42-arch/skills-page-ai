@@ -484,6 +484,7 @@ function LessonCard({
   const commercial = purpose === 'commercial';
   const setHref = studyToolSlug ? studyUrl(studyToolSlug, seed) : '';
   const playHref = `/repos/${seed.repoSlug}/play/${seed.lessonSeq}`;
+  const editHref = `/repos/${seed.repoSlug}/play/${seed.lessonSeq}/edit`;
 
   // How many customization tickets the signed-in viewer holds for this repo —
   // relevant whenever a non-owner could customize an education repo (whether or
@@ -528,8 +529,8 @@ function LessonCard({
                 <Clapperboard className="h-4 w-4" strokeWidth={2} /> Play
               </SketchButton>
             </Link>
-            {isOwner && studyToolSlug && (
-              <Link to={setHref} title="Edit & regenerate this preset" className="no-underline">
+            {isOwner && (
+              <Link to={editHref} title="Edit this preset's slides" className="no-underline">
                 <button
                   type="button"
                   className="rounded-wobble-sm border-2 border-pencil p-1.5 text-ink-soft transition-colors hover:border-ink hover:text-ink"
@@ -643,17 +644,15 @@ function LessonCard({
               <Clapperboard className="h-4 w-4" strokeWidth={2} /> Study
             </SketchButton>
           </Link>
-          {studyToolSlug && (
-            <Link to={setHref} title="Edit & regenerate the free preset" className="no-underline">
-              <button
-                type="button"
-                className="rounded-wobble-sm border-2 border-pencil p-1.5 text-ink-soft transition-colors hover:border-ink hover:text-ink"
-                aria-label="Edit preset"
-              >
-                <Pencil className="h-3.5 w-3.5" strokeWidth={2} />
-              </button>
-            </Link>
-          )}
+          <Link to={editHref} title="Edit the free preset's slides" className="no-underline">
+            <button
+              type="button"
+              className="rounded-wobble-sm border-2 border-pencil p-1.5 text-ink-soft transition-colors hover:border-ink hover:text-ink"
+              aria-label="Edit preset"
+            >
+              <Pencil className="h-3.5 w-3.5" strokeWidth={2} />
+            </button>
+          </Link>
           <button
             type="button"
             onClick={() => deletePreset.mutate({ repoSlug: seed.repoSlug, lessonSeq: seed.lessonSeq })}

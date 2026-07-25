@@ -29,6 +29,7 @@ import RepoLeadsPanel from '@/components/repo/RepoLeadsPanel';
 import RepoTicketsPanel from '@/components/repo/RepoTicketsPanel';
 import { repoPurpose } from '@contracts/types';
 import LessonRunsTable from '@/components/repo/LessonRunsTable';
+import SavedPresentationsTable from '@/components/repo/SavedPresentationsTable';
 import UnitCard from '@/components/repo/UnitCard';
 import {
   SketchToaster,
@@ -436,6 +437,16 @@ export default function Repository() {
         ))}
         {canEdit && <AddUnitCard slug={data.slug} unitNoun={meta.unitNoun} />}
       </section>
+
+      {/* saved (set) presentations — free to play */}
+      <div className="mt-10">
+        <SavedPresentationsTable
+          slug={data.slug}
+          template={data.template}
+          canEdit={canEdit}
+          units={data.units}
+        />
+      </div>
 
       {/* lesson runs */}
       <div className="mt-10">
