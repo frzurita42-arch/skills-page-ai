@@ -25,6 +25,24 @@ function toSessionUser(u: User): SessionUser {
 
 const STARTER_TOKENS = 50;
 
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new TRPCError({ code: "INTERNAL_SERVER_ERROR", message }));
+    }, ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 export const authRouter = createRouter({
   register: publicQuery
     .input(
@@ -77,13 +95,25 @@ export const authRouter = createRouter({
       const lowered = identifier.toLowerCase();
       let user: User | undefined;
       if (identifier.includes("@")) {
-        user = await db.query.users.findFirst({ where: eq(users.email, lowered) });
+        user = await withTimeout(
+          db.query.users.findFirst({ where: eq(users.email, lowered) }),
+          8000,
+          "Sign-in is taking too long. Please try again.",
+        );
       } else if (lowered === "admin") {
-        user = await db.query.users.findFirst({ where: eq(users.email, "admin@sketchlearn.app") });
+        user = await withTimeout(
+          db.query.users.findFirst({ where: eq(users.email, "admin@sketchlearn.app") }),
+          8000,
+          "Sign-in is taking too long. Please try again.",
+        );
       } else {
-        user = await db.query.users.findFirst({
-          where: sql`LOWER(${users.name}) = ${lowered}`,
-        });
+        user = await withTimeout(
+          db.query.users.findFirst({
+            where: sql`LOWER(${users.name}) = ${lowered}`,
+          }),
+          8000,
+          "Sign-in is taking too long. Please try again.",
+        );
       }
       if (!user || !verifyPassword(input.password, user.passwordHash)) {
         throw new TRPCError({ code: "UNAUTHORIZED", message: "Email or password doesn't match" });

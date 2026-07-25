@@ -21,6 +21,22 @@ function passwordStrength(pw: string): 0 | 1 | 2 | 3 {
   return Math.min(3, score) as 0 | 1 | 2 | 3;
 }
 
+function normalizeAuthErrorMessage(err: unknown): string {
+  const raw = err instanceof Error ? err.message : 'Something went wrong';
+  const cleaned = raw.replace(/^TRPCError:|^\[\w+\]\s*/g, '').slice(0, 220);
+  const lowered = cleaned.toLowerCase();
+  if (
+    lowered.includes('not valid json') ||
+    lowered.includes('unexpected token') ||
+    lowered.includes('gateway timeout') ||
+    lowered.includes('an error occurred with your deployment') ||
+    lowered.includes('timed out')
+  ) {
+    return 'Sign-in service timed out. Please try again in a few seconds.';
+  }
+  return cleaned;
+}
+
 export default function Auth() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -88,8 +104,7 @@ export default function Auth() {
       setFailures(0);
       navigate(next, { replace: true });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Something went wrong';
-      setServerError(msg.replace(/^TRPCError:|^\[\w+\]\s*/g, '').slice(0, 160));
+      setServerError(normalizeAuthErrorMessage(err));
       const n = failures + 1;
       setFailures(n);
       if (n >= MAX_FAILURES) {
