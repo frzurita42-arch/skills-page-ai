@@ -188,10 +188,14 @@ function SeedBanner({
 function ToolStudio({
   tool,
   seed,
+  configureIntent = false,
   onDismissSeed,
 }: {
   tool: SlideToolSummary;
   seed: LessonSeed | null;
+  /** arrived via a "Configure" link — generate a personal customization, never
+   *  the repo preset (even for the owner/admin). */
+  configureIntent?: boolean;
   onDismissSeed: () => void;
 }) {
   const { user, isGuest, role } = useAuth();
@@ -324,7 +328,7 @@ function ToolStudio({
 
   const runGenerate = () => {
     canceledRef.current = false;
-    const isSet = canSetPreset && !!seed;
+    const isSet = canPublishPreset && !!seed;
     setFlowRef.current = isSet;
     customizeFlowRef.current = !!seed && !isSet && !isGuest;
     setTheaterDone(false);
@@ -404,6 +408,9 @@ function ToolStudio({
   // are stripped on save) alongside the paid "Customize" path.
   const isOwner = !!seed && (repoQuery.data?.ownerId === user?.id || role === 'admin');
   const canSetPreset = !!seed && isOwner;
+  // A "Configure" link means "make MY own version", so even an owner's
+  // generation is saved as a personal customization, never the repo preset.
+  const canPublishPreset = canSetPreset && !configureIntent;
   const handleSavePreset = () => {
     if (!seed || !result) return;
     setPreset.mutate(
@@ -470,7 +477,7 @@ function ToolStudio({
         nextLessonTitle={nextLessonTitle}
         scratchpadEnabled={useScratchpad}
         commercial={result.commercial}
-        onSavePreset={canSetPreset ? handleSavePreset : undefined}
+        onSavePreset={canPublishPreset ? handleSavePreset : undefined}
         savingPreset={setPreset.isPending}
         presetSaved={presetSaved}
         onExit={() => {
@@ -968,12 +975,22 @@ function ToolStudio({
             loading={generate.isPending}
             onClick={runGenerate}
           >
-            {canSetPreset ? 'Generate & set preset' : 'Generate presentation'}
+            {canPublishPreset
+              ? 'Generate & set preset'
+              : configureIntent && seed
+                ? 'Generate my version'
+                : 'Generate presentation'}
           </SketchButton>
-          {canSetPreset && (
+          {canPublishPreset && (
             <p className="text-center text-xs text-ink-faint">
               Saves the free version and returns to the repo — no AI-graded activities are included,
               so anyone can play it for free.
+            </p>
+          )}
+          {configureIntent && seed && (
+            <p className="text-center text-xs text-ink-faint">
+              Generates your own configured version and saves it to this lesson — play it anytime
+              from the repo.
             </p>
           )}
           {isGuest && (
@@ -1083,6 +1100,7 @@ export default function SlideTool() {
       key={`${toolQuery.data.slug}-${seed ? 'seeded' : 'direct'}`}
       tool={toolQuery.data}
       seed={seed}
+      configureIntent={searchParams.get('intent') === 'configure'}
       onDismissSeed={dismissSeed}
     />
   );

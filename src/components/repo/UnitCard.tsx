@@ -17,6 +17,7 @@ import {
   Square,
   Ticket,
   Trash2,
+  Wand2,
   X,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -503,6 +504,68 @@ function LessonCard({
     onError: (e) => toast.error(e.message),
   });
 
+  // "Configure" — generate your OWN playable slide with the settings you like.
+  // The intent flag makes the slide tool save it as a personal customization
+  // (not the repo preset), so even the owner/admin can make their own version.
+  const configureHref = studyToolSlug ? `${setHref}&intent=configure` : '';
+  const cfgChip =
+    'micro flex items-center gap-1 rounded-wobble-sm border border-ink bg-blue-soft px-1.5 py-0.5 text-[0.58rem] font-semibold text-ink no-underline transition-colors hover:bg-blue/20';
+  const cfgChipDashed =
+    'micro flex items-center gap-1 rounded-wobble-sm border border-dashed border-pencil px-1.5 py-0.5 text-[0.58rem] font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink';
+
+  /** Meta-row control: configure your own playable slide (+ play your saved one). */
+  const configureMeta = () => {
+    if (purpose !== 'education') return null;
+    if (isGuest)
+      return (
+        <button type="button" onClick={onGuestStudy} className={cfgChipDashed} title="Sign in to configure your own version">
+          <Wand2 className="h-3 w-3" strokeWidth={2} /> Configure
+        </button>
+      );
+    if (!studyToolSlug) return null;
+    const hasCfg = lesson.myHasCustomization;
+    // Owner/admin can configure without a ticket (charged to their credits);
+    // a non-owner spends a moderator-issued ticket.
+    const canNow = isOwner || ticketCount > 0;
+    return (
+      <span className="flex items-center gap-1">
+        {hasCfg && (
+          <Link to={mineHref} className={cfgChip} title="Play the version you configured">
+            <Sparkles className="h-3 w-3" strokeWidth={2} /> Play yours
+          </Link>
+        )}
+        {canNow ? (
+          <Link
+            to={configureHref}
+            className={cfgChip}
+            title={
+              isOwner
+                ? 'Generate your own configured version (uses your credits)'
+                : `Configure your own version — you have ${ticketCount} ticket${ticketCount === 1 ? '' : 's'}`
+            }
+          >
+            <Wand2 className="h-3 w-3" strokeWidth={2} /> {hasCfg ? 'Reconfigure' : 'Configure'}
+            {!isOwner && (
+              <span className="rounded-full bg-green-soft px-1 text-[0.5rem] font-bold text-green">
+                {ticketCount}
+              </span>
+            )}
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={() => requestTickets.mutate({ repoSlug: seed.repoSlug, count: 1, note: '' })}
+            disabled={requestTickets.isPending}
+            className={cfgChipDashed}
+            title="Ask the repo's owner for a customization ticket"
+          >
+            <Ticket className="h-3 w-3" strokeWidth={2} /> Request ticket
+          </button>
+        )}
+      </span>
+    );
+  };
+
   const studyTitle =
     playedCount > 0
       ? `Opens the slide tool with this lesson's prompt · Builds on ${playedCount} completed lesson${playedCount === 1 ? '' : 's'} ✦`
@@ -596,61 +659,6 @@ function LessonCard({
         <ActionBtn label={label} title={title} />
       );
 
-    // A non-owner's ticket-gated customization control. Once they've saved a
-    // customization it splits into two: play their version, or spend a ticket
-    // to generate a new one that replaces it.
-    const ticketAction = (label: string, accent: boolean) =>
-      ticketCount > 0 ? (
-        <Link
-          to={setHref}
-          title={`Generate your own custom version — you have ${ticketCount} ticket${ticketCount === 1 ? '' : 's'} for this repo`}
-          className="no-underline"
-        >
-          <SketchButton variant={accent ? 'accent' : 'secondary'} size="sm">
-            <Ticket className="h-4 w-4" strokeWidth={2} /> {label}
-            <span className="ml-0.5 rounded-full bg-paper/30 px-1 text-[0.6rem] font-bold">
-              {ticketCount}
-            </span>
-          </SketchButton>
-        </Link>
-      ) : (
-        <button
-          type="button"
-          onClick={() => requestTickets.mutate({ repoSlug: seed.repoSlug, count: 1, note: '' })}
-          disabled={requestTickets.isPending}
-          title="Ask the repo's owner for a customization ticket to generate your own version"
-          className="flex items-center gap-1 rounded-wobble-sm border-2 border-dashed border-pencil px-2.5 py-1.5 font-heading text-sm font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink"
-        >
-          <Ticket className="h-4 w-4" strokeWidth={2} /> Request ticket
-        </button>
-      );
-
-    const customizeControl = () => {
-      if (isGuest)
-        return (
-          <span onClick={onGuestStudy}>
-            <SketchButton variant="accent" size="sm">
-              <Ticket className="h-4 w-4" strokeWidth={2} /> Configure
-            </SketchButton>
-          </span>
-        );
-      if (!studyToolSlug) return null;
-      // Already has a saved configuration → play it, or configure a new one.
-      if (lesson.myHasCustomization) {
-        return (
-          <>
-            <Link to={mineHref} title="Play the version you configured" className="no-underline">
-              <SketchButton variant="accent" size="sm">
-                <Sparkles className="h-4 w-4" strokeWidth={2} /> Play yours
-              </SketchButton>
-            </Link>
-            {ticketAction('Configure', false)}
-          </>
-        );
-      }
-      return ticketAction('Configure', true);
-    };
-
     // Owner: build / edit the free preset with their own credits.
     if (isOwner) {
       if (!lesson.hasPreset)
@@ -688,21 +696,19 @@ function LessonCard({
       );
     }
 
-    // Non-owner with a free preset: watch it free, or spend a ticket to customize.
+    // Non-owner with a free preset: watch it free. Configuring their own paid
+    // version lives in the meta row (next to the status stickers).
     if (lesson.hasPreset) {
       return (
-        <span className="flex items-center gap-1.5">
-          <Link to={playHref} className="no-underline">
-            <SketchButton variant="accent" size="sm" title="Watch the free version — no credits needed">
-              <Clapperboard className="h-4 w-4" strokeWidth={2} /> Play
-            </SketchButton>
-          </Link>
-          {customizeControl()}
-        </span>
+        <Link to={playHref} className="no-underline">
+          <SketchButton variant="accent" size="sm" title="Watch the free version — no credits needed">
+            <Clapperboard className="h-4 w-4" strokeWidth={2} /> Play
+          </SketchButton>
+        </Link>
       );
     }
-    // Non-owner, no free preset: the only path is a ticket-gated customization.
-    return customizeControl();
+    // Non-owner, no free preset: configuring (meta row) is the only path.
+    return null;
   };
 
   const saveObjective = () => {
@@ -773,6 +779,8 @@ function LessonCard({
             <PencilRuler className="h-3 w-3" /> Manual
           </Link>
         )}
+        {/* configure your own playable slide (education), next to the stickers */}
+        {configureMeta()}
         {/* best-run meta: the HIGHEST score's level + time, how many times the
             viewer has played it, and a link to replay that best run's
             answers (only once the viewer has played it) */}
