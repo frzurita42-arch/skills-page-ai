@@ -86,11 +86,20 @@ export const paymentsRouter = createRouter({
         payment.packTokens,
         `payment #${payment.id} approved (${payment.packId})`,
       );
+      // Buying credits is what turns a plain user into a moderator (they run
+      // repos and sell customizations). Admins keep their role; a user is
+      // demoted back automatically once the balance runs out (see applyTokenDelta).
+      const buyer = await db.query.users.findFirst({ where: eq(users.id, payment.userId) });
+      let promoted = false;
+      if (buyer && buyer.role === "user" && balance > 0) {
+        await db.update(users).set({ role: "moderator" }).where(eq(users.id, buyer.id));
+        promoted = true;
+      }
       await db
         .update(payments)
         .set({ status: "credited", resolvedBy: ctx.user.id, resolvedAt: new Date() })
         .where(eq(payments.id, payment.id));
-      return { ok: true as const, balance };
+      return { ok: true as const, balance, promoted };
     }),
 
   reject: moderatorProcedure
