@@ -18,7 +18,7 @@ let listenerPromise: Promise<NodeListener> | null = null;
 
 async function buildListener(): Promise<NodeListener> {
   const { getRequestListener } = await import("@hono/node-server");
-  const app = (await import("./app")).default;
+  const app = (await import("./app.js")).default;
   return getRequestListener(app.fetch);
 }
 
