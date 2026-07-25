@@ -4,10 +4,10 @@ import { and, eq, like, or, desc } from "drizzle-orm";
 import { createRouter, publicQuery } from "../middleware.js";
 import { authedProcedure } from "../procedures.js";
 import { getDb } from "../queries/connection.js";
-import { favorites, runs, slideTools, users, type SlideTool, type User } from "@db/schema";
+import { favorites, runs, slideTools, users, type SlideTool, type User } from "../../db/schema.js";
 import { imageStyleSchema, levelSchema, slugify, templateSchema } from "../ai/prompts.js";
-import { TONES, repoPurpose } from "@contracts/types";
-import type { RepoTemplate, SlideDeck, SlideToolSummary, Tone } from "@contracts/types";
+import { TONES, repoPurpose } from "../../contracts/types.js";
+import type { RepoTemplate, SlideDeck, SlideToolSummary, Tone } from "../../contracts/types.js";
 
 const toneSchema = z.string().refine((t) => (TONES as string[]).includes(t), "unknown tone");
 
@@ -189,8 +189,8 @@ export const slideToolsRouter = createRouter({
       }): Promise<{
         deck: SlideDeck;
         name: string;
-        commercial: import("@contracts/types").CommercialInfo | null;
-        walkthrough: import("@contracts/types").WalkthroughInfo | null;
+        commercial: import("../../contracts/types.js").CommercialInfo | null;
+        walkthrough: import("../../contracts/types.js").WalkthroughInfo | null;
       } | null> => {
         const db = getDb();
         const tool = await db.query.slideTools.findFirst({ where: eq(slideTools.slug, input.slug) });
@@ -198,8 +198,8 @@ export const slideToolsRouter = createRouter({
         if (!tool.isPublic && (!ctx.user || !canEdit(tool, ctx.user))) return null;
 
         const purpose = repoPurpose((tool.template ?? "course") as RepoTemplate);
-        let commercial: import("@contracts/types").CommercialInfo | null = null;
-        let walkthrough: import("@contracts/types").WalkthroughInfo | null = null;
+        let commercial: import("../../contracts/types.js").CommercialInfo | null = null;
+        let walkthrough: import("../../contracts/types.js").WalkthroughInfo | null = null;
         if (purpose !== "education" && tool.ownerId) {
           const owner = await db.query.users.findFirst({ where: eq(users.id, tool.ownerId) });
           if (owner && purpose === "commercial") {

@@ -6,10 +6,10 @@ import type {
   SlideDeck,
   Slide,
   SlideComponent,
-} from "@contracts/types";
+} from "../../contracts/types.js";
 import type { LessonPathDraft } from "./prompts.js";
-import { isStemTopic } from "@contracts/stem";
-import { levelTier } from "@contracts/types";
+import { isStemTopic } from "../../contracts/stem.js";
+import { levelTier } from "../../contracts/types.js";
 
 /* ------------------------------------------------------------------ */
 /* Deterministic pseudo-generation — the platform is fully demo-able    */

@@ -3,9 +3,9 @@ import { desc, eq } from "drizzle-orm";
 import { createRouter, publicQuery } from "../middleware.js";
 import { authedProcedure } from "../procedures.js";
 import { getDb } from "../queries/connection.js";
-import { tokenLedger } from "@db/schema";
+import { tokenLedger } from "../../db/schema.js";
 import { getSettings } from "../settings.js";
-import type { TokenLedgerRow } from "@contracts/types";
+import type { TokenLedgerRow } from "../../contracts/types.js";
 
 export const tokensRouter = createRouter({
   /** Current balance + recent ledger entries. */

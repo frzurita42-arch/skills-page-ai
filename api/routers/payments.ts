@@ -4,10 +4,10 @@ import { desc, eq } from "drizzle-orm";
 import { createRouter } from "../middleware.js";
 import { authedProcedure, moderatorProcedure } from "../procedures.js";
 import { getDb } from "../queries/connection.js";
-import { payments, users, type Payment } from "@db/schema";
+import { payments, users, type Payment } from "../../db/schema.js";
 import { getSettings } from "../settings.js";
 import { applyTokenDelta } from "../tokens.js";
-import type { PaymentRow } from "@contracts/types";
+import type { PaymentRow } from "../../contracts/types.js";
 
 async function toPaymentRow(db: ReturnType<typeof getDb>, p: Payment): Promise<PaymentRow> {
   const user = await db.query.users.findFirst({ where: eq(users.id, p.userId) });

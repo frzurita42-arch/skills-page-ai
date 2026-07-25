@@ -4,9 +4,9 @@ import { eq, sql } from "drizzle-orm";
 import { createRouter, publicQuery } from "../middleware.js";
 import { authedProcedure } from "../procedures.js";
 import { getDb } from "../queries/connection.js";
-import { users, tokenLedger, type User } from "@db/schema";
+import { users, tokenLedger, type User } from "../../db/schema.js";
 import { hashPassword, verifyPassword, signAuthToken } from "../auth-utils.js";
-import type { SessionUser } from "@contracts/types";
+import type { SessionUser } from "../../contracts/types.js";
 
 function toSessionUser(u: User): SessionUser {
   return {

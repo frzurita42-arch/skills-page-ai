@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { createRouter, publicQuery } from "../middleware.js";
 import { authedProcedure } from "../procedures.js";
 import { getDb } from "../queries/connection.js";
-import { slideTemplates, users } from "@db/schema";
+import { slideTemplates, users } from "../../db/schema.js";
 import {
   BUILTIN_SLIDE_TEMPLATES,
   GRADABLE_TYPES,
@@ -12,7 +12,7 @@ import {
   TEMPLATE_LEVELS,
   type SlideTemplate,
   type TemplateLevel,
-} from "@contracts/slide-templates";
+} from "../../contracts/slide-templates.js";
 
 const componentSchema = z.enum(TEMPLATE_COMPONENT_TYPES);
 const levelSchema = z.enum(TEMPLATE_LEVELS as [TemplateLevel, ...TemplateLevel[]]);

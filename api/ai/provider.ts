@@ -1,8 +1,8 @@
 import { getDb } from "../queries/connection.js";
-import { apiKeys } from "@db/schema";
+import { apiKeys } from "../../db/schema.js";
 import { and, eq } from "drizzle-orm";
 import { getSettings } from "../settings.js";
-import type { AiCapability, AiProvider } from "@contracts/types";
+import type { AiCapability, AiProvider } from "../../contracts/types.js";
 
 /* ------------------------------------------------------------------ */
 /* Pluggable text-completion provider layer.                            */

@@ -4,11 +4,11 @@ import { and, desc, eq, like, or } from "drizzle-orm";
 import { createRouter, publicQuery } from "../middleware.js";
 import { adminProcedure, authedProcedure, moderatorProcedure } from "../procedures.js";
 import { getDb } from "../queries/connection.js";
-import { favorites, repos, runs, slideTools, users } from "@db/schema";
+import { favorites, repos, runs, slideTools, users } from "../../db/schema.js";
 import { applyTokenDelta } from "../tokens.js";
 import { favoriteSlugs, repoSummaries } from "./repos.js";
 import { toSummary as slideToolSummary } from "./slideTools.js";
-import type { AdminUserRow, DirectoryUser, RepoTemplate, UserProfile } from "@contracts/types";
+import type { AdminUserRow, DirectoryUser, RepoTemplate, UserProfile } from "../../contracts/types.js";
 
 async function toRow(db: ReturnType<typeof getDb>, u: typeof users.$inferSelect): Promise<AdminUserRow> {
   const userRuns = await db.select({ id: runs.id }).from(runs).where(eq(runs.userId, u.id));

@@ -15,13 +15,13 @@ import {
   users,
   type Repo,
   type User,
-} from "@db/schema";
+} from "../../db/schema.js";
 import { repoRef, slugify, templateSchema } from "../ai/prompts.js";
 import { generateImage } from "../ai/provider.js";
 import { courseMemory } from "../memory.js";
-import { isPassingScore } from "@contracts/progress";
-import { repoPurpose } from "@contracts/types";
-import type { RepoDetail, RepoLesson, RepoSummary, RepoUnit, LessonRunRow, Level, SlideDeck, RepoPurpose } from "@contracts/types";
+import { isPassingScore } from "../../contracts/progress.js";
+import { repoPurpose } from "../../contracts/types.js";
+import type { RepoDetail, RepoLesson, RepoSummary, RepoUnit, LessonRunRow, Level, SlideDeck, RepoPurpose } from "../../contracts/types.js";
 
 /**
  * Prepare a deck for saving as a preset:
@@ -540,7 +540,7 @@ export const reposRouter = createRouter({
   /** Load an item's saved preset to watch (no generation, no charge). */
   lessonPreset: publicQuery
     .input(z.object({ repoSlug: z.string(), lessonSeq: z.number().int() }))
-    .query(async ({ ctx, input }): Promise<import("@contracts/types").LessonPreset | null> => {
+    .query(async ({ ctx, input }): Promise<import("../../contracts/types.js").LessonPreset | null> => {
       const db = getDb();
       const repo = await db.query.repos.findFirst({ where: eq(repos.slug, input.repoSlug) });
       if (!repo) return null;
@@ -568,8 +568,8 @@ export const reposRouter = createRouter({
       };
 
       const purpose = repoPurpose(repo.template);
-      let commercial: import("@contracts/types").CommercialInfo | null = null;
-      let walkthrough: import("@contracts/types").WalkthroughInfo | null = null;
+      let commercial: import("../../contracts/types.js").CommercialInfo | null = null;
+      let walkthrough: import("../../contracts/types.js").WalkthroughInfo | null = null;
       if (repo.ownerId && purpose === "commercial") {
         const owner = await db.query.users.findFirst({ where: eq(users.id, repo.ownerId) });
         if (owner) {
@@ -599,7 +599,7 @@ export const reposRouter = createRouter({
       }
 
       return {
-        deck: lesson.presetDeckJson as import("@contracts/types").SlideDeck,
+        deck: lesson.presetDeckJson as import("../../contracts/types.js").SlideDeck,
         seed,
         toolSlug: repo.studyToolSlug ?? "",
         commercial,
@@ -652,7 +652,7 @@ export const reposRouter = createRouter({
   /** Load the signed-in user's saved customization of a lesson (replay it free). */
   myCustomization: authedProcedure
     .input(z.object({ repoSlug: z.string(), lessonSeq: z.number().int() }))
-    .query(async ({ ctx, input }): Promise<import("@contracts/types").LessonPreset | null> => {
+    .query(async ({ ctx, input }): Promise<import("../../contracts/types.js").LessonPreset | null> => {
       const db = getDb();
       const repo = await db.query.repos.findFirst({ where: eq(repos.slug, input.repoSlug) });
       if (!repo) return null;

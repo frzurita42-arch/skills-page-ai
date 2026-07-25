@@ -4,7 +4,7 @@ import { asc, eq, inArray } from "drizzle-orm";
 import { createRouter } from "../middleware.js";
 import { authedProcedure } from "../procedures.js";
 import { getDb } from "../queries/connection.js";
-import { lessons, repos, units, type Repo, type User } from "@db/schema";
+import { lessons, repos, units, type Repo, type User } from "../../db/schema.js";
 
 /* ------------------------------------------------------------------ */
 /* Ownership helpers — every mutation verifies owner-or-admin via the  */

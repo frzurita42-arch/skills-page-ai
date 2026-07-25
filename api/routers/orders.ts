@@ -3,8 +3,8 @@ import { and, desc, eq } from "drizzle-orm";
 import { createRouter, publicQuery } from "../middleware.js";
 import { authedProcedure } from "../procedures.js";
 import { getDb } from "../queries/connection.js";
-import { orders, repos } from "@db/schema";
-import type { OrderLead } from "@contracts/types";
+import { orders, repos } from "../../db/schema.js";
+import type { OrderLead } from "../../contracts/types.js";
 
 /**
  * Leads from commercial (menu/service/shop) presentations: a viewer taps

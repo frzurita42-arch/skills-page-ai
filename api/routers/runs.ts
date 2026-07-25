@@ -4,9 +4,9 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { createRouter, publicQuery } from "../middleware.js";
 import { authedProcedure, moderatorProcedure } from "../procedures.js";
 import { getDb } from "../queries/connection.js";
-import { lessons, repos, runs, slideTools, units, lessonLogs } from "@db/schema";
+import { lessons, repos, runs, slideTools, units, lessonLogs } from "../../db/schema.js";
 import { imageStyleSchema, levelSchema } from "../ai/prompts.js";
-import type { LessonLogSlide, RunDetail, RunReplay, RunRow, RunSlideDetail, SlideDeck } from "@contracts/types";
+import type { LessonLogSlide, RunDetail, RunReplay, RunRow, RunSlideDetail, SlideDeck } from "../../contracts/types.js";
 
 const perSlideSchema = z.object({
   title: z.string(),

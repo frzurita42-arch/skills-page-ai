@@ -4,10 +4,10 @@ import { and, desc, eq } from "drizzle-orm";
 import { createRouter } from "../middleware.js";
 import { authedProcedure, moderatorProcedure, adminProcedure } from "../procedures.js";
 import { getDb } from "../queries/connection.js";
-import { repos, ticketRequests, tickets, users } from "@db/schema";
+import { repos, ticketRequests, tickets, users } from "../../db/schema.js";
 import { ticketPrice } from "../cost.js";
 import { countAvailable, grantToUser, sellToModerator } from "../tickets.js";
-import type { MyTicketGroup, TicketRequestRow } from "@contracts/types";
+import type { MyTicketGroup, TicketRequestRow } from "../../contracts/types.js";
 
 export const ticketsRouter = createRouter({
   /** Live credit price of one customization ticket. */

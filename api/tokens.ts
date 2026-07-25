@@ -1,5 +1,5 @@
 import { getDb } from "./queries/connection.js";
-import { users, tokenLedger } from "@db/schema";
+import { users, tokenLedger } from "../db/schema.js";
 import { eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 

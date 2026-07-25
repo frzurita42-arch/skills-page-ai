@@ -1,7 +1,7 @@
 import { getDb } from "./queries/connection.js";
-import { settings } from "@db/schema";
+import { settings } from "../db/schema.js";
 import { eq } from "drizzle-orm";
-import type { AppSettings } from "@contracts/types";
+import type { AppSettings } from "../contracts/types.js";
 
 export const SETTINGS_KEY = "app";
 

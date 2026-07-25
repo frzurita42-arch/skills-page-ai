@@ -3,9 +3,9 @@ import { desc, eq, gte } from "drizzle-orm";
 import { createRouter } from "../middleware.js";
 import { adminProcedure, moderatorProcedure } from "../procedures.js";
 import { getDb } from "../queries/connection.js";
-import { payments, repos, runs, slideTools, tokenLedger, users } from "@db/schema";
+import { payments, repos, runs, slideTools, tokenLedger, users } from "../../db/schema.js";
 import { getSettings, saveSettings } from "../settings.js";
-import type { AdminDashboard, AiProvider, AppSettings, RunRow } from "@contracts/types";
+import type { AdminDashboard, AiProvider, AppSettings, RunRow } from "../../contracts/types.js";
 
 const settingsSchema = z.object({
   tokenPacks: z

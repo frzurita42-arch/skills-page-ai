@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { getDb } from "./queries/connection.js";
-import { tickets, tokenLedger, users } from "@db/schema";
+import { tickets, tokenLedger, users } from "../db/schema.js";
 import { ticketPrice } from "./cost.js";
 
 /** How many unused tickets a user holds for one repo. */

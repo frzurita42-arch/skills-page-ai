@@ -4,10 +4,10 @@ import { and, eq } from "drizzle-orm";
 import { createRouter } from "../middleware.js";
 import { authedProcedure } from "../procedures.js";
 import { getDb } from "../queries/connection.js";
-import { apiKeys } from "@db/schema";
+import { apiKeys } from "../../db/schema.js";
 import { maskApiKey } from "../auth-utils.js";
 import { testKey } from "../ai/provider.js";
-import type { ApiKeyRow } from "@contracts/types";
+import type { ApiKeyRow } from "../../contracts/types.js";
 
 const providerSchema = z.enum(["openai", "anthropic", "gemini", "elevenlabs"]);
 const capabilitySchema = z.enum(["text", "image", "tts"]);

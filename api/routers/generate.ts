@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { createRouter, publicQuery } from "../middleware.js";
 import { authedProcedure, moderatorProcedure } from "../procedures.js";
 import { getDb } from "../queries/connection.js";
-import { lessons, repos, slideTools, units, users, type Repo } from "@db/schema";
+import { lessons, repos, slideTools, units, users, type Repo } from "../../db/schema.js";
 import { completeText, completeVision, generateImage, resolveProviderName, userHasKey, webResearch, type VisionImage } from "../ai/provider.js";
 import { mockCoachReply, mockDeck, mockLessonPath } from "../ai/mock.js";
 import {
@@ -37,10 +37,10 @@ import {
   bestMatchingTemplate,
   GRADABLE_TYPES,
   TEMPLATE_COMPONENT_LABELS,
-} from "@contracts/slide-templates";
-import { isStemTopic } from "@contracts/stem";
-import { typedOverlapCorrect } from "@contracts/grade";
-import { repoPurpose, templateFilterPurpose, type CoachReply, type SlideDeck } from "@contracts/types";
+} from "../../contracts/slide-templates.js";
+import { isStemTopic } from "../../contracts/stem.js";
+import { typedOverlapCorrect } from "../../contracts/grade.js";
+import { repoPurpose, templateFilterPurpose, type CoachReply, type SlideDeck } from "../../contracts/types.js";
 
 const GUEST_MAX_SLIDES = 6;
 const MAX_SLIDES = 15;
@@ -361,9 +361,9 @@ export const generateRouter = createRouter({
       cost: number;
       balance: number | null;
       previouslyTaught: string | null;
-      slidePlan: import("@contracts/types").SlidePlanInfo[];
-      commercial: import("@contracts/types").CommercialInfo | null;
-      walkthrough: import("@contracts/types").WalkthroughInfo | null;
+      slidePlan: import("../../contracts/types.js").SlidePlanInfo[];
+      commercial: import("../../contracts/types.js").CommercialInfo | null;
+      walkthrough: import("../../contracts/types.js").WalkthroughInfo | null;
     }> => {
       const db = getDb();
       const tool = await db.query.slideTools.findFirst({
@@ -384,9 +384,9 @@ export const generateRouter = createRouter({
       // Base purpose from the tool's own category (course = education,
       // restaurant/service/shop = commercial); a seed repo or an explicit
       // override refine it below.
-      let purpose: import("@contracts/types").RepoPurpose = repoPurpose(tool.template);
-      let commercial: import("@contracts/types").CommercialInfo | null = null;
-      let walkthrough: import("@contracts/types").WalkthroughInfo | null = null;
+      let purpose: import("../../contracts/types.js").RepoPurpose = repoPurpose(tool.template);
+      let commercial: import("../../contracts/types.js").CommercialInfo | null = null;
+      let walkthrough: import("../../contracts/types.js").WalkthroughInfo | null = null;
       let seedRepo: Repo | null = null;
       if (input.seed) {
         const repo = await db.query.repos.findFirst({ where: eq(repos.slug, input.seed.repoSlug) });
@@ -629,7 +629,7 @@ export const generateRouter = createRouter({
       let deck: SlideDeck | null = null;
       let lastAttempt: SlideDeck | null = null; // best non-conforming try, as a fallback
       let usedMock = false;
-      let textProvider: import("@contracts/types").AiProvider | null = null;
+      let textProvider: import("../../contracts/types.js").AiProvider | null = null;
       // A pinned SLIDE PLAN is an explicit user request, so give the model
       // more chances to honor it exactly before we accept a miss.
       const hasPlan = pinnedPlan.some(Boolean);

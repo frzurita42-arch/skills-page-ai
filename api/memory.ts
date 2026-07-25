@@ -1,7 +1,7 @@
 import { getDb } from "./queries/connection.js";
-import { lessons, units, lessonLogs } from "@db/schema";
+import { lessons, units, lessonLogs } from "../db/schema.js";
 import { and, eq, inArray, lt } from "drizzle-orm";
-import type { CourseMemoryEntry, LessonLogSlide } from "@contracts/types";
+import type { CourseMemoryEntry, LessonLogSlide } from "../contracts/types.js";
 
 /**
  * Build the "PREVIOUSLY TAUGHT" block for a repo lesson: titles, taught
