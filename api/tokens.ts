@@ -30,10 +30,20 @@ export async function applyTokenDelta(
     if (!user) throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
     const next = user.tokenBalance + delta;
     if (next < 0) throw new InsufficientTokensError(user.tokenBalance, -delta);
-    await tx.update(users).set({ tokenBalance: next }).where(eq(users.id, userId));
+    // Being a moderator requires available credits. A moderator whose balance
+    // runs out is automatically demoted back to a regular user. Admins are
+    // never demoted this way.
+    const demote = user.role === "moderator" && next <= 0;
+    await tx
+      .update(users)
+      .set({ tokenBalance: next, ...(demote ? { role: "user" as const } : {}) })
+      .where(eq(users.id, userId));
     await tx
       .insert(tokenLedger)
       .values({ userId, delta, reason, balanceAfter: next });
+    if (demote) {
+      console.warn(`[tokens] moderator ${userId} ran out of credits — demoted to user`);
+    }
     return next;
   });
 }
