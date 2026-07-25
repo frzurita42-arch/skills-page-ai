@@ -48,8 +48,8 @@ export default function ManualSlidePlay() {
       previouslyTaught={null}
       voiceURI={null}
       nextLessonTitle={null}
-      commercial={null}
-      walkthrough={null}
+      commercial={query.data.commercial}
+      walkthrough={query.data.walkthrough}
       onPersistDeck={(d) => saveDeck.mutate({ slug, deck: d })}
       onExit={back}
     />

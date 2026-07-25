@@ -218,6 +218,7 @@ function ToolStudio({
   const [presetSaved, setPresetSaved] = useState(false);
   const setPreset = trpc.repos.setLessonPreset.useMutation();
   const saveCustom = trpc.repos.saveMyCustomization.useMutation();
+  const saveToolDeck = trpc.slideTools.saveDeck.useMutation();
   const updateTool = trpc.slideTools.update.useMutation();
 
   // Standalone tools carry their own category (course = lesson, restaurant/
@@ -508,6 +509,21 @@ function ToolStudio({
           toolSlug: tool.slug,
         },
         { onSuccess: () => void utils.repos.getBySlug.invalidate({ slug: seed.repoSlug }) },
+      );
+    }
+    // Standalone tool you own: save the generated deck so its card flips to
+    // "Play" and this exact presentation can be replayed for free — including
+    // by users with no credits — without regenerating.
+    if (!seed && canEditTool && result && !result.usedMock) {
+      saveToolDeck.mutate(
+        { slug: tool.slug, deck: result.deck },
+        {
+          onSuccess: () => {
+            void utils.slideTools.list.invalidate();
+            void utils.slideTools.getBySlug.invalidate({ slug: tool.slug });
+          },
+          onError: (e) => toast.error(`Couldn't save this presentation: ${e.message}`),
+        },
       );
     }
     enterPlayer();

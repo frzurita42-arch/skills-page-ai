@@ -356,8 +356,11 @@ export interface SlideToolSummary {
   defaultTone: Tone;
   /** "ai" = reusable AI generator; "human" = hand-built presentation with a saved deck */
   source: ContentSource;
-  /** true when this tool carries a saved deck (a human-built presentation) */
+  /** true when this tool carries a saved deck (hand-built, or a saved AI generation) */
   hasDeck: boolean;
+  /** slide count of the saved deck, when there is one — the card shows this
+   *  instead of the config default so it matches what was actually generated */
+  deckSlideCount: number | null;
   isPublic: boolean;
   favorite: boolean;
   runCount: number;

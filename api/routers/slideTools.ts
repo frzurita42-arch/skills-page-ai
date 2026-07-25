@@ -6,7 +6,7 @@ import { authedProcedure } from "../procedures";
 import { getDb } from "../queries/connection";
 import { favorites, runs, slideTools, users, type SlideTool, type User } from "@db/schema";
 import { imageStyleSchema, levelSchema, slugify, templateSchema } from "../ai/prompts";
-import { TONES } from "@contracts/types";
+import { TONES, repoPurpose } from "@contracts/types";
 import type { RepoTemplate, SlideDeck, SlideToolSummary, Tone } from "@contracts/types";
 
 const toneSchema = z.string().refine((t) => (TONES as string[]).includes(t), "unknown tone");
@@ -43,6 +43,10 @@ export async function toSummary(tool: SlideTool, userId: number | undefined): Pr
     defaultTone: ((tool.defaultTone as Tone) ?? "neutral") as Tone,
     source: tool.source === "human" ? "human" : "ai",
     hasDeck: tool.deckJson != null,
+    deckSlideCount:
+      tool.deckJson != null && Array.isArray((tool.deckJson as SlideDeck).slides)
+        ? (tool.deckJson as SlideDeck).slides.length
+        : null,
     isPublic: tool.isPublic,
     favorite,
     runCount: toolRuns.length,
@@ -170,16 +174,59 @@ export const slideToolsRouter = createRouter({
       return { ok: true };
     }),
 
-  /** Load a tool's saved hand-built deck to play it (no generation, no charge). */
+  /**
+   * Load a tool's saved deck to play it (no generation, no charge) — a
+   * hand-built presentation or a saved AI generation. Resolves the tool's
+   * purpose (from its category) + owner so the player ends on the right screen:
+   * commercial → contact, walkthrough/news → author-profile/back.
+   */
   deck: publicQuery
     .input(z.object({ slug: z.string().min(1) }))
-    .query(async ({ ctx, input }): Promise<{ deck: SlideDeck; name: string } | null> => {
-      const db = getDb();
-      const tool = await db.query.slideTools.findFirst({ where: eq(slideTools.slug, input.slug) });
-      if (!tool || tool.deckJson == null) return null;
-      if (!tool.isPublic && (!ctx.user || !canEdit(tool, ctx.user))) return null;
-      return { deck: tool.deckJson as SlideDeck, name: tool.name };
-    }),
+    .query(
+      async ({
+        ctx,
+        input,
+      }): Promise<{
+        deck: SlideDeck;
+        name: string;
+        commercial: import("@contracts/types").CommercialInfo | null;
+        walkthrough: import("@contracts/types").WalkthroughInfo | null;
+      } | null> => {
+        const db = getDb();
+        const tool = await db.query.slideTools.findFirst({ where: eq(slideTools.slug, input.slug) });
+        if (!tool || tool.deckJson == null) return null;
+        if (!tool.isPublic && (!ctx.user || !canEdit(tool, ctx.user))) return null;
+
+        const purpose = repoPurpose((tool.template ?? "course") as RepoTemplate);
+        let commercial: import("@contracts/types").CommercialInfo | null = null;
+        let walkthrough: import("@contracts/types").WalkthroughInfo | null = null;
+        if (purpose !== "education" && tool.ownerId) {
+          const owner = await db.query.users.findFirst({ where: eq(users.id, tool.ownerId) });
+          if (owner && purpose === "commercial") {
+            commercial = {
+              owner: {
+                ownerId: owner.id,
+                name: owner.name,
+                whatsapp: owner.whatsapp ?? null,
+                socials: Array.isArray(owner.socials) ? (owner.socials as string[]) : [],
+                contactNote: owner.contactNote ?? null,
+              },
+              itemTitle: tool.name,
+              repoSlug: null,
+              lessonSeq: null,
+            };
+          } else if (purpose === "walkthrough" || purpose === "news") {
+            walkthrough = {
+              ownerId: owner?.id ?? null,
+              ownerName: owner?.name ?? "",
+              itemTitle: tool.name,
+              kind: purpose === "news" ? "news" : "walkthrough",
+            };
+          }
+        }
+        return { deck: tool.deckJson as SlideDeck, name: tool.name, commercial, walkthrough };
+      },
+    ),
 
   update: authedProcedure
     .input(

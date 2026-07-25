@@ -594,7 +594,8 @@ export default function Slides() {
 
                       <p className="micro text-ink-faint">
                         {tool.runCount} {tool.runCount === 1 ? 'play' : 'plays'} ·{' '}
-                        {tool.defaultSlideCount} slides · sketched {relTime(tool.createdAt)}
+                        {tool.deckSlideCount ?? tool.defaultSlideCount} slides · sketched{' '}
+                        {relTime(tool.createdAt)}
                       </p>
 
                       <div
@@ -609,6 +610,14 @@ export default function Slides() {
                                 Play
                               </SketchButton>
                             </Link>
+                            {tool.source === 'ai' && (
+                              <Link to={`/slides/${tool.slug}`} title="Regenerate with new settings">
+                                <SketchButton variant="ghost" size="sm">
+                                  <Sparkles className="h-3.5 w-3.5" strokeWidth={2} />
+                                  New
+                                </SketchButton>
+                              </Link>
+                            )}
                             <Link to={`/slides/build/${tool.slug}`}>
                               <SketchButton variant="ghost" size="sm">
                                 <Pencil className="h-3.5 w-3.5" strokeWidth={2} />
