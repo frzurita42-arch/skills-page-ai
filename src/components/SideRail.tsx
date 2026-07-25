@@ -30,6 +30,7 @@ const ROLE_CHIP: Record<string, string> = {
 // on the Repos page (the repo builder). The /lesson-path route still exists.
 const NAV_ITEMS = [
   { to: '/', label: 'Repos', icon: LibraryBig, end: true },
+  { to: '/users', label: 'Users', icon: Users },
   { to: '/slides', label: 'Slides', icon: Presentation },
   { to: '/chat', label: 'Chat', icon: MessageCircle },
   { to: '/about', label: 'About', icon: Info },
@@ -40,7 +41,7 @@ const NAV_ITEMS = [
 // config stay admin-only.
 const ADMIN_ITEMS = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/admin/users', label: 'Users', icon: Users },
+  { to: '/admin/users', label: 'Manage users', icon: Users },
   { to: '/admin/moderators', label: 'Moderators', icon: ShieldCheck },
   { to: '/runs', label: 'Presentation runs', icon: PlayCircle },
   { to: '/templates', label: 'Slide templates', icon: LayoutTemplate },

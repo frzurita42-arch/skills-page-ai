@@ -126,7 +126,10 @@ function lessonProgress(lessonId: number, viewerRuns: RunLite[]): Pick<
   };
 }
 
-async function favoriteSlugs(userId: number | undefined, targetType: "repo" | "slideTool") {
+export async function favoriteSlugs(
+  userId: number | undefined,
+  targetType: "repo" | "slideTool" | "user",
+) {
   if (!userId) return new Set<string>();
   const rows = await getDb()
     .select({ slug: favorites.targetSlug })
@@ -135,7 +138,7 @@ async function favoriteSlugs(userId: number | undefined, targetType: "repo" | "s
   return new Set(rows.map((r) => r.slug));
 }
 
-async function repoSummaries(repoRows: Repo[], userId: number | undefined): Promise<RepoSummary[]> {
+export async function repoSummaries(repoRows: Repo[], userId: number | undefined): Promise<RepoSummary[]> {
   const db = getDb();
   const favs = await favoriteSlugs(userId, "repo");
   const out: RepoSummary[] = [];

@@ -196,6 +196,28 @@ export interface MyTicketGroup {
   count: number;
 }
 
+/** A creator in the public Users directory. */
+export interface DirectoryUser {
+  id: number;
+  name: string;
+  role: Role;
+  repoCount: number;
+  favorite: boolean;
+}
+
+/** A creator's public profile: their public repos + public contact details. */
+export interface UserProfile {
+  id: number;
+  name: string;
+  role: Role;
+  createdAt: Date;
+  whatsapp: string | null;
+  socials: string[];
+  contactNote: string | null;
+  favorite: boolean;
+  repos: RepoSummary[];
+}
+
 /* ---------------- Repos / slide tools ------------------------------ */
 
 /** How a repo's content was authored — AI-generated or hand-built by a human.

@@ -4,6 +4,8 @@ import Home from './pages/Home';
 import LessonPath from './pages/LessonPath';
 import Repos from './pages/Repos';
 import Repository from './pages/Repository';
+import Users from './pages/Users';
+import UserProfile from './pages/UserProfile';
 import Slides from './pages/Slides';
 import SlideTool from './pages/SlideTool';
 import Templates from './pages/Templates';
@@ -29,6 +31,8 @@ export default function App() {
         <Route path="/lesson-path" element={<LessonPath />} />
         <Route path="/repos" element={<Repos />} />
         <Route path="/repos/:slug" element={<Repository />} />
+        <Route path="/users" element={<Users />} />
+        <Route path="/users/:id" element={<UserProfile />} />
         <Route path="/repos/:slug/play/:seq" element={<PresetPlay />} />
         <Route path="/slides" element={<Slides />} />
         <Route path="/slides/:slug" element={<SlideTool />} />

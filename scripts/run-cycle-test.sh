@@ -57,7 +57,7 @@ CREATE TYPE "sketchlearn"."template" AS ENUM ('course','restaurant','service','s
 CREATE TYPE "sketchlearn"."level" AS ENUM ('A0','A1','A2','B1','B2','C1','C2');
 CREATE TYPE "sketchlearn"."imageStyle" AS ENUM ('sketch','watercolor','flat','photo','none');
 CREATE TYPE "sketchlearn"."status" AS ENUM ('pending','credited','rejected');
-CREATE TYPE "sketchlearn"."targetType" AS ENUM ('repo','slideTool');
+CREATE TYPE "sketchlearn"."targetType" AS ENUM ('repo','slideTool','user');
 SQL
 
 echo "▶ applying migration…"

@@ -10,6 +10,7 @@ import {
   ensureRunAnnotationsColumn,
   ensureCommercialSchema,
   ensureTicketSchema,
+  ensureUserFavoriteType,
 } from "./lib/migrate-annotations";
 
 // Best-effort schema catch-up on boot so an existing database accepts CEFR
@@ -42,6 +43,14 @@ void ensureCommercialSchema().catch((err) =>
 void ensureTicketSchema().catch((err) =>
   console.warn(
     "[migrate] ticket schema auto-migration skipped:",
+    err instanceof Error ? err.message : err,
+  ),
+);
+
+// Best-effort: allow favoriting users (targetType enum gains "user").
+void ensureUserFavoriteType().catch((err) =>
+  console.warn(
+    "[migrate] user-favorite enum auto-migration skipped:",
     err instanceof Error ? err.message : err,
   ),
 );

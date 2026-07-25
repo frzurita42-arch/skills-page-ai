@@ -202,7 +202,26 @@ describe.runIf(HAS_DB)("full coins ↔ tickets cycle", () => {
     expect(await consumeOne(student.id, repoId)).toBe(false);
   });
 
-  it("7) draining a moderator's credits demotes them to a user", async () => {
+  it("7) the creator appears in the public directory & profile; can be favorited", async () => {
+    const repoSlug = (globalThis as Record<string, unknown>).__repoSlug as string;
+    // student favorites the creator
+    const fav = await call(student).users.toggleFavorite({ userId: moderator.id });
+    expect(fav.favorite).toBe(true);
+
+    // directory (as the student) lists the creator, marked favorite
+    const dir = await call(student).users.directory({});
+    const entry = dir.find((u) => u.id === moderator.id);
+    expect(entry).toBeTruthy();
+    expect(entry!.repoCount).toBeGreaterThanOrEqual(1);
+    expect(entry!.favorite).toBe(true);
+
+    // profile returns their public repo (savable/browsable catalog)
+    const prof = await call(student).users.profile({ userId: moderator.id });
+    expect(prof.favorite).toBe(true);
+    expect(prof.repos.some((r) => r.slug === repoSlug)).toBe(true);
+  });
+
+  it("8) draining a moderator's credits demotes them to a user", async () => {
     const m = await reload(moderator.id);
     expect(m.role).toBe("moderator");
     await applyTokenDelta(m.id, -m.tokenBalance, "drain for test");

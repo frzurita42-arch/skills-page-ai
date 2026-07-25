@@ -1,12 +1,13 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, like, or } from "drizzle-orm";
-import { createRouter } from "../middleware";
-import { adminProcedure, moderatorProcedure } from "../procedures";
+import { createRouter, publicQuery } from "../middleware";
+import { adminProcedure, authedProcedure, moderatorProcedure } from "../procedures";
 import { getDb } from "../queries/connection";
-import { runs, users } from "@db/schema";
+import { favorites, repos, runs, users } from "@db/schema";
 import { applyTokenDelta } from "../tokens";
-import type { AdminUserRow } from "@contracts/types";
+import { favoriteSlugs, repoSummaries } from "./repos";
+import type { AdminUserRow, DirectoryUser, UserProfile } from "@contracts/types";
 
 async function toRow(db: ReturnType<typeof getDb>, u: typeof users.$inferSelect): Promise<AdminUserRow> {
   const userRuns = await db.select({ id: runs.id }).from(runs).where(eq(runs.userId, u.id));
@@ -23,6 +24,93 @@ async function toRow(db: ReturnType<typeof getDb>, u: typeof users.$inferSelect)
 }
 
 export const usersRouter = createRouter({
+  /**
+   * Public creator directory — anyone (including guests) can browse the people
+   * who have published repos, favorite them, and open their profile. Only
+   * creators with at least one public repo are listed.
+   */
+  directory: publicQuery
+    .input(z.object({ q: z.string().max(200).optional() }).optional())
+    .query(async ({ ctx, input }): Promise<DirectoryUser[]> => {
+      const db = getDb();
+      const publicRepos = await db
+        .select({ ownerId: repos.ownerId })
+        .from(repos)
+        .where(eq(repos.isPublic, true));
+      const counts = new Map<number, number>();
+      for (const r of publicRepos) {
+        if (r.ownerId != null) counts.set(r.ownerId, (counts.get(r.ownerId) ?? 0) + 1);
+      }
+      if (counts.size === 0) return [];
+      const rows = await db.select().from(users);
+      const favs = await favoriteSlugs(ctx.user?.id, "user");
+      const q = input?.q?.trim().toLowerCase();
+      return rows
+        .filter((u) => counts.has(u.id))
+        .filter((u) => !q || u.name.toLowerCase().includes(q))
+        .map((u) => ({
+          id: u.id,
+          name: u.name,
+          role: u.role,
+          repoCount: counts.get(u.id) ?? 0,
+          favorite: favs.has(String(u.id)),
+        }))
+        .sort(
+          (a, b) =>
+            Number(b.favorite) - Number(a.favorite) ||
+            b.repoCount - a.repoCount ||
+            a.name.localeCompare(b.name),
+        );
+    }),
+
+  /** A creator's public profile: the public repos they own + public contact. */
+  profile: publicQuery
+    .input(z.object({ userId: z.number().int() }))
+    .query(async ({ ctx, input }): Promise<UserProfile> => {
+      const db = getDb();
+      const user = await db.query.users.findFirst({ where: eq(users.id, input.userId) });
+      if (!user) throw new TRPCError({ code: "NOT_FOUND", message: "User not found" });
+      const ownedPublic = await db
+        .select()
+        .from(repos)
+        .where(and(eq(repos.ownerId, user.id), eq(repos.isPublic, true)))
+        .orderBy(desc(repos.createdAt));
+      const summaries = await repoSummaries(ownedPublic, ctx.user?.id);
+      const favs = await favoriteSlugs(ctx.user?.id, "user");
+      return {
+        id: user.id,
+        name: user.name,
+        role: user.role,
+        createdAt: user.createdAt,
+        whatsapp: user.whatsapp ?? null,
+        socials: Array.isArray(user.socials) ? (user.socials as string[]) : [],
+        contactNote: user.contactNote ?? null,
+        favorite: favs.has(String(user.id)),
+        repos: summaries,
+      };
+    }),
+
+  /** Favorite / unfavorite a creator (targetType "user"). */
+  toggleFavorite: authedProcedure
+    .input(z.object({ userId: z.number().int() }))
+    .mutation(async ({ ctx, input }): Promise<{ favorite: boolean }> => {
+      const db = getDb();
+      const slug = String(input.userId);
+      const existing = await db.query.favorites.findFirst({
+        where: and(
+          eq(favorites.userId, ctx.user.id),
+          eq(favorites.targetType, "user"),
+          eq(favorites.targetSlug, slug),
+        ),
+      });
+      if (existing) {
+        await db.delete(favorites).where(eq(favorites.id, existing.id));
+        return { favorite: false };
+      }
+      await db.insert(favorites).values({ userId: ctx.user.id, targetType: "user", targetSlug: slug });
+      return { favorite: true };
+    }),
+
   list: moderatorProcedure
     .input(
       z

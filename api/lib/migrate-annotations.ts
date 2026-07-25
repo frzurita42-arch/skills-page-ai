@@ -132,3 +132,27 @@ export async function ensureTicketSchema(): Promise<void> {
     await client.end();
   }
 }
+
+/**
+ * Idempotently allow favoriting users: add the "user" value to the favorites
+ * targetType enum on older databases. Best-effort at boot.
+ */
+export async function ensureUserFavoriteType(): Promise<void> {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) return;
+  const client = new Client({ connectionString });
+  await client.connect();
+  try {
+    const { rows } = await client.query<{ exists: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1 FROM pg_type t
+           JOIN pg_namespace n ON n.oid = t.typnamespace
+          WHERE n.nspname = 'sketchlearn' AND t.typname = 'targetType'
+       ) AS exists`,
+    );
+    if (!rows[0]?.exists) return;
+    await client.query(`ALTER TYPE sketchlearn."targetType" ADD VALUE IF NOT EXISTS 'user'`);
+  } finally {
+    await client.end();
+  }
+}
