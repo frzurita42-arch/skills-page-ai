@@ -12,6 +12,8 @@ export interface GenerationTheaterProps {
   /** fired ~600ms after the last slide stamps in */
   onComplete: () => void;
   onCancel: () => void;
+  /** owner is publishing a preset — changes the completion copy */
+  settingPreset?: boolean;
 }
 
 const STATUS_LINES = [
@@ -35,6 +37,7 @@ export default function GenerationTheater({
   done,
   onComplete,
   onCancel,
+  settingPreset = false,
 }: GenerationTheaterProps) {
   const reduced = useReducedMotion();
   const [active, setActive] = useState(0);
@@ -164,7 +167,11 @@ export default function GenerationTheater({
           !done && 'animate-pulse',
         )}
       >
-        {done ? 'Deck complete — opening the player…' : status}
+        {done
+          ? settingPreset
+            ? 'Preset ready — back to the repo…'
+            : 'Deck complete — opening the player…'
+          : status}
       </p>
 
       {!done && (

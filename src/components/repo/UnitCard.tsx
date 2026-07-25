@@ -641,7 +641,7 @@ function LessonCard({
         <span className="flex items-center gap-1.5">
           <Link to={playHref} className="no-underline">
             <SketchButton variant="accent" size="sm" title="Watch the free version">
-              <Clapperboard className="h-4 w-4" strokeWidth={2} /> Study
+              <Clapperboard className="h-4 w-4" strokeWidth={2} /> Play
             </SketchButton>
           </Link>
           <Link to={editHref} title="Edit the free preset's slides" className="no-underline">
@@ -673,7 +673,7 @@ function LessonCard({
         <span className="flex items-center gap-1.5">
           <Link to={playHref} className="no-underline">
             <SketchButton variant="accent" size="sm" title="Watch the free version — no credits needed">
-              <Clapperboard className="h-4 w-4" strokeWidth={2} /> Study
+              <Clapperboard className="h-4 w-4" strokeWidth={2} /> Play
             </SketchButton>
           </Link>
           {customizeControl()}

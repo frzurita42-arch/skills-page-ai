@@ -141,7 +141,7 @@ export default function LessonRunsTable({ slug, repoRef, unitByLessonId }: Lesso
               image="/empty-runs.svg"
               imageAlt="Empty runs clipboard doodle"
               headline="No completed plays yet"
-              explainer="Runs save when a deck is finished — press a 🎬 Study button above to start the first one."
+              explainer="Runs save when a deck is finished — press a 🎬 Play button above to start the first one."
               className="py-8"
             />
           }

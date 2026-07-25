@@ -244,6 +244,9 @@ function ToolStudio({
     commercial: CommercialInfo | null;
   } | null>(null);
   const canceledRef = useRef(false);
+  // Captured when the owner presses "Generate & set preset" so the completion
+  // handoff never depends on repoQuery having re-resolved by then.
+  const setFlowRef = useRef(false);
 
   // repo context for seed prefill + next-lesson handoff
   const repoQuery = trpc.repos.getBySlug.useQuery(
@@ -316,6 +319,7 @@ function ToolStudio({
 
   const runGenerate = () => {
     canceledRef.current = false;
+    setFlowRef.current = canSetPreset && !!seed;
     setTheaterDone(false);
     setMode('theater');
     generate.mutate(
@@ -415,22 +419,20 @@ function ToolStudio({
   // stripped server-side (prepPresetDeck), so it's free for anyone to watch.
   const finishGeneration = () => {
     if (!result) return;
-    if (canSetPreset && seed) {
+    if (setFlowRef.current && seed) {
+      // Fire the save and go straight back to the repo — we don't wait on the
+      // network so the owner always lands on the repo (the item's button flips
+      // Set → Play once the save's invalidation lands). Failures surface as a
+      // toast on the repo page.
       setPreset.mutate(
         { repoSlug: seed.repoSlug, lessonSeq: seed.lessonSeq, deck: result.deck },
         {
-          onSuccess: () => {
-            void utils.repos.getBySlug.invalidate({ slug: seed.repoSlug });
-            toast.success('Preset saved — now free for anyone to play ✓');
-            navigate(`/repos/${seed.repoSlug}`);
-          },
-          onError: (e) => {
-            // Saving failed — fall back to the player so the deck isn't lost.
-            toast.error(e.message);
-            enterPlayer();
-          },
+          onSuccess: () => void utils.repos.getBySlug.invalidate({ slug: seed.repoSlug }),
+          onError: (e) => toast.error(`Preset didn't save: ${e.message}`),
         },
       );
+      toast.success('Preset saved — now free for anyone to play ✓');
+      navigate(`/repos/${seed.repoSlug}`);
       return;
     }
     enterPlayer();
@@ -467,6 +469,7 @@ function ToolStudio({
         topic={topic.trim() || tool.topic || tool.name}
         done={theaterDone}
         onComplete={finishGeneration}
+        settingPreset={setFlowRef.current}
         onCancel={() => {
           canceledRef.current = true;
           setMode('config');

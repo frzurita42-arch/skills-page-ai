@@ -35,9 +35,9 @@ export default function Replay() {
         <p className="mt-2 text-ink-soft">
           {replay.error?.message ?? 'This run could not be found.'}
         </p>
-        <Link to="/runs" className="mt-4 inline-block">
+        <Link to="/repos" className="mt-4 inline-block">
           <SketchButton variant="secondary">
-            <ChevronLeft className="h-4 w-4" /> Back to runs
+            <ChevronLeft className="h-4 w-4" /> Back to repos
           </SketchButton>
         </Link>
       </div>
@@ -46,6 +46,11 @@ export default function Replay() {
 
   const data = replay.data;
   const slides = data.deck?.slides ?? [];
+  // Send the viewer back where the run came from — its repo — not the
+  // admin-only Presentation runs dashboard. Standalone tool runs fall back to
+  // the repos list.
+  const backHref = data.repoSlug ? `/repos/${data.repoSlug}` : '/repos';
+  const backLabel = data.repoSlug ? 'Back to repo' : 'Back to repos';
 
   if (slides.length === 0) {
     return (
@@ -55,9 +60,9 @@ export default function Replay() {
           This run was recorded before decks were snapshotted, so its slides aren't available to
           replay.
         </p>
-        <Link to="/runs" className="mt-4 inline-block">
+        <Link to={backHref} className="mt-4 inline-block">
           <SketchButton variant="secondary">
-            <ChevronLeft className="h-4 w-4" /> Back to runs
+            <ChevronLeft className="h-4 w-4" /> {backLabel}
           </SketchButton>
         </Link>
       </div>
@@ -73,9 +78,9 @@ export default function Replay() {
     <div className="mx-auto w-full max-w-[900px] px-4 py-6 lg:px-8">
       {/* header */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <Link to="/runs" className="no-underline">
+        <Link to={backHref} className="no-underline">
           <SketchButton variant="ghost" size="sm">
-            <ChevronLeft className="h-4 w-4" /> Runs
+            <ChevronLeft className="h-4 w-4" /> {data.repoSlug ? 'Repo' : 'Repos'}
           </SketchButton>
         </Link>
         <Chip kind="repo-ref">#{data.repoRef ?? data.toolSlug}</Chip>
@@ -242,7 +247,7 @@ export default function Replay() {
             Next <ArrowRight className="h-4 w-4" />
           </SketchButton>
         ) : (
-          <SketchButton variant="accent" onClick={() => navigate('/runs')}>
+          <SketchButton variant="accent" onClick={() => navigate(backHref)}>
             <PlayCircle className="h-4 w-4" /> Done reviewing
           </SketchButton>
         )}

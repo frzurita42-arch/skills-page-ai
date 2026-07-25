@@ -4,12 +4,10 @@ import { Clapperboard, MonitorPlay, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '@/providers/trpc';
 import Chip from '@/components/sketch/Chip';
-import { repoPurpose } from '@contracts/types';
-import type { RepoTemplate, RepoUnit } from '@contracts/types';
+import type { RepoUnit } from '@contracts/types';
 
 export interface SavedPresentationsTableProps {
   slug: string;
-  template: RepoTemplate;
   /** owner / admin — gets the edit + delete controls */
   canEdit: boolean;
   units: RepoUnit[];
@@ -22,13 +20,11 @@ export interface SavedPresentationsTableProps {
  */
 export default function SavedPresentationsTable({
   slug,
-  template,
   canEdit,
   units,
 }: SavedPresentationsTableProps) {
   const utils = trpc.useUtils();
-  const purpose = repoPurpose(template);
-  const playLabel = purpose === 'commercial' ? 'Play' : 'Study';
+  const playLabel = 'Play';
   const [pendingDelete, setPendingDelete] = useState<number | null>(null);
 
   const del = trpc.repos.deleteLessonPreset.useMutation({

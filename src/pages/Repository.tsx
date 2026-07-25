@@ -440,12 +440,7 @@ export default function Repository() {
 
       {/* saved (set) presentations — free to play */}
       <div className="mt-10">
-        <SavedPresentationsTable
-          slug={data.slug}
-          template={data.template}
-          canEdit={canEdit}
-          units={data.units}
-        />
+        <SavedPresentationsTable slug={data.slug} canEdit={canEdit} units={data.units} />
       </div>
 
       {/* lesson runs */}
