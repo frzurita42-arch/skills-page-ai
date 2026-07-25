@@ -27,6 +27,19 @@ export const appRouter = createRouter({
   health: publicQuery.query(async () => {
     const hasDatabaseUrl = !!env.databaseUrl;
     let db: "ok" | "error" = "error";
+    let dbHost: string | null = null;
+    let dbName: string | null = null;
+    let dbSslMode: string | null = null;
+    if (hasDatabaseUrl) {
+      try {
+        const parsed = new URL(env.databaseUrl);
+        dbHost = parsed.hostname || null;
+        dbName = parsed.pathname?.replace(/^\//, "") || null;
+        dbSslMode = parsed.searchParams.get("sslmode");
+      } catch {
+        dbHost = "invalid-url";
+      }
+    }
     if (hasDatabaseUrl) {
       try {
         await getDb().execute(sql`select 1`);
@@ -35,7 +48,7 @@ export const appRouter = createRouter({
         db = "error";
       }
     }
-    return { ok: true, hasDatabaseUrl, db, node: process.version };
+    return { ok: true, hasDatabaseUrl, db, dbHost, dbName, dbSslMode, node: process.version };
   }),
 
   auth: authRouter,
