@@ -9,7 +9,7 @@
 /* slideTemplates table.                                                */
 /* ------------------------------------------------------------------ */
 
-import { LEVELS, levelTier, type Level } from "./types";
+import { LEVELS, levelTier, type Level } from "./types.js";
 
 /**
  * The component vocabulary a template step may use. The first eight map 1:1
