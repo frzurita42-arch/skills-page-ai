@@ -11,7 +11,7 @@ import {
   tokenLedger,
   payments,
   favorites,
-} from "./schema";
+} from "./schema.js";
 
 export const usersRelations = relations(users, ({ many }) => ({
   apiKeys: many(apiKeys),
