@@ -2,7 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 import { createRouter, publicQuery } from "../middleware";
-import { authedProcedure } from "../procedures";
+import { authedProcedure, adminProcedure } from "../procedures";
 import { getDb } from "../queries/connection";
 import { lessons, repos, slideTools, units, users, type Repo } from "@db/schema";
 import { completeText, completeVision, generateImage, resolveProviderName, userHasKey, webResearch, type VisionImage } from "../ai/provider";
@@ -809,6 +809,74 @@ export const generateRouter = createRouter({
         balance = fresh?.tokenBalance ?? null;
       }
       return { deck, usedMock, cost, balance, previouslyTaught, slidePlan, commercial, walkthrough };
+    }),
+
+  /**
+   * Admin-only: recalibrate the LENGTH of one slide's explanation without
+   * changing its meaning or reading level. "longer" expands the same point
+   * (reinforcing it from a fresh angle or a closely-related supporting idea
+   * when there's nothing genuinely new to add); "shorter" compresses it to
+   * fewer words while keeping the core idea. Returns the rewritten paragraphs.
+   * Not token-charged — it's an authoring tweak on an existing deck.
+   */
+  recalibrateProse: adminProcedure
+    .input(
+      z.object({
+        paragraphs: z.array(z.string().max(4000)).min(1).max(12),
+        direction: z.enum(["shorter", "longer"]),
+        level: levelSchema,
+        subject: z.string().max(500).optional(),
+        slideTitle: z.string().max(300).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }): Promise<{ paragraphs: string[] }> => {
+      const original = input.paragraphs.map((p) => p.trim()).filter(Boolean);
+      if (original.length === 0) return { paragraphs: input.paragraphs };
+
+      const longer = input.direction === "longer";
+      const system = `You are an editor recalibrating the LENGTH of one slide's explanation for a CEFR level "${input.level}" reader. You output ONLY JSON: {"paragraphs": string[]}.
+
+RULES (non-negotiable):
+- Keep the SAME core idea(s) and the SAME reading level "${input.level}" — do NOT make the language harder or easier, only ${longer ? "longer" : "shorter"}.
+- ${
+        longer
+          ? `MAKE IT LONGER: expand the explanation. Prefer adding genuinely useful detail; when there is nothing truly new to add, reinforce the SAME point from a fresh angle, restate it in different words, or bring in a closely-related supporting idea that strengthens understanding — never pad with filler or repeat sentences verbatim. Aim for noticeably more words than the original.`
+          : `MAKE IT SHORTER: compress the explanation to fewer words while preserving the main idea. Cut redundancy and tangents, keep the essential point clear. Aim for noticeably fewer words than the original.`
+      }
+- Do NOT add questions, quizzes, headings, markdown, or meta-commentary. Return plain prose paragraphs only.
+- Return between 1 and ${longer ? 4 : Math.max(1, original.length)} paragraphs.`;
+
+      const userPrompt = [
+        input.slideTitle ? `SLIDE TITLE: ${input.slideTitle}` : null,
+        input.subject ? `TOPIC: ${input.subject}` : null,
+        `CURRENT EXPLANATION (${original.length} paragraph${original.length === 1 ? "" : "s"}):`,
+        original.map((p, i) => `[${i + 1}] ${p}`).join("\n\n"),
+        `Rewrite it ${longer ? "LONGER" : "SHORTER"} per the rules. Output JSON {"paragraphs": [...]}.`,
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+
+      const result = await completeText({
+        userId: ctx.user.id,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: userPrompt },
+        ],
+        maxTokens: longer ? 2000 : 1200,
+      });
+      if (!result) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: AI_UNAVAILABLE_MSG });
+      }
+      try {
+        const parsed = JSON.parse(extractJson(result.text)) as { paragraphs?: unknown };
+        const out = Array.isArray(parsed.paragraphs)
+          ? parsed.paragraphs.map((p) => String(p).trim()).filter(Boolean)
+          : [];
+        if (out.length === 0) return { paragraphs: original };
+        return { paragraphs: out.slice(0, 6) };
+      } catch {
+        return { paragraphs: original };
+      }
     }),
 
   /**

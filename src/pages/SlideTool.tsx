@@ -42,6 +42,7 @@ import TemplateBar from '@/components/templates/TemplateBar';
 import TemplatePicker from '@/components/templates/TemplatePicker';
 
 import { isStemTopic } from '@contracts/stem';
+import { loadGenDefaults, saveGenDefaults } from '@/lib/genDefaults';
 import { templatesForContext, packetsForPurpose, type LessonPacket } from '@contracts/slide-templates';
 import { repoPurpose, templateFilterPurpose, type RepoTemplate } from '@contracts/types';
 import { TemplateIcon } from '@/components/repo/shared';
@@ -246,11 +247,13 @@ function ToolStudio({
   const [topic, setTopic] = useState(seed?.lessonTitle || tool.topic);
   const [instructions, setInstructions] = useState(tool.instructions);
   const [instructionsTouched, setInstructionsTouched] = useState(false);
-  const [level, setLevel] = useState<Level>(tool.defaultLevel);
-  const [slideCount, setSlideCount] = useState(
-    Math.min(15, Math.max(4, tool.defaultSlideCount)),
-  );
-  const [imageStyle, setImageStyle] = useState<ImageStyle>(tool.defaultImageStyle);
+  // Slide count, level and image style default to what THIS user last generated
+  // with (base: 4 slides, A1, sketch), not the tool's stored settings — the
+  // last setting a user picks becomes their new default, remembered per user.
+  const remembered = useMemo(() => loadGenDefaults(user?.id), [user?.id]);
+  const [level, setLevel] = useState<Level>(remembered.level);
+  const [slideCount, setSlideCount] = useState(remembered.slideCount);
+  const [imageStyle, setImageStyle] = useState<ImageStyle>(remembered.imageStyle);
   const [voiceURI, setVoiceURI] = useState<string | null>(null);
   const [includeQuiz, setIncludeQuiz] = useState(true);
   const [webSearch, setWebSearch] = useState(false);
@@ -368,6 +371,8 @@ function ToolStudio({
 
   const runGenerate = () => {
     canceledRef.current = false;
+    // Remember this user's choices so they become the defaults next time.
+    saveGenDefaults(user?.id, { slideCount, level, imageStyle });
     const isSet = canPublishPreset && !!seed;
     setFlowRef.current = isSet;
     customizeFlowRef.current = !!seed && !isSet && !isGuest;

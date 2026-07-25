@@ -1,5 +1,6 @@
 import { useNavigate, useParams } from 'react-router';
 import { ChevronLeft } from 'lucide-react';
+import { toast } from 'sonner';
 import { trpc } from '@/providers/trpc';
 import DeckPlayer from '@/components/player/DeckPlayer';
 import SketchButton from '@/components/sketch/SketchButton';
@@ -13,6 +14,16 @@ export default function ManualSlidePlay() {
   const navigate = useNavigate();
   const query = trpc.slideTools.deck.useQuery({ slug }, { enabled: !!slug, retry: false });
   const back = () => navigate('/slides');
+
+  // admin length-calibration persists back onto the tool's saved deck
+  const utils = trpc.useUtils();
+  const saveDeck = trpc.slideTools.saveDeck.useMutation({
+    onSuccess: () => {
+      toast.success('Saved ✓');
+      void utils.slideTools.deck.invalidate({ slug });
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   if (query.isLoading) {
     return <div className="mx-auto max-w-[720px] px-4 py-16 text-center text-ink-faint">Opening…</div>;
@@ -39,6 +50,7 @@ export default function ManualSlidePlay() {
       nextLessonTitle={null}
       commercial={null}
       walkthrough={null}
+      onPersistDeck={(d) => saveDeck.mutate({ slug, deck: d })}
       onExit={back}
     />
   );

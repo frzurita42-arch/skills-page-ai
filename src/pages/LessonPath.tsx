@@ -24,6 +24,7 @@ import { SquiggleDivider } from '@/components/sketch/Squiggle';
 import { DoodleArrow, DoodleCheck, DoodleSparkle } from '@/components/sketch/DoodleIcons';
 import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/hooks/useAuth';
+import { loadGenDefaults, saveGenDefaults } from '@/lib/genDefaults';
 import type { ImageStyle, Level, RepoTemplate } from '@contracts/types';
 import { LEVELS } from '@contracts/types';
 import { SketchToaster, TEMPLATE_META } from '@/components/repo/shared';
@@ -71,14 +72,17 @@ export default function LessonPath() {
   }, [searchParams]);
 
   /* ---------------- form state -------------------------------------------- */
+  // Level, per-lesson slide count and image style default to what this user
+  // last generated with (base: A1, 4 slides, sketch), remembered per user.
+  const remembered = useMemo(() => loadGenDefaults(user?.id), [user?.id]);
   const [template, setTemplate] = useState<RepoTemplate>(prefill.template ?? 'course');
   const [subject, setSubject] = useState(prefill.subject);
-  const [level, setLevel] = useState<Level>('A1');
+  const [level, setLevel] = useState<Level>(remembered.level);
   const [audience, setAudience] = useState('');
   const [unitCount, setUnitCount] = useState(3);
   const [lessonsPerUnit, setLessonsPerUnit] = useState(3);
-  const [slideCount, setSlideCount] = useState(8);
-  const [imageStyle, setImageStyle] = useState<ImageStyle>('sketch');
+  const [slideCount, setSlideCount] = useState(remembered.slideCount);
+  const [imageStyle, setImageStyle] = useState<ImageStyle>(remembered.imageStyle);
   const [language, setLanguage] = useState('English');
   const [instructions, setInstructions] = useState('');
   // Reference attachments the AI reads when building the repo (menu, catalog,
@@ -189,6 +193,8 @@ export default function LessonPath() {
       toast.error('Give your notebook a subject first ✏️');
       return;
     }
+    // Remember this user's choices so they become the defaults next time.
+    saveGenDefaults(user?.id, { slideCount, level, imageStyle });
     setTheaterStep(0);
     generate.mutate(
       {

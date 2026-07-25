@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Flag, Pencil, Save } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Flag, Loader2, Minus, Pencil, Plus, Save } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/hooks/useAuth';
@@ -22,6 +23,21 @@ import { TtsReaderProvider } from './TtsReader';
 
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
+/** Bake admin length-calibration overrides (keyed `${slideIdx}:${compIdx}`)
+ *  into a deck, so the edited paragraphs can be persisted to its saved source. */
+function applyProseOverrides(base: SlideDeck, overrides: Record<string, string[]>): SlideDeck {
+  return {
+    ...base,
+    slides: base.slides.map((s, si) => ({
+      ...s,
+      components: s.components.map((c, ci) => {
+        const ov = overrides[`${si}:${ci}`];
+        return ov && c.type === 'prose' ? { ...c, paragraphs: ov } : c;
+      }),
+    })),
+  };
+}
+
 export interface DeckPlayerProps {
   deck: SlideDeck;
   toolSlug: string;
@@ -42,6 +58,9 @@ export interface DeckPlayerProps {
   onSavePreset?: () => void;
   savingPreset?: boolean;
   presetSaved?: boolean;
+  /** admin-only: persist an in-player edit (length calibration) back to the
+   *  deck's saved source. Omit for ephemeral decks — calibration stays live. */
+  onPersistDeck?: (deck: SlideDeck) => void;
   onExit: () => void;
 }
 
@@ -70,6 +89,7 @@ export default function DeckPlayer({
   onSavePreset,
   savingPreset = false,
   presetSaved = false,
+  onPersistDeck,
   onExit,
 }: DeckPlayerProps) {
   const reduced = useReducedMotion();
@@ -173,21 +193,66 @@ export default function DeckPlayer({
     void ensureImage(viewingIdx + 1); // prefetch the next slide's image
   }, [viewingIdx, ensureImage]);
 
+  // admin length-calibration: rewritten prose per `${slideIdx}:${compIdx}`
+  const [proseOverrides, setProseOverrides] = useState<Record<string, string[]>>({});
+  const overridesRef = useRef<Record<string, string[]>>({});
+
   const rawSlide = deck.slides[viewingIdx];
   const fetchedUrl = slideImages[viewingIdx];
-  // inject the lazily-fetched image into this slide's image component
+  // inject the lazily-fetched image + any admin length overrides into this slide
   const slide = useMemo(() => {
-    if (!fetchedUrl) return rawSlide;
-    return {
-      ...rawSlide,
-      components: rawSlide.components.map((c) =>
+    let components = rawSlide.components;
+    if (fetchedUrl) {
+      components = components.map((c) =>
         c.type === 'image' && !c.imageUrl ? { ...c, imageUrl: fetchedUrl } : c,
-      ),
-    };
-  }, [rawSlide, fetchedUrl]);
+      );
+    }
+    let changed = components !== rawSlide.components;
+    components = components.map((c, ci) => {
+      const ov = proseOverrides[`${viewingIdx}:${ci}`];
+      if (ov && c.type === 'prose') {
+        changed = true;
+        return { ...c, paragraphs: ov };
+      }
+      return c;
+    });
+    return changed ? { ...rawSlide, components } : rawSlide;
+  }, [rawSlide, fetchedUrl, proseOverrides, viewingIdx]);
 
   const narration = useMemo(() => buildNarration(slide), [slide]);
   const readAloud = useReadAloud(narration, voiceURI);
+
+  // Admin-only: recalibrate the length of THIS slide's explanation (same idea,
+  // same level) live. Persists to the deck's source when a handler is wired.
+  const recalibrate = trpc.generate.recalibrateProse.useMutation();
+  const proseCompIdx = slide.components.findIndex((c) => c.type === 'prose');
+  const calibrate = useCallback(
+    (direction: 'shorter' | 'longer') => {
+      const comp = proseCompIdx >= 0 ? slide.components[proseCompIdx] : null;
+      if (!comp || comp.type !== 'prose') return;
+      recalibrate.mutate(
+        {
+          paragraphs: comp.paragraphs,
+          direction,
+          level: deck.level,
+          subject: deck.topic,
+          slideTitle: slide.title,
+        },
+        {
+          onSuccess: (res) => {
+            const key = `${viewingIdx}:${proseCompIdx}`;
+            const next = { ...overridesRef.current, [key]: res.paragraphs };
+            overridesRef.current = next;
+            setProseOverrides(next);
+            onPersistDeck?.(applyProseOverrides(deck, next));
+            toast.success(direction === 'longer' ? 'Explanation expanded ✎' : 'Explanation trimmed ✎');
+          },
+          onError: (e) => toast.error(e.message),
+        },
+      );
+    },
+    [slide, proseCompIdx, deck, viewingIdx, recalibrate, onPersistDeck],
+  );
 
   const currentAnswer = answers[index];
   const nextUnlocked = !slide.quiz || (currentAnswer?.solved ?? false);
@@ -481,6 +546,38 @@ export default function DeckPlayer({
             <Save className="h-4 w-4" strokeWidth={2} />
             {presetSaved ? 'Saved ✓' : savingPreset ? 'Saving…' : 'Save as preset'}
           </button>
+        </div>
+      )}
+
+      {/* admin-only: calibrate the length of THIS slide's explanation */}
+      {isAdmin && !finished && !inReview && proseCompIdx >= 0 && (
+        <div className="pointer-events-none fixed left-4 top-[58px] z-[70]">
+          <div className="pointer-events-auto flex items-center gap-1 rounded-wobble-sm border-2 border-ink bg-paper-3 px-2 py-1.5 shadow-offset">
+            <span className="micro px-1 text-ink-soft" title="Rewrite this slide's explanation shorter/longer — same idea, same level">
+              Length
+            </span>
+            <button
+              type="button"
+              onClick={() => calibrate('shorter')}
+              disabled={recalibrate.isPending}
+              title="Shorten this explanation (same idea, same level)"
+              aria-label="Shorten explanation"
+              className="flex h-7 w-7 items-center justify-center rounded-wobble-sm border-2 border-ink bg-paper-3 text-ink transition-transform hover:-translate-y-0.5 disabled:opacity-50"
+            >
+              <Minus className="h-4 w-4" strokeWidth={2.5} />
+            </button>
+            <button
+              type="button"
+              onClick={() => calibrate('longer')}
+              disabled={recalibrate.isPending}
+              title="Lengthen this explanation (same idea, same level)"
+              aria-label="Lengthen explanation"
+              className="flex h-7 w-7 items-center justify-center rounded-wobble-sm border-2 border-ink bg-paper-3 text-ink transition-transform hover:-translate-y-0.5 disabled:opacity-50"
+            >
+              <Plus className="h-4 w-4" strokeWidth={2.5} />
+            </button>
+            {recalibrate.isPending && <Loader2 className="h-4 w-4 animate-spin text-ink-soft" />}
+          </div>
         </div>
       )}
 

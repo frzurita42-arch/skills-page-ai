@@ -1,4 +1,5 @@
 import { useNavigate, useParams } from 'react-router';
+import { toast } from 'sonner';
 import { trpc } from '@/providers/trpc';
 import DeckPlayer from '@/components/player/DeckPlayer';
 import SketchButton from '@/components/sketch/SketchButton';
@@ -19,6 +20,16 @@ export default function PresetPlay() {
   );
 
   const back = () => navigate(`/repos/${slug}`);
+
+  // admin length-calibration persists back onto the saved lesson preset
+  const utils = trpc.useUtils();
+  const setPreset = trpc.repos.setLessonPreset.useMutation({
+    onSuccess: () => {
+      toast.success('Saved to the preset ✓');
+      void utils.repos.lessonPreset.invalidate({ repoSlug: slug, lessonSeq });
+    },
+    onError: (e) => toast.error(e.message),
+  });
 
   if (query.isLoading) {
     return <div className="mx-auto max-w-[720px] px-4 py-16 text-center text-ink-faint">Opening…</div>;
@@ -49,6 +60,7 @@ export default function PresetPlay() {
       nextLessonTitle={null}
       commercial={commercial}
       walkthrough={walkthrough}
+      onPersistDeck={(d) => setPreset.mutate({ repoSlug: slug, lessonSeq, deck: d })}
       onExit={back}
     />
   );
