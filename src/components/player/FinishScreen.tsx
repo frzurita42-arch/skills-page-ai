@@ -87,6 +87,10 @@ export default function FinishScreen({
         void utils.repos.lessonRuns.invalidate({ slug: seed.repoSlug, limit: 100 });
         void utils.repos.courseMemory.invalidate({ slug: seed.repoSlug });
         void utils.repos.list.invalidate();
+      } else {
+        // standalone tool — refresh the drawer so its card leaves the "draft"
+        // (green "Generate") state and shows the yellow "Play" now a run exists
+        void utils.slideTools.list.invalidate();
       }
     },
   });
@@ -464,7 +468,7 @@ export default function FinishScreen({
               variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
             >
               <SketchButton variant="accent" size="lg" onClick={onExitToConfig}>
-                New presentation
+                {seed ? 'Back to repository' : 'Back to slide tools'}
               </SketchButton>
             </motion.div>
           </>

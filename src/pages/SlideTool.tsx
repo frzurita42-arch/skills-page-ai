@@ -519,8 +519,12 @@ function ToolStudio({
         savingPreset={setPreset.isPending}
         presetSaved={presetSaved}
         onExit={() => {
-          setMode('config');
-          setResult(null);
+          // Finishing (or leaving) a play returns you to where the learning
+          // cycle continues — the repo if this deck came from one, otherwise
+          // the slide-tools drawer — never back to this config form.
+          void utils.slideTools.list.invalidate();
+          if (seed) navigate(`/repos/${seed.repoSlug}`);
+          else navigate('/slides');
         }}
       />
     );

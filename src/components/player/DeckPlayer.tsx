@@ -69,7 +69,7 @@ export default function DeckPlayer({
   onExit,
 }: DeckPlayerProps) {
   const reduced = useReducedMotion();
-  const { role } = useAuth();
+  const { role, user } = useAuth();
   const isAdmin = role === 'admin';
   const [index, setIndex] = useState(0);
   const [dir, setDir] = useState(1);
@@ -105,6 +105,30 @@ export default function DeckPlayer({
   const utils = trpc.useUtils();
   const [slideImages, setSlideImages] = useState<Record<number, string>>({});
   const imgRequested = useRef<Set<number>>(new Set());
+
+  // Commercial (menu/service/shop/product) decks end on CommercialFinish, which
+  // has no quiz to grade — so record the play here instead. Without this the
+  // tool's card would keep showing "0 plays" after a real, finished showcase.
+  const runComplete = trpc.runs.complete.useMutation();
+  const commercialRunFired = useRef(false);
+  useEffect(() => {
+    if (!finished || !commercial || commercialRunFired.current) return;
+    commercialRunFired.current = true;
+    runComplete.mutate(
+      {
+        toolSlug,
+        seed: seed ?? undefined,
+        level: deck.level,
+        imageStyle: deck.imageStyle,
+        slideCount: deck.slides.length,
+        elapsedSec: elapsedFinal,
+        playerName: user?.name,
+        deck,
+      },
+      { onSettled: () => void utils.slideTools.list.invalidate() },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finished, commercial]);
 
   const ensureImage = useCallback(
     async (idx: number) => {

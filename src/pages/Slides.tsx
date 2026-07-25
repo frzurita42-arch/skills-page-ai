@@ -605,7 +605,7 @@ export default function Slides() {
                             <Link to={`/slides/${tool.slug}`} className="flex-1 no-underline">
                               <span className="flex w-full items-center justify-center gap-1.5 rounded-wobble-sm border-2 border-ink bg-green px-3 py-1.5 text-sm font-bold text-paper-3 shadow-offset transition-colors hover:bg-[#3f8850]">
                                 <Sparkles className="h-3.5 w-3.5" strokeWidth={2.5} />
-                                Generate a slide
+                                Generate
                               </span>
                             </Link>
                             <Link to={`/slides/${tool.slug}`}>
@@ -619,7 +619,7 @@ export default function Slides() {
                             <Link to={`/slides/${tool.slug}`} className="flex-1">
                               <SketchButton variant="accent" size="sm" className="w-full">
                                 <Play className="h-3.5 w-3.5" strokeWidth={2.5} />
-                                New presentation
+                                Play
                               </SketchButton>
                             </Link>
                             <Link to={`/slides/${tool.slug}`}>
