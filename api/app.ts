@@ -38,11 +38,10 @@ const runMigrations = () => {
   void ensureSlideToolAuthoring().catch(warn("slide-tool authoring"));
 };
 
-// On serverless production, running many boot-time migration probes in parallel
-// can consume the DB's limited connection budget during cold starts. Keep this
-// off by default in production; opt in with ENABLE_BOOT_MIGRATIONS=true.
-const shouldRunBootMigrations =
-  process.env.NODE_ENV !== "production" || process.env.ENABLE_BOOT_MIGRATIONS === "true";
+// Running these probes on every cold start can lock heavily-used tables (e.g.
+// users) and starve auth requests. Keep disabled by default everywhere; opt in
+// explicitly when you intentionally want boot-time schema catch-up.
+const shouldRunBootMigrations = process.env.ENABLE_BOOT_MIGRATIONS === "true";
 if (shouldRunBootMigrations) {
   runMigrations();
 }
