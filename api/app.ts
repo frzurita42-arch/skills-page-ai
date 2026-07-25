@@ -37,7 +37,15 @@ const runMigrations = () => {
   void ensureCustomizationSchema().catch(warn("customization schema"));
   void ensureSlideToolAuthoring().catch(warn("slide-tool authoring"));
 };
-runMigrations();
+
+// On serverless production, running many boot-time migration probes in parallel
+// can consume the DB's limited connection budget during cold starts. Keep this
+// off by default in production; opt in with ENABLE_BOOT_MIGRATIONS=true.
+const shouldRunBootMigrations =
+  process.env.NODE_ENV !== "production" || process.env.ENABLE_BOOT_MIGRATIONS === "true";
+if (shouldRunBootMigrations) {
+  runMigrations();
+}
 
 const app = new Hono<{ Bindings: HttpBindings }>();
 

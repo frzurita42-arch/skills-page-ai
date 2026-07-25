@@ -65,7 +65,12 @@ export const authRouter = createRouter({
     // `email` accepts a plain identifier too: bare usernames resolve to a user
     // (special-case "admin" → the seeded admin account, or a case-insensitive
     // exact name match). Same error either way — no user enumeration.
-    .input(z.object({ email: z.string().min(1).max(320), password: z.string().min(1) }))
+    .input(
+      z.object({
+        email: z.string().min(1).max(320),
+        password: z.string().min(1).max(128),
+      }),
+    )
     .mutation(async ({ input }) => {
       const db = getDb();
       const identifier = input.email.trim();
