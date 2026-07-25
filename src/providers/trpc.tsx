@@ -8,11 +8,18 @@ import { getAuthHeaders } from "@/lib/auth";
 
 export const trpc = createTRPCReact<AppRouter>();
 
+const apiOrigin =
+  import.meta.env.VITE_TRPC_ORIGIN?.trim() ||
+  (import.meta.env.PROD
+    ? "https://test-skills-page-ai-git-main-repo-slides-tools.vercel.app"
+    : "");
+const trpcUrl = `${apiOrigin}/api/trpc`;
+
 const queryClient = new QueryClient();
 const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
-      url: "/api/trpc",
+      url: trpcUrl,
       transformer: superjson,
       headers() {
         // attaches `Authorization: Bearer <jwt>` when signed in (src/lib/auth)

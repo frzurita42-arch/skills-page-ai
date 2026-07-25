@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { HttpBindings } from "@hono/node-server";
+import { cors } from "hono/cors";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "./router.js";
 import { createContext } from "./context.js";
@@ -47,6 +48,25 @@ if (shouldRunBootMigrations) {
 }
 
 const app = new Hono<{ Bindings: HttpBindings }>();
+
+app.use(
+  "/api/*",
+  cors({
+    origin: (origin) => {
+      if (!origin) return origin;
+      if (
+        origin === "https://test-skills-page-ai.vercel.app" ||
+        origin === "https://test-skills-page-ai-git-main-repo-slides-tools.vercel.app"
+      ) {
+        return origin;
+      }
+      return origin.endsWith(".vercel.app") ? origin : "";
+    },
+    allowMethods: ["GET", "POST", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  }),
+);
 
 app.use("/api/trpc/*", async (c) => {
   return fetchRequestHandler({
