@@ -1,4 +1,4 @@
-export * from "./errors";
+export * from "./errors.js";
 
 /* ------------------------------------------------------------------ */
 /* SketchLearn shared contracts — frontend imports ONLY from here.      */
