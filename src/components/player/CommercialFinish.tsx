@@ -1,8 +1,6 @@
-import { useState } from 'react';
+import { Link } from 'react-router';
 import { motion } from 'framer-motion';
-import { Check, MessageCircle, Link as LinkIcon, ShoppingBag } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { trpc } from '@/providers/trpc';
+import { ArrowLeft, MessageCircle, UserRound } from 'lucide-react';
 import SketchButton from '../sketch/SketchButton';
 import WashiTape from '../sketch/WashiTape';
 import { DoodleSparkle } from '../sketch/DoodleIcons';
@@ -14,16 +12,11 @@ function waLink(whatsapp: string): string | null {
   return digits.length >= 6 ? `https://wa.me/${digits}` : null;
 }
 
-function socialHref(s: string): string {
-  if (/^https?:\/\//i.test(s)) return s;
-  if (s.startsWith('@')) return `https://instagram.com/${s.slice(1)}`;
-  return `https://${s}`;
-}
-
 /**
- * The end of a commercial (menu/service/shop) presentation: instead of a score,
- * the viewer sees who's offering the item, how to reach them (WhatsApp +
- * socials), and can register interest — which drops a lead to the owner.
+ * The end of a commercial (menu/service/shop/product) presentation. No score
+ * and no in-app order form — just who's offering the item and how to reach
+ * them. The main action is to go back to browsing; contacting the owner over
+ * WhatsApp and visiting their profile are secondary links.
  */
 export default function CommercialFinish({
   commercial,
@@ -32,29 +25,15 @@ export default function CommercialFinish({
   commercial: CommercialInfo;
   onExit: () => void;
 }) {
-  const { owner, itemTitle, repoSlug, lessonSeq } = commercial;
-  const [note, setNote] = useState('');
-  const [sent, setSent] = useState(false);
-  const create = trpc.orders.create.useMutation();
+  const { owner, itemTitle } = commercial;
   const wa = owner.whatsapp ? waLink(owner.whatsapp) : null;
 
-  const order = () => {
-    if (!repoSlug) {
-      setSent(true);
-      return;
-    }
-    create.mutate(
-      { repoSlug, lessonSeq: lessonSeq ?? undefined, itemTitle, note: note.trim() || undefined },
-      { onSuccess: () => setSent(true) },
-    );
-  };
-
   return (
-    <div className="mx-auto w-full max-w-[640px] px-5 py-12 text-center">
+    <div className="mx-auto w-full max-w-[560px] px-5 py-14 text-center">
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative rounded-wobble-2 border-2 border-ink bg-paper-3 p-6 pt-8 shadow-offset"
+        className="relative rounded-wobble-2 border-2 border-ink bg-paper-3 p-7 pt-9 shadow-offset"
       >
         <WashiTape rotate={-3} className="left-1/2 -translate-x-1/2" />
         <DoodleSparkle className="mx-auto h-8 w-8 text-purple" />
@@ -66,88 +45,40 @@ export default function CommercialFinish({
           <p className="mx-auto mt-3 max-w-md text-sm text-ink-soft">{owner.contactNote}</p>
         )}
 
-        {/* contact ways */}
-        <div className="mt-6 flex flex-col items-stretch gap-2">
+        {/* main action: back to browsing */}
+        <div className="mt-7">
+          <SketchButton variant="accent" className="w-full justify-center" onClick={onExit}>
+            <ArrowLeft className="h-4 w-4" strokeWidth={2} />
+            Back to browsing
+          </SketchButton>
+        </div>
+
+        {/* secondary, underlined: contact over WhatsApp + owner profile */}
+        <div className="mt-4 flex flex-col items-center gap-2.5">
           {wa && (
-            <a href={wa} target="_blank" rel="noopener noreferrer" className="no-underline">
-              <SketchButton variant="accent" className="w-full">
-                <MessageCircle className="h-4 w-4" /> Message on WhatsApp
-              </SketchButton>
-            </a>
-          )}
-          {owner.socials.map((s) => (
             <a
-              key={s}
-              href={socialHref(s)}
+              href={wa}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1.5 rounded-wobble-sm border-2 border-dashed border-pencil px-3 py-2 font-heading text-sm text-ink no-underline transition-colors hover:border-ink hover:bg-paper-2"
+              className="inline-flex items-center gap-1.5 font-heading text-sm font-semibold text-ink underline underline-offset-4 transition-colors hover:text-green"
             >
-              <LinkIcon className="h-3.5 w-3.5" /> {s}
+              <MessageCircle className="h-4 w-4" strokeWidth={2} />
+              Contact {owner.name} through WhatsApp
             </a>
-          ))}
-          {!wa && owner.socials.length === 0 && (
-            <p className="text-sm text-ink-faint">
-              The seller hasn't added contact details yet.
-            </p>
+          )}
+          {owner.ownerId != null && (
+            <Link
+              to={`/users/${owner.ownerId}`}
+              className="inline-flex items-center gap-1.5 font-heading text-sm font-semibold text-ink-soft underline underline-offset-4 transition-colors hover:text-ink"
+            >
+              <UserRound className="h-4 w-4" strokeWidth={2} />
+              Visit {owner.name}'s profile
+            </Link>
+          )}
+          {!wa && owner.ownerId == null && (
+            <p className="text-sm text-ink-faint">The seller hasn't added contact details yet.</p>
           )}
         </div>
-
-        {/* request to buy — mirrors the credits request: send a request, then
-            arrange it directly over WhatsApp (no payment handled in-app) */}
-        <div className="mt-6 border-t-2 border-dashed border-pencil pt-5 text-left">
-          {sent ? (
-            <div className="flex flex-col gap-3 rounded-wobble-sm bg-green-soft p-3.5 font-heading text-ink">
-              <span className="flex items-start gap-2">
-                <Check className="mt-0.5 h-5 w-5 shrink-0 text-green" />
-                <span>
-                  Request sent for <span className="font-bold">{itemTitle}</span> —{' '}
-                  <span className="font-bold">{owner.name}</span> will see it. To arrange it, message
-                  them on WhatsApp.
-                </span>
-              </span>
-              {wa && (
-                <a href={wa} target="_blank" rel="noopener noreferrer" className="no-underline">
-                  <SketchButton variant="accent" className="w-full">
-                    <MessageCircle className="h-4 w-4" /> Message {owner.name} on WhatsApp
-                  </SketchButton>
-                </a>
-              )}
-            </div>
-          ) : (
-            <>
-              <p className="micro mb-1 font-semibold text-ink-soft">Request to buy</p>
-              <p className="micro mb-2 text-[0.68rem] text-ink-faint">
-                Send a request, then arrange the purchase directly with the seller over WhatsApp — no
-                payment is handled here.
-              </p>
-              <label className="micro mb-1 block text-ink-soft">Add a note (optional)</label>
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                rows={2}
-                placeholder={`e.g. I'd like to buy ${itemTitle}…`}
-                className="w-full resize-y rounded-wobble-sm border-2 border-ink bg-paper px-3 py-2 text-sm text-ink shadow-offset outline-none focus:border-blue"
-              />
-              <SketchButton
-                variant="primary"
-                className={cn('mt-3 w-full')}
-                loading={create.isPending}
-                onClick={order}
-              >
-                <ShoppingBag className="h-4 w-4" /> Request to buy
-              </SketchButton>
-            </>
-          )}
-        </div>
-
-        <button
-          type="button"
-          onClick={onExit}
-          className="mt-5 font-heading text-sm text-ink-soft underline-offset-2 hover:text-ink hover:underline"
-        >
-          Back to browsing
-        </button>
       </motion.div>
     </div>
   );

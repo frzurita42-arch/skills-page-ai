@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Link } from 'react-router';
 import { motion } from 'framer-motion';
-import { ChevronRight, Hand, Sparkles, Star } from 'lucide-react';
+import { ChevronRight, Hand, Sparkles, Star, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Chip from '@/components/sketch/Chip';
 import { trpc } from '@/providers/trpc';
@@ -12,6 +12,9 @@ export interface RepoCardProps {
   repo: RepoSummary;
   index: number;
   onToggleFavorite: (repo: RepoSummary) => void;
+  /** admin or the repo's owner — shows a trash icon to delete from the gallery */
+  canDelete?: boolean;
+  onDelete?: (repo: RepoSummary) => void;
 }
 
 /**
@@ -19,7 +22,7 @@ export interface RepoCardProps {
  * doodle in a yellow-soft circle, repo-ref chip, favorite doodle-star, progress
  * strip. Hover lifts the card and prefetches the detail payload.
  */
-function RepoCardInner({ repo, index, onToggleFavorite }: RepoCardProps) {
+function RepoCardInner({ repo, index, onToggleFavorite, canDelete, onDelete }: RepoCardProps) {
   const utils = trpc.useUtils();
   // progress strip shows the viewer's OWN completed UNITS, not global runs
   const played = Math.min(repo.myCompletedUnits, repo.unitCount);
@@ -50,25 +53,42 @@ function RepoCardInner({ repo, index, onToggleFavorite }: RepoCardProps) {
           <span className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-ink bg-yellow-soft text-ink">
             <TemplateIcon template={repo.template} className="h-5 w-5" />
           </span>
-          <button
-            type="button"
-            aria-label={repo.favorite ? 'Remove from favorites' : 'Add to favorites'}
-            aria-pressed={repo.favorite}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onToggleFavorite(repo);
-            }}
-            className="rounded-full p-1.5 text-ink transition-transform duration-200 hover:scale-125 hover:rotate-6"
-          >
-            <Star
-              className={cn(
-                'h-5 w-5 transition-colors',
-                repo.favorite ? 'fill-yellow text-ink' : 'text-ink-faint',
-              )}
-              strokeWidth={2}
-            />
-          </button>
+          <span className="flex items-center gap-0.5">
+            <button
+              type="button"
+              aria-label={repo.favorite ? 'Remove from favorites' : 'Add to favorites'}
+              aria-pressed={repo.favorite}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onToggleFavorite(repo);
+              }}
+              className="rounded-full p-1.5 text-ink transition-transform duration-200 hover:scale-125 hover:rotate-6"
+            >
+              <Star
+                className={cn(
+                  'h-5 w-5 transition-colors',
+                  repo.favorite ? 'fill-yellow text-ink' : 'text-ink-faint',
+                )}
+                strokeWidth={2}
+              />
+            </button>
+            {canDelete && (
+              <button
+                type="button"
+                aria-label="Delete repository"
+                title="Delete this repository"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onDelete?.(repo);
+                }}
+                className="rounded-wobble-sm p-1.5 text-ink-faint transition-colors hover:bg-red-soft hover:text-red"
+              >
+                <Trash2 className="h-4 w-4" strokeWidth={2} />
+              </button>
+            )}
+          </span>
         </div>
 
         {/* title + slug */}

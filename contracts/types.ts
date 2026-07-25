@@ -439,6 +439,7 @@ export interface DeckAnnotations {
 
 /** Public contact details a poster shows at the end of a showcase. */
 export interface OwnerContact {
+  ownerId: number | null;
   name: string;
   whatsapp: string | null;
   socials: string[];

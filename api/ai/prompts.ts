@@ -205,16 +205,17 @@ export function buildSlidesSystemPrompt(opts: {
   // carry, scaled to the CEFR band. Higher levels demand a fuller page: an
   // advanced (C1/C2) reader gets several substantial paragraphs, not one line.
   // Commercial showcases are exempt — listing copy should be as long as it
-  // needs, not padded to a floor.
-  const paraFloor = commercial || news
-    ? 1
-    : ["C1", "C2"].includes(opts.level)
-      ? 4
-      : ["B1", "B2"].includes(opts.level)
-        ? 3
-        : ["A2"].includes(opts.level)
-          ? 2
-          : 1;
+  // needs, not padded to a floor. A walkthrough gets at least 2 paragraphs even
+  // at low levels: its whole point is a written explanation, so it must never
+  // lean on visuals alone.
+  const baseFloor = ["C1", "C2"].includes(opts.level)
+    ? 4
+    : ["B1", "B2"].includes(opts.level)
+      ? 3
+      : ["A2"].includes(opts.level)
+        ? 2
+        : 1;
+  const paraFloor = commercial || news ? 1 : walkthrough ? Math.max(2, baseFloor) : baseFloor;
 
   const memory = opts.previouslyTaught
     ? `
@@ -256,6 +257,7 @@ ${
     ? `
 WALKTHROUGH MODE — this is an EXPLANATION the viewer is guided through, NOT an evaluated lesson:
 - Teach and explain "${opts.subject ?? "the given topic"}" clearly and completely, building idea by idea, exactly like a good lesson — same depth and rigor.
+- TEXT CARRIES THE EXPLANATION. Every content slide MUST include real written prose that explains the point in words — at least two solid paragraphs. Images, tables, charts and diagrams SUPPORT the text; they never replace it. Never ship a slide that is just a visual with a caption: say, in sentences, what the visual shows, what to notice, and what it means.
 - BUT never test the viewer: emit NO quiz/evaluation on ANY slide. If a layout template lists an evaluation step, SKIP that step and end the slide on its explanatory content. Do not ask questions the viewer must answer.
 - The goal is understanding, not assessment — walk them through it and let the ideas land.
 `

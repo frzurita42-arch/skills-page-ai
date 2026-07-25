@@ -46,8 +46,23 @@ const SORTS: { key: SortKey; label: string }[] = [
 
 export default function Repos() {
   const navigate = useNavigate();
-  const { isGuest } = useAuth();
+  const { isGuest, user, role } = useAuth();
   const utils = trpc.useUtils();
+  // Admins and a repo's own owner can delete it straight from the gallery card.
+  const canDeleteRepo = (repo: RepoSummary) =>
+    role === 'admin' || (!!user && repo.ownerName === user.name);
+  const deleteRepo = trpc.repos.delete.useMutation({
+    onSuccess: () => {
+      toast.success('Repository deleted.');
+      void utils.repos.list.invalidate();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const onDeleteRepo = (repo: RepoSummary) => {
+    if (window.confirm(`Delete "${repo.title}" and all its units, lessons and presets? This can't be undone.`)) {
+      deleteRepo.mutate({ slug: repo.slug });
+    }
+  };
 
   const [q, setQ] = useState('');
   const debouncedQ = useDebounced(q, 250);
@@ -444,6 +459,8 @@ export default function Repos() {
                     repo={repo}
                     index={i}
                     onToggleFavorite={onToggleFavorite}
+                    canDelete={canDeleteRepo(repo)}
+                    onDelete={onDeleteRepo}
                   />
                 ))}
               </motion.div>

@@ -575,6 +575,7 @@ export const reposRouter = createRouter({
         if (owner) {
           commercial = {
             owner: {
+              ownerId: owner.id,
               name: owner.name,
               whatsapp: owner.whatsapp ?? null,
               socials: Array.isArray(owner.socials) ? (owner.socials as string[]) : [],

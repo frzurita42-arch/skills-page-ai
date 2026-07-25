@@ -391,6 +391,7 @@ export const generateRouter = createRouter({
             if (owner) {
               commercial = {
                 owner: {
+                  ownerId: owner.id,
                   name: owner.name,
                   whatsapp: owner.whatsapp ?? null,
                   socials: Array.isArray(owner.socials) ? (owner.socials as string[]) : [],
@@ -426,7 +427,8 @@ export const generateRouter = createRouter({
         if (owner) {
           commercial = {
             owner: {
-              name: owner.name,
+              ownerId: owner.id,
+                  name: owner.name,
               whatsapp: owner.whatsapp ?? null,
               socials: Array.isArray(owner.socials) ? (owner.socials as string[]) : [],
               contactNote: owner.contactNote ?? null,
@@ -516,13 +518,16 @@ export const generateRouter = createRouter({
       // Minimum distinct body paragraphs a teaching slide must carry at this
       // CEFR band — a C1 deck must not ship slides with a single short line.
       // Mirrors the PARAGRAPH FLOOR stated in the system prompt.
-      const paraFloor = ["C1", "C2"].includes(input.level)
+      const baseParaFloor = ["C1", "C2"].includes(input.level)
         ? 4
         : ["B1", "B2"].includes(input.level)
           ? 3
           : input.level === "A2"
             ? 2
             : 1;
+      // A walkthrough is an explanation, so it must carry written text even at
+      // low levels — at least two paragraphs per content slide.
+      const paraFloor = purpose === "walkthrough" ? Math.max(2, baseParaFloor) : baseParaFloor;
       const layoutTemplates = allowedTemplates.map((t) => ({
         name: t.name,
         tags: t.tags,

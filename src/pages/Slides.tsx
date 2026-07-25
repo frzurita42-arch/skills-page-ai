@@ -95,8 +95,11 @@ function StarButton({
 
 export default function Slides() {
   const navigate = useNavigate();
-  const { isGuest } = useAuth();
+  const { isGuest, user, role } = useAuth();
   const utils = trpc.useUtils();
+  // Admins and a tool's own owner can delete it straight from the gallery card.
+  const canDeleteTool = (tool: SlideToolSummary) =>
+    role === 'admin' || (!!user && tool.ownerName === user.name);
 
   const [search, setSearch] = useState('');
   const [favOnly, setFavOnly] = useState(false);
@@ -535,6 +538,20 @@ export default function Slides() {
                               favMutation.mutate({ slug: tool.slug }),
                             )}
                           />
+                          {canDeleteTool(tool) && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                deleteTool(tool);
+                              }}
+                              aria-label="Delete slide tool"
+                              title="Delete this slide tool"
+                              className="rounded-wobble-sm p-1.5 text-ink-faint transition-colors hover:bg-red-soft hover:text-red"
+                            >
+                              <Trash2 className="h-4 w-4" strokeWidth={2} />
+                            </button>
+                          )}
                         </span>
                       </div>
 
