@@ -93,27 +93,40 @@ export default function CommercialFinish({
           )}
         </div>
 
-        {/* register interest */}
+        {/* request to buy — mirrors the credits request: send a request, then
+            arrange it directly over WhatsApp (no payment handled in-app) */}
         <div className="mt-6 border-t-2 border-dashed border-pencil pt-5 text-left">
           {sent ? (
-            <div className="flex items-start gap-2 rounded-wobble-sm bg-green-soft p-3.5 font-heading text-ink">
-              <Check className="mt-0.5 h-5 w-5 shrink-0 text-green" />
-              <span>
-                Interest sent — <span className="font-bold">{owner.name}</span> will see that you're
-                interested in <span className="font-bold">{itemTitle}</span>. Reach out directly too
-                for the fastest reply.
+            <div className="flex flex-col gap-3 rounded-wobble-sm bg-green-soft p-3.5 font-heading text-ink">
+              <span className="flex items-start gap-2">
+                <Check className="mt-0.5 h-5 w-5 shrink-0 text-green" />
+                <span>
+                  Request sent for <span className="font-bold">{itemTitle}</span> —{' '}
+                  <span className="font-bold">{owner.name}</span> will see it. To arrange it, message
+                  them on WhatsApp.
+                </span>
               </span>
+              {wa && (
+                <a href={wa} target="_blank" rel="noopener noreferrer" className="no-underline">
+                  <SketchButton variant="accent" className="w-full">
+                    <MessageCircle className="h-4 w-4" /> Message {owner.name} on WhatsApp
+                  </SketchButton>
+                </a>
+              )}
             </div>
           ) : (
             <>
-              <label className="micro mb-1 block text-ink-soft">
-                Interested? Send them a note (optional)
-              </label>
+              <p className="micro mb-1 font-semibold text-ink-soft">Request to buy</p>
+              <p className="micro mb-2 text-[0.68rem] text-ink-faint">
+                Send a request, then arrange the purchase directly with the seller over WhatsApp — no
+                payment is handled here.
+              </p>
+              <label className="micro mb-1 block text-ink-soft">Add a note (optional)</label>
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 rows={2}
-                placeholder={`e.g. I'd like to order ${itemTitle}…`}
+                placeholder={`e.g. I'd like to buy ${itemTitle}…`}
                 className="w-full resize-y rounded-wobble-sm border-2 border-ink bg-paper px-3 py-2 text-sm text-ink shadow-offset outline-none focus:border-blue"
               />
               <SketchButton
@@ -122,7 +135,7 @@ export default function CommercialFinish({
                 loading={create.isPending}
                 onClick={order}
               >
-                <ShoppingBag className="h-4 w-4" /> I'm interested
+                <ShoppingBag className="h-4 w-4" /> Request to buy
               </SketchButton>
             </>
           )}

@@ -7,6 +7,7 @@ import {
   LayoutGrid,
   Plus,
   Search,
+  Sparkles,
   Star,
   Table2,
 } from 'lucide-react';
@@ -156,6 +157,14 @@ export default function Repos() {
             <TemplateIcon template={row.template} className="h-3.5 w-3.5" />
           </span>
           <span className="font-heading font-semibold text-ink">{row.title}</span>
+          {row.source === 'ai' && (
+            <span
+              title="Generated with AI"
+              className="inline-flex items-center gap-0.5 rounded-wobble-sm border border-purple bg-purple-soft px-1 text-[0.55rem] font-bold text-purple"
+            >
+              <Sparkles className="h-2.5 w-2.5" strokeWidth={2.5} /> AI
+            </span>
+          )}
         </span>
       ),
       sortValue: (row) => row.title.toLowerCase(),

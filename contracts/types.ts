@@ -189,12 +189,18 @@ export interface SessionUser {
 
 /* ---------------- Repos / slide tools ------------------------------ */
 
+/** How a repo's content was authored — AI-generated or hand-built by a human.
+ *  Today everything is "ai"; "human" is reserved for the future hand-fill editor. */
+export type ContentSource = "ai" | "human";
+
 export interface RepoSummary {
   slug: string;
   ref: string;
   title: string;
   description: string;
   template: RepoTemplate;
+  /** how this repo was authored — drives the "Made with AI" gallery badge */
+  source: ContentSource;
   unitCount: number;
   lessonCount: number;
   runCount: number;

@@ -140,6 +140,7 @@ async function repoSummaries(repoRows: Repo[], userId: number | undefined): Prom
       title: repo.title,
       description: repo.description,
       template: repo.template,
+      source: repo.source === "human" ? "human" : "ai",
       unitCount: repoUnits.length,
       lessonCount,
       runCount: repoRuns.length,

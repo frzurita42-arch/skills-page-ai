@@ -76,6 +76,9 @@ export const repos = appSchema.table(
     template: templateEnum("template").notNull().default("course"),
     ownerId: fk("ownerId"),
     studyToolSlug: varchar("studyToolSlug", { length: 191 }),
+    // how the content was authored: "ai" (generated) or "human" (hand-built).
+    // Precursor to a future hand-fill editor; today everything is "ai".
+    source: varchar("source", { length: 16 }).notNull().default("ai"),
     isPublic: boolean("isPublic").notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

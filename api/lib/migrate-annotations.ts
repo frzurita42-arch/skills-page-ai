@@ -74,6 +74,10 @@ export async function ensureCommercialSchema(): Promise<void> {
     await client.query(
       `CREATE INDEX IF NOT EXISTS orders_owner_idx ON sketchlearn.orders ("ownerId")`,
     );
+    // authoring source on repos (ai / human) — defaults every existing row to ai
+    await client.query(
+      `ALTER TABLE sketchlearn.repos ADD COLUMN IF NOT EXISTS "source" varchar(16) NOT NULL DEFAULT 'ai'`,
+    );
   } finally {
     await client.end();
   }

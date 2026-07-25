@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Link } from 'react-router';
 import { motion } from 'framer-motion';
-import { ChevronRight, Star } from 'lucide-react';
+import { ChevronRight, Hand, Sparkles, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Chip from '@/components/sketch/Chip';
 import { trpc } from '@/providers/trpc';
@@ -83,6 +83,21 @@ function RepoCardInner({ repo, index, onToggleFavorite }: RepoCardProps) {
           <Chip kind="neutral" className="normal-case">
             {repo.template}
           </Chip>
+          {repo.source === 'ai' ? (
+            <span
+              title="Generated with AI"
+              className="inline-flex items-center gap-1 rounded-wobble-sm border-2 border-purple bg-purple-soft px-1.5 py-0.5 font-heading text-[0.6rem] font-bold text-purple"
+            >
+              <Sparkles className="h-3 w-3" strokeWidth={2.5} /> Made with AI
+            </span>
+          ) : (
+            <span
+              title="Hand-built by a person"
+              className="inline-flex items-center gap-1 rounded-wobble-sm border-2 border-green bg-green-soft px-1.5 py-0.5 font-heading text-[0.6rem] font-bold text-green"
+            >
+              <Hand className="h-3 w-3" strokeWidth={2.5} /> Made by hand
+            </span>
+          )}
         </div>
 
         {/* meta row */}
