@@ -1,0 +1,54 @@
+import { useNavigate, useParams } from 'react-router';
+import { trpc } from '@/providers/trpc';
+import DeckPlayer from '@/components/player/DeckPlayer';
+import SketchButton from '@/components/sketch/SketchButton';
+import { ChevronLeft } from 'lucide-react';
+
+/**
+ * Watch a saved PRESET presentation — the deck the owner generated once, so a
+ * viewer scrolls through it without triggering (or paying for) a new
+ * generation. Commercial items end on the contact/order screen.
+ */
+export default function PresetPlay() {
+  const { slug = '', seq = '' } = useParams();
+  const navigate = useNavigate();
+  const lessonSeq = Number(seq);
+  const query = trpc.repos.lessonPreset.useQuery(
+    { repoSlug: slug, lessonSeq },
+    { enabled: !!slug && Number.isFinite(lessonSeq), retry: false },
+  );
+
+  const back = () => navigate(`/repos/${slug}`);
+
+  if (query.isLoading) {
+    return <div className="mx-auto max-w-[720px] px-4 py-16 text-center text-ink-faint">Opening…</div>;
+  }
+  if (query.isError || !query.data) {
+    return (
+      <div className="mx-auto max-w-[720px] px-4 py-16 text-center">
+        <p className="font-display text-3xl text-ink">Nothing to show yet</p>
+        <p className="mt-2 text-ink-soft">
+          This item doesn't have a saved presentation, or it isn't available.
+        </p>
+        <SketchButton variant="secondary" className="mt-4" onClick={back}>
+          <ChevronLeft className="h-4 w-4" /> Back
+        </SketchButton>
+      </div>
+    );
+  }
+
+  const { deck, seed, toolSlug, commercial } = query.data;
+
+  return (
+    <DeckPlayer
+      deck={deck}
+      toolSlug={toolSlug}
+      seed={seed}
+      previouslyTaught={null}
+      voiceURI={null}
+      nextLessonTitle={null}
+      commercial={commercial}
+      onExit={back}
+    />
+  );
+}

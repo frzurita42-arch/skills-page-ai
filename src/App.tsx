@@ -9,6 +9,7 @@ import SlideTool from './pages/SlideTool';
 import Templates from './pages/Templates';
 import Runs from './pages/Runs';
 import Replay from './pages/Replay';
+import PresetPlay from './pages/PresetPlay';
 import About from './pages/About';
 import Settings from './pages/Settings';
 import Auth from './pages/Auth';
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/lesson-path" element={<LessonPath />} />
         <Route path="/repos" element={<Repos />} />
         <Route path="/repos/:slug" element={<Repository />} />
+        <Route path="/repos/:slug/play/:seq" element={<PresetPlay />} />
         <Route path="/slides" element={<Slides />} />
         <Route path="/slides/:slug" element={<SlideTool />} />
         {/* Slide templates are an admin-only management surface */}

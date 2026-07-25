@@ -74,8 +74,7 @@ export default function UnitCard({
 }: UnitCardProps) {
   const [open, setOpen] = useState(true);
   const meta = TEMPLATE_META[template] ?? TEMPLATE_META.other;
-  // commercial repos (menu/service/shop) "Play" an item; courses "Study" it
-  const studyLabel = repoPurpose(template) === 'commercial' ? 'Play' : 'Study';
+  const purpose = repoPurpose(template);
   const utils = trpc.useUtils();
 
   const refresh = () => {
@@ -343,7 +342,7 @@ export default function UnitCard({
                     seed={buildSeed(lesson)}
                     objectiveLabel={meta.objectiveNoun}
                     studyToolSlug={studyToolSlug}
-                    studyLabel={studyLabel}
+                    purpose={purpose}
                     isNextUp={lesson.id === nextUpLessonId}
                     playedCount={playedCount}
                     isGuest={isGuest}
@@ -359,7 +358,7 @@ export default function UnitCard({
                         seed={buildSeed(sub)}
                         objectiveLabel={meta.objectiveNoun}
                         studyToolSlug={studyToolSlug}
-                        studyLabel={studyLabel}
+                        purpose={purpose}
                         isNextUp={sub.id === nextUpLessonId}
                         playedCount={playedCount}
                         isGuest={isGuest}
@@ -443,7 +442,7 @@ function LessonCard({
   seed,
   objectiveLabel,
   studyToolSlug,
-  studyLabel,
+  purpose,
   isNextUp,
   playedCount,
   isGuest,
@@ -456,7 +455,7 @@ function LessonCard({
   seed: LessonSeed;
   objectiveLabel: string;
   studyToolSlug: string | null;
-  studyLabel: string;
+  purpose: 'education' | 'commercial';
   isNextUp: boolean;
   playedCount: number;
   isGuest: boolean;
@@ -472,22 +471,103 @@ function LessonCard({
   const completed = lesson.myStatus === 'completed';
   const tryAgain = lesson.myStatus === 'try-again';
 
+  const utils = trpc.useUtils();
+  const deletePreset = trpc.repos.deleteLessonPreset.useMutation({
+    onSuccess: () => {
+      toast.success('Preset cleared');
+      void utils.repos.getBySlug.invalidate({ slug: seed.repoSlug });
+    },
+  });
+
+  const isOwner = !!controls;
+  const commercial = purpose === 'commercial';
+  const setHref = studyToolSlug ? studyUrl(studyToolSlug, seed) : '';
+  const playHref = `/repos/${seed.repoSlug}/play/${seed.lessonSeq}`;
+
   const studyTitle =
     playedCount > 0
       ? `Opens the slide tool with this lesson's prompt · Builds on ${playedCount} completed lesson${playedCount === 1 ? '' : 's'} ✦`
       : "Opens the slide tool with this lesson's prompt";
 
-  const studyButton = (
+  const ActionBtn = ({ label, title }: { label: string; title?: string }) => (
     <SketchButton
       variant="accent"
       size="sm"
       disabled={!studyToolSlug}
-      title={studyToolSlug ? studyTitle : 'No slide tool linked to this notebook yet'}
+      title={title ?? (studyToolSlug ? studyTitle : 'No slide tool linked to this notebook yet')}
     >
       <Clapperboard className="h-4 w-4" strokeWidth={2} />
-      {studyLabel}
+      {label}
     </SketchButton>
   );
+
+  /** The right button for this item, given purpose / ownership / preset. */
+  const renderAction = () => {
+    // Menu / service / shop: generate ONCE, then everyone watches the preset.
+    if (commercial) {
+      if (lesson.hasPreset) {
+        return (
+          <span className="flex items-center gap-1.5">
+            <Link to={playHref} className="no-underline">
+              <SketchButton variant="accent" size="sm">
+                <Clapperboard className="h-4 w-4" strokeWidth={2} /> Play
+              </SketchButton>
+            </Link>
+            {isOwner && studyToolSlug && (
+              <Link to={setHref} title="Edit & regenerate this preset" className="no-underline">
+                <button
+                  type="button"
+                  className="rounded-wobble-sm border-2 border-pencil p-1.5 text-ink-soft transition-colors hover:border-ink hover:text-ink"
+                  aria-label="Edit preset"
+                >
+                  <Pencil className="h-3.5 w-3.5" strokeWidth={2} />
+                </button>
+              </Link>
+            )}
+            {isOwner && (
+              <button
+                type="button"
+                onClick={() =>
+                  deletePreset.mutate({ repoSlug: seed.repoSlug, lessonSeq: seed.lessonSeq })
+                }
+                disabled={deletePreset.isPending}
+                title="Clear preset"
+                aria-label="Clear preset"
+                className="rounded-wobble-sm border-2 border-transparent p-1.5 text-ink-faint transition-colors hover:border-dashed hover:border-red hover:text-red"
+              >
+                <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
+              </button>
+            )}
+          </span>
+        );
+      }
+      // no preset yet: owner sets it; everyone else sees nothing to play
+      if (!isOwner) return null;
+      return isGuest ? (
+        <span onClick={onGuestStudy}>
+          <ActionBtn label="Set" title="Generate this item's presentation, then save it as a preset" />
+        </span>
+      ) : studyToolSlug ? (
+        <Link to={setHref} className="no-underline">
+          <ActionBtn label="Set" title="Generate this item's presentation, then save it as a preset" />
+        </Link>
+      ) : (
+        <ActionBtn label="Set" />
+      );
+    }
+    // Education: generate on open (unchanged).
+    return isGuest ? (
+      <span onClick={onGuestStudy}>
+        <ActionBtn label="Study" />
+      </span>
+    ) : studyToolSlug ? (
+      <Link to={setHref} title={studyTitle} className="no-underline">
+        <ActionBtn label="Study" />
+      </Link>
+    ) : (
+      <ActionBtn label="Study" />
+    );
+  };
 
   const saveObjective = () => {
     const next = objectiveDraft.trim();
@@ -637,15 +717,7 @@ function LessonCard({
           </h4>
           <p className="mt-0.5 line-clamp-1 text-sm text-ink-soft">{lesson.objective}</p>
         </div>
-        {isGuest ? (
-          <span onClick={onGuestStudy}>{studyButton}</span>
-        ) : studyToolSlug ? (
-          <Link to={studyUrl(studyToolSlug, seed)} title={studyTitle} className="no-underline">
-            {studyButton}
-          </Link>
-        ) : (
-          studyButton
-        )}
+        {renderAction()}
       </div>
 
       {/* prompt card — exactly the string seeded into the slide tool */}

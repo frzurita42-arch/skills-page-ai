@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Flag, Pencil } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Flag, Pencil, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/hooks/useAuth';
@@ -33,6 +33,11 @@ export interface DeckPlayerProps {
   scratchpadEnabled?: boolean;
   /** set for menu/service/shop decks — ends on a contact/order screen */
   commercial?: CommercialInfo | null;
+  /** owner-only: save THIS generated deck as the item's preset (generate once).
+   *  undefined → no button (viewers, or already a preset). */
+  onSavePreset?: () => void;
+  savingPreset?: boolean;
+  presetSaved?: boolean;
   onExit: () => void;
 }
 
@@ -57,6 +62,9 @@ export default function DeckPlayer({
   nextLessonTitle,
   scratchpadEnabled = true,
   commercial = null,
+  onSavePreset,
+  savingPreset = false,
+  presetSaved = false,
   onExit,
 }: DeckPlayerProps) {
   const reduced = useReducedMotion();
@@ -413,6 +421,22 @@ export default function DeckPlayer({
       </div>
 
       {/* annotation toolbar / toggle — slide player only, top-centre */}
+      {/* owner: save this generated deck as the item's preset */}
+      {onSavePreset && (
+        <div className="pointer-events-none fixed right-4 top-[58px] z-[70]">
+          <button
+            type="button"
+            onClick={onSavePreset}
+            disabled={savingPreset || presetSaved}
+            className="pointer-events-auto flex items-center gap-1.5 rounded-wobble-sm border-2 border-ink bg-yellow px-3 py-1.5 font-heading text-sm font-bold text-ink shadow-offset transition-transform hover:-translate-y-0.5 disabled:opacity-60"
+            title="Save this presentation so viewers can watch it without regenerating"
+          >
+            <Save className="h-4 w-4" strokeWidth={2} />
+            {presetSaved ? 'Saved ✓' : savingPreset ? 'Saving…' : 'Save as preset'}
+          </button>
+        </div>
+      )}
+
       {!finished && (
         <div className="pointer-events-none fixed left-1/2 top-[58px] z-[70] flex -translate-x-1/2 justify-center px-2">
           {annotateOn ? (

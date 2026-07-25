@@ -78,6 +78,13 @@ export async function ensureCommercialSchema(): Promise<void> {
     await client.query(
       `ALTER TABLE sketchlearn.repos ADD COLUMN IF NOT EXISTS "source" varchar(16) NOT NULL DEFAULT 'ai'`,
     );
+    // preset presentation columns on lessons (generate-once, watch-many)
+    await client.query(
+      `ALTER TABLE sketchlearn.lessons ADD COLUMN IF NOT EXISTS "presetDeckJson" json`,
+    );
+    await client.query(
+      `ALTER TABLE sketchlearn.lessons ADD COLUMN IF NOT EXISTS "presetAt" timestamp`,
+    );
   } finally {
     await client.end();
   }

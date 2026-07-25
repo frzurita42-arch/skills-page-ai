@@ -18,6 +18,7 @@ import {
 import { repoRef, slugify, templateSchema } from "../ai/prompts";
 import { courseMemory } from "../memory";
 import { isPassingScore } from "@contracts/progress";
+import { repoPurpose } from "@contracts/types";
 import type { RepoDetail, RepoLesson, RepoSummary, RepoUnit, LessonRunRow, Level } from "@contracts/types";
 
 type RunLite = Pick<
@@ -226,6 +227,7 @@ export const reposRouter = createRouter({
           globalSeq: l.globalSeq,
           parentLessonId: l.parentLessonId,
           runCount: repoRuns.filter((r) => r.lessonId === l.id).length,
+          hasPreset: l.presetDeckJson != null,
           ...lessonProgress(l.id, viewerRuns),
         }));
         unitList.push({ id: u.id, title: u.title, orderIndex: u.orderIndex, lessons: lessonList });
@@ -396,4 +398,114 @@ export const reposRouter = createRouter({
       // Memory is the viewer's own learning history, never another user's.
       return courseMemory(repo.id, ctx.user?.id);
     }),
+
+  /* -------------------- preset presentations -------------------- */
+
+  /** Owner saves a generated deck as the item's preset (generate once). */
+  setLessonPreset: authedProcedure
+    .input(z.object({ repoSlug: z.string(), lessonSeq: z.number().int(), deck: z.unknown() }))
+    .mutation(async ({ ctx, input }): Promise<{ ok: true }> => {
+      const db = getDb();
+      const repo = await db.query.repos.findFirst({ where: eq(repos.slug, input.repoSlug) });
+      if (!repo) throw new TRPCError({ code: "NOT_FOUND", message: "Repository not found" });
+      if (!canEdit(repo, ctx.user)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only the owner can set the preset" });
+      }
+      const lesson = await lessonBySeq(repo.id, input.lessonSeq);
+      if (!lesson) throw new TRPCError({ code: "NOT_FOUND", message: "Item not found" });
+      await db
+        .update(lessons)
+        .set({ presetDeckJson: input.deck ?? null, presetAt: new Date() })
+        .where(eq(lessons.id, lesson.id));
+      return { ok: true };
+    }),
+
+  /** Owner removes the preset so it can be re-set. */
+  deleteLessonPreset: authedProcedure
+    .input(z.object({ repoSlug: z.string(), lessonSeq: z.number().int() }))
+    .mutation(async ({ ctx, input }): Promise<{ ok: true }> => {
+      const db = getDb();
+      const repo = await db.query.repos.findFirst({ where: eq(repos.slug, input.repoSlug) });
+      if (!repo) throw new TRPCError({ code: "NOT_FOUND", message: "Repository not found" });
+      if (!canEdit(repo, ctx.user)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only the owner can clear the preset" });
+      }
+      const lesson = await lessonBySeq(repo.id, input.lessonSeq);
+      if (lesson) {
+        await db
+          .update(lessons)
+          .set({ presetDeckJson: null, presetAt: null })
+          .where(eq(lessons.id, lesson.id));
+      }
+      return { ok: true };
+    }),
+
+  /** Load an item's saved preset to watch (no generation, no charge). */
+  lessonPreset: publicQuery
+    .input(z.object({ repoSlug: z.string(), lessonSeq: z.number().int() }))
+    .query(async ({ ctx, input }): Promise<import("@contracts/types").LessonPreset | null> => {
+      const db = getDb();
+      const repo = await db.query.repos.findFirst({ where: eq(repos.slug, input.repoSlug) });
+      if (!repo) return null;
+      if (!repo.isPublic && (!ctx.user || !canEdit(repo, ctx.user))) return null;
+      const lesson = await lessonBySeq(repo.id, input.lessonSeq);
+      if (!lesson || lesson.presetDeckJson == null) return null;
+
+      const repoUnits = await db.select().from(units).where(eq(units.repoId, repo.id));
+      const unit = repoUnits.find((u) => u.id === lesson.unitId);
+      const unitLessons = await db.select().from(lessons).where(eq(lessons.unitId, lesson.unitId));
+      let lessonSeqTotal = 0;
+      for (const u of repoUnits) {
+        const c = await db.select({ id: lessons.id }).from(lessons).where(eq(lessons.unitId, u.id));
+        lessonSeqTotal += c.length;
+      }
+      const seed = {
+        repoSlug: repo.slug,
+        repoRef: repo.ref,
+        unitTitle: unit?.title ?? "",
+        lessonTitle: lesson.title,
+        lessonIndex: lesson.orderIndex,
+        lessonCount: unitLessons.length,
+        lessonSeq: lesson.globalSeq,
+        lessonSeqTotal,
+      };
+
+      let commercial: import("@contracts/types").CommercialInfo | null = null;
+      if (repoPurpose(repo.template) === "commercial" && repo.ownerId) {
+        const owner = await db.query.users.findFirst({ where: eq(users.id, repo.ownerId) });
+        if (owner) {
+          commercial = {
+            owner: {
+              name: owner.name,
+              whatsapp: owner.whatsapp ?? null,
+              socials: Array.isArray(owner.socials) ? (owner.socials as string[]) : [],
+              contactNote: owner.contactNote ?? null,
+            },
+            itemTitle: lesson.title,
+            repoSlug: repo.slug,
+            lessonSeq: lesson.globalSeq,
+          };
+        }
+      }
+
+      return {
+        deck: lesson.presetDeckJson as import("@contracts/types").SlideDeck,
+        seed,
+        toolSlug: repo.studyToolSlug ?? "",
+        commercial,
+      };
+    }),
 });
+
+/** Resolve a lesson within a repo by its global sequence number. */
+async function lessonBySeq(repoId: number, seq: number) {
+  const db = getDb();
+  const repoUnits = await db.select().from(units).where(eq(units.repoId, repoId));
+  for (const u of repoUnits) {
+    const lesson = await db.query.lessons.findFirst({
+      where: (l, { and: a, eq: e }) => a(e(l.unitId, u.id), e(l.globalSeq, seq)),
+    });
+    if (lesson) return lesson;
+  }
+  return null;
+}

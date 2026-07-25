@@ -107,6 +107,10 @@ export const lessons = appSchema.table(
     objective: text("objective").notNull(),
     orderIndex: integer("orderIndex").notNull(),
     globalSeq: integer("globalSeq").notNull(),
+    // A preset presentation the owner generated ONCE so viewers can watch it
+    // without regenerating (used by commercial menu/service/shop items).
+    presetDeckJson: json("presetDeckJson"),
+    presetAt: timestamp("presetAt"),
   },
   (t) => [index("lessons_unit_idx").on(t.unitId)],
 );

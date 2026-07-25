@@ -223,6 +223,9 @@ export interface RepoLesson {
   globalSeq: number;
   parentLessonId: number | null;
   runCount: number;
+  /** true when the owner has saved a preset presentation for this item, so
+      viewers can watch it without regenerating (commercial items). */
+  hasPreset: boolean;
   /* Viewer-scoped progress — computed ONLY from the signed-in viewer's own
      runs, so one user's activity never shows on another user's page.
      Guests always see zeros / "unplayed". */
@@ -369,6 +372,16 @@ export interface CommercialInfo {
   itemTitle: string;
   repoSlug: string | null;
   lessonSeq: number | null;
+}
+
+/** A saved preset presentation the owner generated once, for viewers to watch
+ *  without regenerating. Includes the seed + (for commercial repos) the
+ *  owner's contact so the player can end on the contact/order screen. */
+export interface LessonPreset {
+  deck: SlideDeck;
+  seed: LessonSeed;
+  toolSlug: string;
+  commercial: CommercialInfo | null;
 }
 
 /** A lead: a viewer expressed interest / placed an order from a showcase. */

@@ -194,8 +194,10 @@ function ToolStudio({
   seed: LessonSeed | null;
   onDismissSeed: () => void;
 }) {
-  const { user, isGuest } = useAuth();
+  const { user, isGuest, role } = useAuth();
   const utils = trpc.useUtils();
+  const [presetSaved, setPresetSaved] = useState(false);
+  const setPreset = trpc.repos.setLessonPreset.useMutation();
 
   const [mode, setMode] = useState<'config' | 'theater' | 'player'>('config');
   const [topic, setTopic] = useState(seed?.lessonTitle || tool.topic);
@@ -378,6 +380,25 @@ function ToolStudio({
   };
 
   /* ---------------- State C — player ---------------- */
+  // The owner of a COMMERCIAL repo can save the deck they just generated as
+  // the item's preset, so viewers watch it without regenerating.
+  const isOwner = !!seed && (repoQuery.data?.ownerId === user?.id || role === 'admin');
+  const canSetPreset = !!seed && purpose === 'commercial' && isOwner;
+  const handleSavePreset = () => {
+    if (!seed || !result) return;
+    setPreset.mutate(
+      { repoSlug: seed.repoSlug, lessonSeq: seed.lessonSeq, deck: result.deck },
+      {
+        onSuccess: () => {
+          setPresetSaved(true);
+          toast.success('Saved as preset — viewers can now watch it ✓');
+          void utils.repos.getBySlug.invalidate({ slug: seed.repoSlug });
+        },
+        onError: (e) => toast.error(e.message),
+      },
+    );
+  };
+
   if (mode === 'player' && result) {
     return (
       <DeckPlayer
@@ -390,6 +411,9 @@ function ToolStudio({
         nextLessonTitle={nextLessonTitle}
         scratchpadEnabled={useScratchpad}
         commercial={result.commercial}
+        onSavePreset={canSetPreset ? handleSavePreset : undefined}
+        savingPreset={setPreset.isPending}
+        presetSaved={presetSaved}
         onExit={() => {
           setMode('config');
           setResult(null);
