@@ -9,7 +9,7 @@ import { maskApiKey } from "../auth-utils";
 import { testKey } from "../ai/provider";
 import type { ApiKeyRow } from "@contracts/types";
 
-const providerSchema = z.enum(["openai", "anthropic", "gemini"]);
+const providerSchema = z.enum(["openai", "anthropic", "gemini", "elevenlabs"]);
 const capabilitySchema = z.enum(["text", "image", "tts"]);
 
 export const keysRouter = createRouter({

@@ -11,7 +11,7 @@ export type Level = "A0" | "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
 export type LevelTier = "light" | "mid" | "dense";
 export type ImageStyle = "sketch" | "watercolor" | "flat" | "photo" | "none";
 export type RepoTemplate = "course" | "restaurant" | "service" | "shop" | "other";
-export type AiProvider = "openai" | "anthropic" | "gemini";
+export type AiProvider = "openai" | "anthropic" | "gemini" | "elevenlabs";
 export type AiCapability = "text" | "image" | "tts";
 
 export const LEVELS: Level[] = ["A0", "A1", "A2", "B1", "B2", "C1", "C2"];

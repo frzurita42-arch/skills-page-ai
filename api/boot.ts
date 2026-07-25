@@ -13,6 +13,7 @@ import {
   ensureUserFavoriteType,
   ensureCustomizationSchema,
   ensureSlideToolAuthoring,
+  ensureElevenLabsProvider,
 } from "./lib/migrate-annotations";
 
 // Best-effort schema catch-up on boot so an existing database accepts CEFR
@@ -45,6 +46,14 @@ void ensureCommercialSchema().catch((err) =>
 void ensureTicketSchema().catch((err) =>
   console.warn(
     "[migrate] ticket schema auto-migration skipped:",
+    err instanceof Error ? err.message : err,
+  ),
+);
+
+// Best-effort: allow storing an ElevenLabs TTS key (provider enum gains "elevenlabs").
+void ensureElevenLabsProvider().catch((err) =>
+  console.warn(
+    "[migrate] elevenlabs provider enum auto-migration skipped:",
     err instanceof Error ? err.message : err,
   ),
 );

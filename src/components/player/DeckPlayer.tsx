@@ -17,6 +17,7 @@ import AnnotationLayer, { type AnnTool } from './AnnotationLayer';
 import AnnotationToolbar from './AnnotationToolbar';
 import { buildNarration } from './narration';
 import { useReadAloud } from './useReadAloud';
+import { TtsReaderProvider } from './TtsReader';
 
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
@@ -259,6 +260,7 @@ export default function DeckPlayer({
   });
 
   return (
+    <TtsReaderProvider>
     <div
       className="paper-grain fixed inset-0 z-[65] flex min-h-[100dvh] flex-col bg-paper"
       data-lenis-prevent
@@ -592,5 +594,6 @@ export default function DeckPlayer({
         )}
       </AnimatePresence>
     </div>
+    </TtsReaderProvider>
   );
 }

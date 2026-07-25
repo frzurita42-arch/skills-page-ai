@@ -51,7 +51,7 @@ echo "▶ creating schema + enum types…"
 "${PSQL[@]}" <<'SQL'
 CREATE SCHEMA IF NOT EXISTS sketchlearn;
 CREATE TYPE "sketchlearn"."role" AS ENUM ('user','moderator','admin');
-CREATE TYPE "sketchlearn"."provider" AS ENUM ('openai','anthropic','gemini');
+CREATE TYPE "sketchlearn"."provider" AS ENUM ('openai','anthropic','gemini','elevenlabs');
 CREATE TYPE "sketchlearn"."capability" AS ENUM ('text','image','tts');
 CREATE TYPE "sketchlearn"."template" AS ENUM ('course','restaurant','service','shop','other');
 CREATE TYPE "sketchlearn"."level" AS ENUM ('A0','A1','A2','B1','B2','C1','C2');

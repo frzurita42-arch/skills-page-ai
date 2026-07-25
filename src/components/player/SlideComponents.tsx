@@ -8,6 +8,7 @@ import WashiTape from '../sketch/WashiTape';
 import { DoodleSparkle } from '../sketch/DoodleIcons';
 import { splitSentences } from './narration';
 import SketchChart from './SketchChart';
+import { SpeakerButton } from './TtsReader';
 
 /* ------------------------------------------------------------------ */
 /* Karaoke span — highlights while the read-aloud speaks this unit     */
@@ -60,6 +61,7 @@ function ProseView({
               {s}{' '}
             </Kara>
           ))}
+          <SpeakerButton speakKey={`prose:${ci}:${pi}`} text={p} />
         </p>
       ))}
     </div>

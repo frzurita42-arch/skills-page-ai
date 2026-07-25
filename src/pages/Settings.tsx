@@ -52,6 +52,7 @@ import type {
   TokenPack,
 } from '@contracts/types';
 import { IMAGE_STYLES, LEVELS } from '@contracts/types';
+import { TTS_VOICE_STORAGE_KEY } from '@/components/player/TtsReader';
 
 const TABS = [
   { id: 'profile', label: 'Profile', icon: UserIcon },
@@ -63,9 +64,10 @@ const TABS = [
 type TabId = (typeof TABS)[number]['id'];
 
 const PROVIDERS: { id: AiProvider; label: string; hint: string }[] = [
-  { id: 'openai', label: 'OpenAI', hint: 'sk-… keys · text, images, speech' },
+  { id: 'openai', label: 'OpenAI', hint: 'sk-… keys · text, images' },
   { id: 'anthropic', label: 'Anthropic', hint: 'sk-ant-… keys · text' },
-  { id: 'gemini', label: 'Gemini', hint: 'AIza… keys · text, images' },
+  { id: 'gemini', label: 'Gemini', hint: 'AIza… keys · text, images, web search' },
+  { id: 'elevenlabs', label: 'ElevenLabs', hint: 'xi-… keys · speech read-aloud 🔊' },
 ];
 
 const CAPABILITIES: { id: AiCapability; label: string }[] = [
@@ -406,6 +408,58 @@ function KeyRow({ row, index }: { row: ApiKeyRow; index: number }) {
   );
 }
 
+/** Read-aloud voice picker — appears once an ElevenLabs speech key is saved. */
+function VoicePicker() {
+  const voices = trpc.tts.voices.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  const [voiceId, setVoiceId] = useState<string>(
+    () => localStorage.getItem(TTS_VOICE_STORAGE_KEY) ?? '',
+  );
+
+  const choose = (id: string) => {
+    setVoiceId(id);
+    try {
+      if (id) localStorage.setItem(TTS_VOICE_STORAGE_KEY, id);
+      else localStorage.removeItem(TTS_VOICE_STORAGE_KEY);
+    } catch {
+      /* storage best-effort */
+    }
+    toast.success('Read-aloud voice updated 🔊');
+  };
+
+  const list = voices.data ?? [];
+
+  return (
+    <SketchCard borderStyle="dashed" className="relative">
+      <WashiTape color="blue" rotate={-2} />
+      <h3 className="mb-1 flex items-center gap-2 font-heading text-lg font-semibold text-ink">
+        Read-aloud voice 🔊
+      </h3>
+      <p className="micro mb-4 text-ink-faint">
+        The voice the speaker button uses to read a paragraph aloud in the player.
+      </p>
+      {voices.isLoading ? (
+        <SkeletonBlock lines={1} status="Fetching your voices…" />
+      ) : list.length === 0 ? (
+        <p className="text-sm text-ink-soft">
+          No voices found yet — save an ElevenLabs speech key above, then reopen this
+          tab.
+        </p>
+      ) : (
+        <LabeledField label="Voice" helper="Stored on this device — applies to every read-aloud.">
+          <SketchSelect value={voiceId} onChange={(e) => choose(e.target.value)}>
+            <option value="">Default (Rachel)</option>
+            {list.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.name}
+              </option>
+            ))}
+          </SketchSelect>
+        </LabeledField>
+      )}
+    </SketchCard>
+  );
+}
+
 function ApiKeysTab() {
   const utils = trpc.useUtils();
   const keys = trpc.keys.list.useQuery();
@@ -413,6 +467,12 @@ function ApiKeysTab() {
   const [capability, setCapability] = useState<AiCapability>('text');
   const [apiKey, setApiKey] = useState('');
   const [reveal, setReveal] = useState(false);
+
+  // ElevenLabs only does speech; OpenAI/Anthropic/Gemini don't do speech here.
+  useEffect(() => {
+    if (provider === 'elevenlabs' && capability !== 'tts') setCapability('tts');
+    if (provider !== 'elevenlabs' && capability === 'tts') setCapability('text');
+  }, [provider, capability]);
 
   const upsert = trpc.keys.upsert.useMutation({
     onSuccess: () => {
@@ -425,6 +485,7 @@ function ApiKeysTab() {
 
   const rows = keys.data ?? [];
   const hasTextKey = rows.some((r) => r.capability === 'text');
+  const hasTtsKey = rows.some((r) => r.capability === 'tts' && r.provider === 'elevenlabs');
 
   return (
     <div className="flex flex-col gap-5">
@@ -486,7 +547,10 @@ function ApiKeysTab() {
               value={capability}
               onChange={(e) => setCapability(e.target.value as AiCapability)}
             >
-              {CAPABILITIES.map((c) => (
+              {CAPABILITIES.filter((c) =>
+                // speech is ElevenLabs-only; the others don't offer speech here
+                provider === 'elevenlabs' ? c.id === 'tts' : c.id !== 'tts',
+              ).map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.label}
                 </option>
@@ -532,6 +596,8 @@ function ApiKeysTab() {
           </SketchButton>
         </div>
       </SketchCard>
+
+      {hasTtsKey && <VoicePicker />}
     </div>
   );
 }

@@ -463,11 +463,13 @@ function ProvidersTab({
                     value={entry?.provider ?? 'openai'}
                     onChange={(e) => setProvider(cap.id, e.target.value as AiProvider)}
                   >
-                    {PROVIDERS.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    ))}
+                    {(cap.id === 'tts' ? [...PROVIDERS, 'elevenlabs' as AiProvider] : PROVIDERS).map(
+                      (p) => (
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
+                      ),
+                    )}
                   </SketchSelect>
                 </LabeledField>
                 <LabeledField

@@ -24,7 +24,7 @@ const fk = (name: string) => integer(name);
 const appSchema = pgSchema("sketchlearn");
 
 const roleEnum = appSchema.enum("role", ["user", "moderator", "admin"]);
-const providerEnum = appSchema.enum("provider", ["openai", "anthropic", "gemini"]);
+const providerEnum = appSchema.enum("provider", ["openai", "anthropic", "gemini", "elevenlabs"]);
 const capabilityEnum = appSchema.enum("capability", ["text", "image", "tts"]);
 const templateEnum = appSchema.enum("template", ["course", "restaurant", "service", "shop", "other"]);
 const levelEnum = appSchema.enum("level", ["A0", "A1", "A2", "B1", "B2", "C1", "C2"]);

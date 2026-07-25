@@ -5,7 +5,7 @@ import { adminProcedure, moderatorProcedure } from "../procedures";
 import { getDb } from "../queries/connection";
 import { payments, repos, runs, slideTools, tokenLedger, users } from "@db/schema";
 import { getSettings, saveSettings } from "../settings";
-import type { AdminDashboard, AppSettings, RunRow } from "@contracts/types";
+import type { AdminDashboard, AiProvider, AppSettings, RunRow } from "@contracts/types";
 
 const settingsSchema = z.object({
   tokenPacks: z
@@ -36,21 +36,21 @@ const settingsSchema = z.object({
   platformAiKeys: z.object({
     text: z
       .object({
-        provider: z.enum(["openai", "anthropic", "gemini"]),
+        provider: z.enum(["openai", "anthropic", "gemini", "elevenlabs"]),
         apiKey: z.string().max(512),
         baseUrl: z.string().max(500).optional(),
       })
       .optional(),
     image: z
       .object({
-        provider: z.enum(["openai", "anthropic", "gemini"]),
+        provider: z.enum(["openai", "anthropic", "gemini", "elevenlabs"]),
         apiKey: z.string().max(512),
         baseUrl: z.string().max(500).optional(),
       })
       .optional(),
     tts: z
       .object({
-        provider: z.enum(["openai", "anthropic", "gemini"]),
+        provider: z.enum(["openai", "anthropic", "gemini", "elevenlabs"]),
         apiKey: z.string().max(512),
         baseUrl: z.string().max(500).optional(),
       })
@@ -61,7 +61,7 @@ const settingsSchema = z.object({
 
 /** Mask platform keys so getSettings never leaks full secrets to the client. */
 function maskedSettings(s: AppSettings): AppSettings {
-  const mask = (k?: { provider: "openai" | "anthropic" | "gemini"; apiKey: string; baseUrl?: string }) =>
+  const mask = (k?: { provider: AiProvider; apiKey: string; baseUrl?: string }) =>
     k && k.apiKey
       ? { ...k, apiKey: `${k.apiKey.slice(0, 6)}…${k.apiKey.slice(-4)}` }
       : k;

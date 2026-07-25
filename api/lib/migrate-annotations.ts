@@ -226,6 +226,31 @@ export async function ensureSlideToolAuthoring(): Promise<void> {
 }
 
 /**
+ * Idempotently allow storing an ElevenLabs API key: add the "elevenlabs" value
+ * to the provider enum on older databases so text-to-speech keys can be saved.
+ * Best-effort at boot.
+ */
+export async function ensureElevenLabsProvider(): Promise<void> {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) return;
+  const client = new Client({ connectionString });
+  await client.connect();
+  try {
+    const { rows } = await client.query<{ exists: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1 FROM pg_type t
+           JOIN pg_namespace n ON n.oid = t.typnamespace
+          WHERE n.nspname = 'sketchlearn' AND t.typname = 'provider'
+       ) AS exists`,
+    );
+    if (!rows[0]?.exists) return;
+    await client.query(`ALTER TYPE sketchlearn."provider" ADD VALUE IF NOT EXISTS 'elevenlabs'`);
+  } finally {
+    await client.end();
+  }
+}
+
+/**
  * Idempotently allow favoriting users: add the "user" value to the favorites
  * targetType enum on older databases. Best-effort at boot.
  */

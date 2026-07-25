@@ -32,7 +32,10 @@ export interface CompletionResult {
   source: "byok" | "platform" | "env";
 }
 
-const DEFAULT_MODELS: Record<AiProvider, string> = {
+/** Providers with a chat/completion API (ElevenLabs is speech-only). */
+type TextProvider = Exclude<AiProvider, "elevenlabs">;
+
+const DEFAULT_MODELS: Record<TextProvider, string> = {
   openai: "gpt-4o-mini",
   anthropic: "claude-3-5-haiku-latest",
   gemini: "gemini-2.5-flash",
@@ -49,7 +52,7 @@ const GEMINI_TEXT_MODELS = [
   "gemini-2.0-flash",
 ];
 
-const DEFAULT_BASE_URLS: Record<AiProvider, string> = {
+const DEFAULT_BASE_URLS: Record<TextProvider, string> = {
   openai: "https://api.openai.com/v1",
   anthropic: "https://api.anthropic.com/v1",
   gemini: "https://generativelanguage.googleapis.com/v1beta",
@@ -312,6 +315,8 @@ export async function completeText(opts: {
         case "gemini":
           text = await callGemini(key, opts.messages, maxTokens);
           break;
+        default:
+          continue; // e.g. an elevenlabs (tts-only) key can't do text
       }
       return { text, provider: key.provider, source: key.source };
     } catch (err) {
@@ -587,6 +592,8 @@ export async function completeVision(opts: {
         case "anthropic":
           text = await callAnthropicVision(key, opts.system, opts.userText, opts.images, maxTokens);
           break;
+        default:
+          continue; // an elevenlabs (tts-only) key can't do vision
       }
       return { text, provider: key.provider, source: key.source };
     } catch (err) {
@@ -636,6 +643,18 @@ export async function testKey(
         throw new Error("Anthropic has no image generation API");
     }
   }
+  if (capability === "tts" || provider === "elevenlabs") {
+    // ElevenLabs: a cheap authenticated GET verifies the key without spending
+    // characters on synthesis.
+    const base = (baseUrl || ELEVENLABS_BASE_URL).replace(/\/$/, "");
+    const res = await fetch(`${base}/voices`, {
+      headers: { "xi-api-key": apiKey },
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!res.ok)
+      throw new Error(`ElevenLabs API ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    return;
+  }
   const key: ResolvedKey = { provider, apiKey, baseUrl, source: "byok" };
   const messages: ChatMessage[] = [
     { role: "system", content: 'Reply with exactly: {"ok":true}' },
@@ -651,6 +670,100 @@ export async function testKey(
     case "gemini":
       await callGemini(key, messages, 16);
       return;
+    default:
+      throw new Error(`Provider ${provider} cannot be tested for ${capability}`);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Text-to-speech (ElevenLabs). Reads a paragraph aloud on demand from  */
+/* the player. BYOK-only: an ElevenLabs key stored under the "tts"       */
+/* capability. No platform/.env fallback and no token accounting — the   */
+/* user pays ElevenLabs directly, so nothing here touches coins/tickets. */
+/* ------------------------------------------------------------------ */
+
+const ELEVENLABS_BASE_URL = "https://api.elevenlabs.io/v1";
+/** Rachel — a stable default voice when the user hasn't picked one. */
+export const DEFAULT_TTS_VOICE_ID = "21m00Tcm4TlvDq8ikWAM";
+
+/** Resolve the user's ElevenLabs BYOK key (capability "tts"), or null. */
+async function resolveElevenLabsKey(userId: number | undefined): Promise<string | null> {
+  if (!userId) return null;
+  const rows = await getDb()
+    .select()
+    .from(apiKeys)
+    .where(and(eq(apiKeys.userId, userId), eq(apiKeys.capability, "tts")))
+    .limit(1);
+  const row = rows[0];
+  if (!row || row.provider !== "elevenlabs" || !row.apiKey.trim()) return null;
+  return row.apiKey.trim();
+}
+
+/** True when the user has an ElevenLabs TTS key configured. */
+export async function userHasTts(userId: number | undefined): Promise<boolean> {
+  return (await resolveElevenLabsKey(userId)) !== null;
+}
+
+export interface TtsVoice {
+  id: string;
+  name: string;
+}
+
+/** List the user's available ElevenLabs voices, or [] when none/no key. */
+export async function listTtsVoices(userId: number | undefined): Promise<TtsVoice[]> {
+  const apiKey = await resolveElevenLabsKey(userId).catch(() => null);
+  if (!apiKey) return [];
+  try {
+    const res = await fetch(`${ELEVENLABS_BASE_URL}/voices`, {
+      headers: { "xi-api-key": apiKey },
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { voices?: { voice_id: string; name?: string }[] };
+    return (data.voices ?? []).map((v) => ({ id: v.voice_id, name: v.name || v.voice_id }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Synthesize `text` to speech and return an audio data URI (base64 MP3), or
+ * null when no ElevenLabs key is configured or the call fails. Text is capped
+ * so a single paragraph read stays a cheap request.
+ */
+export async function ttsSpeak(opts: {
+  userId?: number;
+  text: string;
+  voiceId?: string;
+}): Promise<{ audio: string; mime: string } | null> {
+  const apiKey = await resolveElevenLabsKey(opts.userId).catch(() => null);
+  if (!apiKey) return null;
+  const text = opts.text.trim().slice(0, 2500);
+  if (!text) return null;
+  const voiceId = opts.voiceId?.trim() || DEFAULT_TTS_VOICE_ID;
+  try {
+    const res = await fetch(`${ELEVENLABS_BASE_URL}/text-to-speech/${encodeURIComponent(voiceId)}`, {
+      method: "POST",
+      headers: {
+        "xi-api-key": apiKey,
+        "content-type": "application/json",
+        accept: "audio/mpeg",
+      },
+      body: JSON.stringify({
+        text,
+        model_id: "eleven_multilingual_v2",
+      }),
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!res.ok) {
+      console.warn(`[ai/tts] ElevenLabs ${res.status}: ${(await res.text()).slice(0, 200)}`);
+      return null;
+    }
+    const buf = Buffer.from(await res.arrayBuffer());
+    return { audio: `data:audio/mpeg;base64,${buf.toString("base64")}`, mime: "audio/mpeg" };
+  } catch (err) {
+    console.warn("[ai/tts] ElevenLabs request failed:", err instanceof Error ? err.message : err);
+    return null;
   }
 }
 
