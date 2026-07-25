@@ -12,7 +12,7 @@ import SketchButton from '@/components/sketch/SketchButton';
  * The owner draws from their ticket pool, which they buy from the admin.
  */
 export default function RepoTicketsPanel({ slug }: { slug: string }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const { user, refetch } = useAuth();
   const [email, setEmail] = useState('');
   const [count, setCount] = useState(1);
