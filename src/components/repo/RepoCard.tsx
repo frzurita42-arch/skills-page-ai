@@ -1,12 +1,12 @@
 import { memo } from 'react';
 import { Link } from 'react-router';
 import { motion } from 'framer-motion';
-import { ChevronRight, Hand, Sparkles, Star, Trash2 } from 'lucide-react';
+import { ChevronRight, Star, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Chip from '@/components/sketch/Chip';
 import { trpc } from '@/providers/trpc';
 import type { RepoSummary } from '@contracts/types';
-import { ProgressStrip, TemplateIcon, relTime } from './shared';
+import { ProgressStrip, SourceBadge, TemplateIcon, relTime } from './shared';
 
 export interface RepoCardProps {
   repo: RepoSummary;
@@ -103,21 +103,7 @@ function RepoCardInner({ repo, index, onToggleFavorite, canDelete, onDelete }: R
           <Chip kind="neutral" className="normal-case">
             {repo.template}
           </Chip>
-          {repo.source === 'ai' ? (
-            <span
-              title="Generated with AI"
-              className="inline-flex items-center gap-1 rounded-wobble-sm border-2 border-purple bg-purple-soft px-1.5 py-0.5 font-heading text-[0.6rem] font-bold text-purple"
-            >
-              <Sparkles className="h-3 w-3" strokeWidth={2.5} /> Made with AI
-            </span>
-          ) : (
-            <span
-              title="Hand-built by a person"
-              className="inline-flex items-center gap-1 rounded-wobble-sm border-2 border-green bg-green-soft px-1.5 py-0.5 font-heading text-[0.6rem] font-bold text-green"
-            >
-              <Hand className="h-3 w-3" strokeWidth={2.5} /> Made by hand
-            </span>
-          )}
+          <SourceBadge source={repo.source} />
         </div>
 
         {/* meta row */}

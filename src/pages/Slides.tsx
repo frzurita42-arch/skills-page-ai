@@ -30,6 +30,7 @@ import EmptyState from '@/components/sketch/EmptyState';
 import AuthWall from '@/components/AuthWall';
 import { Toaster } from '@/components/ui/sonner';
 import CreateToolModal from '@/components/slides/CreateToolModal';
+import { SourceBadge } from '@/components/repo/shared';
 
 type SortKey = 'recent' | 'name' | 'plays';
 type ViewMode = 'cards' | 'table';
@@ -581,15 +582,7 @@ export default function Slides() {
                             Direct
                           </Chip>
                         )}
-                        {tool.source === 'human' ? (
-                          <span className="micro rounded-full border-2 border-ink bg-green-soft px-2 py-0.5 text-[0.58rem] font-bold text-green">
-                            Human
-                          </span>
-                        ) : (
-                          <span className="micro rounded-full border-2 border-ink bg-purple-soft px-2 py-0.5 text-[0.58rem] font-bold text-purple">
-                            Made with AI
-                          </span>
-                        )}
+                        <SourceBadge source={tool.source} />
                       </div>
 
                       <p className="micro text-ink-faint">

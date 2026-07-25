@@ -8,10 +8,12 @@ import {
   BookOpen,
   Compass,
   Newspaper,
+  Sparkles,
+  Hand,
 } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { cn } from '@/lib/utils';
-import type { LessonSeed, RepoTemplate } from '@contracts/types';
+import type { ContentSource, LessonSeed, RepoTemplate } from '@contracts/types';
 
 /* ------------------------------------------------------------------ */
 /* Template meta — one engine, four label skins (lesson-path.md §1)    */
@@ -119,6 +121,31 @@ export function TemplateIcon({
 }) {
   const Icon = TEMPLATE_META[template]?.icon ?? BookOpen;
   return <Icon className={cn('h-[18px] w-[18px]', className)} strokeWidth={2} />;
+}
+
+/**
+ * "Made with AI" / "Made by hand" authorship sticker — one definition shared by
+ * repo cards and slide-tool cards so they always look identical.
+ */
+export function SourceBadge({ source }: { source: ContentSource }) {
+  if (source === 'ai') {
+    return (
+      <span
+        title="Generated with AI"
+        className="inline-flex items-center gap-1 rounded-wobble-sm border-2 border-purple bg-purple-soft px-1.5 py-0.5 font-heading text-[0.6rem] font-bold text-purple"
+      >
+        <Sparkles className="h-3 w-3" strokeWidth={2.5} /> Made with AI
+      </span>
+    );
+  }
+  return (
+    <span
+      title="Hand-built by a person"
+      className="inline-flex items-center gap-1 rounded-wobble-sm border-2 border-green bg-green-soft px-1.5 py-0.5 font-heading text-[0.6rem] font-bold text-green"
+    >
+      <Hand className="h-3 w-3" strokeWidth={2.5} /> Made by hand
+    </span>
+  );
 }
 
 /* ------------------------------------------------------------------ */
