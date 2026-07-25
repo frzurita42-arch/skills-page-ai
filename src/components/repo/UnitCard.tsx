@@ -494,6 +494,10 @@ function LessonCard({
     { enabled: mayCustomize },
   );
   const ticketCount = ticketQ.data?.count ?? 0;
+  const requestTickets = trpc.tickets.request.useMutation({
+    onSuccess: () => toast.success("Requested — the owner will get back to you (usually on WhatsApp)"),
+    onError: (e) => toast.error(e.message),
+  });
 
   const studyTitle =
     playedCount > 0
@@ -613,12 +617,15 @@ function LessonCard({
           </SketchButton>
         </Link>
       ) : (
-        <span
+        <button
+          type="button"
+          onClick={() => requestTickets.mutate({ repoSlug: seed.repoSlug, count: 1, note: '' })}
+          disabled={requestTickets.isPending}
           title="Ask the repo's owner for a customization ticket to generate your own version"
-          className="flex cursor-help items-center gap-1 rounded-wobble-sm border-2 border-dashed border-pencil px-2.5 py-1.5 font-heading text-sm font-semibold text-ink-faint"
+          className="flex items-center gap-1 rounded-wobble-sm border-2 border-dashed border-pencil px-2.5 py-1.5 font-heading text-sm font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink"
         >
-          <Ticket className="h-4 w-4" strokeWidth={2} /> Customize
-        </span>
+          <Ticket className="h-4 w-4" strokeWidth={2} /> Request ticket
+        </button>
       );
     };
 

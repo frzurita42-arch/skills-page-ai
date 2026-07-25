@@ -196,6 +196,19 @@ export interface MyTicketGroup {
   count: number;
 }
 
+/** A user's request to a repo owner for customization tickets. */
+export interface TicketRequestRow {
+  id: number;
+  repoSlug: string;
+  repoTitle: string;
+  requesterName: string;
+  requesterEmail: string;
+  count: number;
+  note: string | null;
+  status: "pending" | "credited" | "rejected";
+  createdAt: Date;
+}
+
 /** A creator in the public Users directory. */
 export interface DirectoryUser {
   id: number;

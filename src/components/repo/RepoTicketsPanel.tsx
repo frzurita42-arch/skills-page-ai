@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, Send, Ticket } from 'lucide-react';
+import { Check, ChevronDown, Send, Ticket, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { trpc } from '@/providers/trpc';
@@ -24,6 +24,16 @@ export default function RepoTicketsPanel({ slug }: { slug: string }) {
       );
       setEmail('');
       setCount(1);
+      refetch();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const incoming = trpc.tickets.incoming.useQuery();
+  const requestsForRepo = (incoming.data ?? []).filter((r) => r.repoSlug === slug);
+  const resolve = trpc.tickets.resolveRequest.useMutation({
+    onSuccess: () => {
+      void incoming.refetch();
       refetch();
     },
     onError: (e) => toast.error(e.message),
@@ -90,6 +100,55 @@ export default function RepoTicketsPanel({ slug }: { slug: string }) {
             <p className="mt-2 text-xs text-red">
               Your pool only has {pool} ticket{pool === 1 ? '' : 's'} — buy more from the admin first.
             </p>
+          )}
+
+          {/* incoming requests from students */}
+          {requestsForRepo.length > 0 && (
+            <div className="mt-4 border-t-2 border-dashed border-pencil pt-3">
+              <p className="micro mb-2 text-[0.6rem] uppercase tracking-wider text-ink-faint">
+                Requests ({requestsForRepo.length})
+              </p>
+              <ul className="flex flex-col gap-2">
+                {requestsForRepo.map((r) => (
+                  <li
+                    key={r.id}
+                    className="flex flex-wrap items-center gap-2 rounded-wobble-sm border-2 border-ink bg-yellow-soft px-3 py-2"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="font-heading text-sm font-bold text-ink">{r.requesterName}</span>
+                      <span className="text-sm text-ink-soft">
+                        {' '}
+                        wants {r.count} ticket{r.count === 1 ? '' : 's'}
+                      </span>
+                      <span className="micro block truncate text-[0.6rem] text-ink-faint">
+                        {r.requesterEmail}
+                        {r.note ? ` · “${r.note}”` : ''}
+                      </span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => resolve.mutate({ requestId: r.id, approve: true })}
+                      disabled={resolve.isPending || r.count > pool}
+                      title={r.count > pool ? 'Not enough tickets in your pool' : 'Grant'}
+                      className="rounded-wobble-sm border-2 border-green bg-green-soft p-1.5 text-green transition-colors hover:bg-green/20 disabled:opacity-40"
+                      aria-label="Grant"
+                    >
+                      <Check className="h-4 w-4" strokeWidth={2.5} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => resolve.mutate({ requestId: r.id, approve: false })}
+                      disabled={resolve.isPending}
+                      title="Decline"
+                      className="rounded-wobble-sm border-2 border-pencil p-1.5 text-ink-faint transition-colors hover:border-red hover:text-red"
+                      aria-label="Decline"
+                    >
+                      <X className="h-4 w-4" strokeWidth={2.5} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
       )}

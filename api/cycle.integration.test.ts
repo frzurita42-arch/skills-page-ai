@@ -221,7 +221,26 @@ describe.runIf(HAS_DB)("full coins ↔ tickets cycle", () => {
     expect(prof.repos.some((r) => r.slug === repoSlug)).toBe(true);
   });
 
-  it("8) draining a moderator's credits demotes them to a user", async () => {
+  it("8) a student requests tickets and the owner grants from the request queue", async () => {
+    const db = getDb();
+    const repoSlug = (globalThis as Record<string, unknown>).__repoSlug as string;
+    const repo = await db.query.repos.findFirst({ where: (r, { eq: e }) => e(r.slug, repoSlug) });
+    const repoId = repo!.id;
+
+    // student submits a pull request for 1 ticket
+    await call(student).tickets.request({ repoSlug, count: 1, note: "want it in Spanish" });
+    const incoming = await call(moderator).tickets.incoming();
+    expect(incoming.length).toBe(1);
+    expect(incoming[0].requesterEmail).toBe(student.email);
+
+    const before = await countAvailable(student.id, repoId);
+    await call(moderator).tickets.resolveRequest({ requestId: incoming[0].id, approve: true });
+    expect(await countAvailable(student.id, repoId)).toBe(before + 1);
+    // queue is now empty
+    expect((await call(moderator).tickets.incoming()).length).toBe(0);
+  });
+
+  it("9) draining a moderator's credits demotes them to a user", async () => {
     const m = await reload(moderator.id);
     expect(m.role).toBe("moderator");
     await applyTokenDelta(m.id, -m.tokenBalance, "drain for test");

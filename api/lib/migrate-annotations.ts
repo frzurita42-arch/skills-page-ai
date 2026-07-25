@@ -128,6 +128,25 @@ export async function ensureTicketSchema(): Promise<void> {
     await client.query(
       `CREATE INDEX IF NOT EXISTS tickets_issuer_idx ON sketchlearn.tickets ("issuedById")`,
     );
+    await client.query(
+      `CREATE TABLE IF NOT EXISTS sketchlearn."ticketRequests" (
+         id serial PRIMARY KEY,
+         "repoId" integer NOT NULL,
+         "requesterId" integer NOT NULL,
+         "ownerId" integer NOT NULL,
+         count integer NOT NULL DEFAULT 1,
+         note varchar(1000),
+         status sketchlearn."status" NOT NULL DEFAULT 'pending',
+         "resolvedAt" timestamp,
+         "createdAt" timestamp NOT NULL DEFAULT now()
+       )`,
+    );
+    await client.query(
+      `CREATE INDEX IF NOT EXISTS "ticketRequests_owner_idx" ON sketchlearn."ticketRequests" ("ownerId", status)`,
+    );
+    await client.query(
+      `CREATE INDEX IF NOT EXISTS "ticketRequests_requester_idx" ON sketchlearn."ticketRequests" ("requesterId")`,
+    );
   } finally {
     await client.end();
   }

@@ -4,10 +4,10 @@ import { and, desc, eq } from "drizzle-orm";
 import { createRouter } from "../middleware";
 import { authedProcedure, moderatorProcedure, adminProcedure } from "../procedures";
 import { getDb } from "../queries/connection";
-import { repos, tickets, users } from "@db/schema";
+import { repos, ticketRequests, tickets, users } from "@db/schema";
 import { ticketPrice } from "../cost";
 import { countAvailable, grantToUser, sellToModerator } from "../tickets";
-import type { MyTicketGroup } from "@contracts/types";
+import type { MyTicketGroup, TicketRequestRow } from "@contracts/types";
 
 export const ticketsRouter = createRouter({
   /** Live credit price of one customization ticket. */
@@ -85,4 +85,115 @@ export const ticketsRouter = createRouter({
     .mutation(async ({ input }) => {
       return sellToModerator(input.userId, input.count);
     }),
+
+  /* ------------------------ request (pull) flow ------------------------ */
+
+  /** A user asks a repo's owner for customization tickets. */
+  request: authedProcedure
+    .input(
+      z.object({
+        repoSlug: z.string(),
+        count: z.number().int().min(1).max(20),
+        note: z.string().max(1000).default(""),
+      }),
+    )
+    .mutation(async ({ ctx, input }): Promise<{ ok: true }> => {
+      const db = getDb();
+      const repo = await db.query.repos.findFirst({ where: eq(repos.slug, input.repoSlug) });
+      if (!repo) throw new TRPCError({ code: "NOT_FOUND", message: "Repository not found" });
+      if (!repo.ownerId) throw new TRPCError({ code: "BAD_REQUEST", message: "This repo has no owner to ask" });
+      if (repo.ownerId === ctx.user.id) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "You own this repo — no ticket needed" });
+      }
+      await db.insert(ticketRequests).values({
+        repoId: repo.id,
+        requesterId: ctx.user.id,
+        ownerId: repo.ownerId,
+        count: input.count,
+        note: input.note || null,
+      });
+      return { ok: true as const };
+    }),
+
+  /** The signed-in user's own ticket requests + their status. */
+  myRequests: authedProcedure.query(async ({ ctx }): Promise<TicketRequestRow[]> => {
+    const db = getDb();
+    const rows = await db
+      .select()
+      .from(ticketRequests)
+      .where(eq(ticketRequests.requesterId, ctx.user.id))
+      .orderBy(desc(ticketRequests.createdAt))
+      .limit(100);
+    return Promise.all(rows.map((r) => toRequestRow(db, r, ctx.user.name, ctx.user.email)));
+  }),
+
+  /** Pending ticket requests addressed to repos the signed-in user owns. */
+  incoming: authedProcedure.query(async ({ ctx }): Promise<TicketRequestRow[]> => {
+    const db = getDb();
+    const rows = await db
+      .select()
+      .from(ticketRequests)
+      .where(and(eq(ticketRequests.ownerId, ctx.user.id), eq(ticketRequests.status, "pending")))
+      .orderBy(desc(ticketRequests.createdAt))
+      .limit(200);
+    return Promise.all(rows.map((r) => toRequestRow(db, r)));
+  }),
+
+  /** The repo owner grants or rejects a pending ticket request. */
+  resolveRequest: authedProcedure
+    .input(z.object({ requestId: z.number().int(), approve: z.boolean() }))
+    .mutation(async ({ ctx, input }): Promise<{ ok: true; remaining?: number }> => {
+      const db = getDb();
+      const req = await db.query.ticketRequests.findFirst({
+        where: eq(ticketRequests.id, input.requestId),
+      });
+      if (!req) throw new TRPCError({ code: "NOT_FOUND", message: "Request not found" });
+      if (req.ownerId !== ctx.user.id && ctx.user.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only the repo's owner can resolve this" });
+      }
+      if (req.status !== "pending") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Request already resolved" });
+      }
+      if (!input.approve) {
+        await db
+          .update(ticketRequests)
+          .set({ status: "rejected", resolvedAt: new Date() })
+          .where(eq(ticketRequests.id, req.id));
+        return { ok: true as const };
+      }
+      // grant draws from the owner's pool (throws if too small)
+      const { remaining } = await grantToUser(ctx.user.id, req.repoId, req.requesterId, req.count);
+      await db
+        .update(ticketRequests)
+        .set({ status: "credited", resolvedAt: new Date() })
+        .where(eq(ticketRequests.id, req.id));
+      return { ok: true as const, remaining };
+    }),
 });
+
+async function toRequestRow(
+  db: ReturnType<typeof getDb>,
+  r: typeof ticketRequests.$inferSelect,
+  requesterName?: string,
+  requesterEmail?: string,
+): Promise<TicketRequestRow> {
+  const repo = await db.query.repos.findFirst({ where: eq(repos.id, r.repoId) });
+  let name = requesterName;
+  let email = requesterEmail;
+  if (!name || !email) {
+    const u = await db.query.users.findFirst({ where: eq(users.id, r.requesterId) });
+    name = u?.name ?? "Unknown";
+    email = u?.email ?? "";
+  }
+  return {
+    id: r.id,
+    repoSlug: repo?.slug ?? "",
+    repoTitle: repo?.title ?? "(deleted repo)",
+    requesterName: name,
+    requesterEmail: email,
+    count: r.count,
+    note: r.note,
+    status: r.status,
+    createdAt: r.createdAt,
+  };
+}

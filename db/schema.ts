@@ -254,6 +254,30 @@ export const tickets = appSchema.table(
   ],
 );
 
+/**
+ * A user's request to a repo's owner for customization tickets (the pull side
+ * of the ticket economy — the owner still funds it from their pool). Mirrors
+ * the credit-purchase request flow.
+ */
+export const ticketRequests = appSchema.table(
+  "ticketRequests",
+  {
+    id: serial("id").primaryKey(),
+    repoId: fk("repoId").notNull(),
+    requesterId: fk("requesterId").notNull(),
+    ownerId: fk("ownerId").notNull(), // repo owner who fulfills it
+    count: integer("count").notNull().default(1),
+    note: varchar("note", { length: 1000 }),
+    status: paymentStatusEnum("status").notNull().default("pending"),
+    resolvedAt: timestamp("resolvedAt"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("ticketRequests_owner_idx").on(t.ownerId, t.status),
+    index("ticketRequests_requester_idx").on(t.requesterId),
+  ],
+);
+
 export const tokenLedger = appSchema.table(
   "tokenLedger",
   {
@@ -314,6 +338,7 @@ export type Run = typeof runs.$inferSelect;
 export type LessonLog = typeof lessonLogs.$inferSelect;
 export type Order = typeof orders.$inferSelect;
 export type Ticket = typeof tickets.$inferSelect;
+export type TicketRequest = typeof ticketRequests.$inferSelect;
 export type TokenLedgerEntry = typeof tokenLedger.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
 export type Setting = typeof settings.$inferSelect;
