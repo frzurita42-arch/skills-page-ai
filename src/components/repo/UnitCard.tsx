@@ -9,6 +9,7 @@ import {
   Eye,
   Hourglass,
   Pencil,
+  PencilRuler,
   Plus,
   Repeat,
   RotateCcw,
@@ -761,6 +762,16 @@ function LessonCard({
             <Square className="h-3.5 w-3.5" />
             <span className="micro text-[0.6rem]">unplayed</span>
           </span>
+        )}
+        {/* owner: build a playable presentation by hand (only until one is set) */}
+        {isOwner && !lesson.hasPreset && (
+          <Link
+            to={editHref}
+            title="Build a playable presentation by hand — no AI"
+            className="micro flex items-center gap-1 rounded-wobble-sm border border-ink bg-purple-soft px-1.5 py-0.5 text-[0.58rem] font-semibold text-ink no-underline transition-colors hover:bg-purple/20"
+          >
+            <PencilRuler className="h-3 w-3" /> Manual
+          </Link>
         )}
         {/* best-run meta: the HIGHEST score's level + time, how many times the
             viewer has played it, and a link to replay that best run's

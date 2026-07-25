@@ -4,10 +4,14 @@ import {
   ArrowLeft,
   Check,
   ImageIcon,
+  ListChecks,
   Plus,
   RefreshCw,
   Save,
+  StickyNote,
+  Table as TableIcon,
   Trash2,
+  Type,
   Upload,
   X,
 } from 'lucide-react';
@@ -16,15 +20,39 @@ import { cn } from '@/lib/utils';
 import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/hooks/useAuth';
 import SketchButton from '@/components/sketch/SketchButton';
-import type { SlideComponent, SlideDeck, SlideQuiz } from '@contracts/types';
+import { LEVELS } from '@contracts/types';
+import type { ImageStyle, Level, Slide, SlideComponent, SlideDeck, SlideQuiz } from '@contracts/types';
 
 const inputCls =
   'w-full rounded-wobble-sm border-2 border-ink bg-paper px-3 py-2 text-sm text-ink shadow-offset outline-none placeholder:text-ink-faint focus:border-blue';
 
+const blankSlide = (): Slide => ({ title: '', components: [{ type: 'prose', paragraphs: [''] }] });
+const blankDeck = (topic: string): SlideDeck => ({
+  level: 'B1',
+  imageStyle: 'none',
+  topic,
+  slides: [blankSlide()],
+});
+const newComponent = (kind: SlideComponent['type'], imageStyle: ImageStyle): SlideComponent => {
+  const style = imageStyle === 'none' ? 'sketch' : imageStyle;
+  switch (kind) {
+    case 'image':
+      return { type: 'image', prompt: '', alt: '', style };
+    case 'table':
+      return { type: 'table', title: '', columns: ['Column A', 'Column B'], rows: [['', '']] };
+    case 'stickynote':
+      return { type: 'stickynote', text: '' };
+    default:
+      return { type: 'prose', paragraphs: [''] };
+  }
+};
+
 /**
- * Inline editor for a saved preset deck. Owner / admin only. Edits the title,
- * prose, images (replace / regenerate / describe), and multiple-choice options
- * of every slide, right on the page, then saves back to the preset.
+ * Inline editor for a lesson's preset deck. Owner / admin only. Edits the
+ * title, prose, images (replace / regenerate / describe), tables, and
+ * multiple-choice options of every slide. When the lesson has no preset yet it
+ * opens as a blank MANUAL builder — add slides & components by hand and save to
+ * publish a playable presentation without AI.
  */
 export default function PresetEditor() {
   const { slug, seq } = useParams();
@@ -39,17 +67,21 @@ export default function PresetEditor() {
     { enabled: !!slug && Number.isFinite(lessonSeq) },
   );
 
-  const isOwner =
-    !!repoQ.data && (repoQ.data.ownerId === user?.id || role === 'admin');
+  const isOwner = !!repoQ.data && (repoQ.data.ownerId === user?.id || role === 'admin');
+  const lessonTitle =
+    repoQ.data?.units.flatMap((u) => u.lessons).find((l) => l.globalSeq === lessonSeq)?.title ?? '';
+  const isNew = presetQ.isSuccess && !presetQ.data;
 
   const [deck, setDeck] = useState<SlideDeck | null>(null);
   useEffect(() => {
-    if (presetQ.data?.deck && !deck) setDeck(presetQ.data.deck);
-  }, [presetQ.data, deck]);
+    if (deck) return;
+    if (presetQ.data?.deck) setDeck(presetQ.data.deck);
+    else if (presetQ.isSuccess && !presetQ.data && isOwner) setDeck(blankDeck(lessonTitle));
+  }, [presetQ.data, presetQ.isSuccess, isOwner, deck, lessonTitle]);
 
   const save = trpc.repos.updateLessonPreset.useMutation({
     onSuccess: () => {
-      toast.success('Preset updated ✓');
+      toast.success(isNew ? 'Presentation published — now free to play ✓' : 'Preset updated ✓');
       void utils.repos.lessonPreset.invalidate({ repoSlug: slug!, lessonSeq });
       void utils.repos.getBySlug.invalidate({ slug: slug! });
       navigate(`/repos/${slug}`);
@@ -66,7 +98,8 @@ export default function PresetEditor() {
   });
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const patchSlide = (si: number, patch: Partial<SlideDeck['slides'][number]>) =>
+  const patchDeck = (patch: Partial<SlideDeck>) => setDeck((d) => (d ? { ...d, ...patch } : d));
+  const patchSlide = (si: number, patch: Partial<Slide>) =>
     setDeck((d) =>
       d ? { ...d, slides: d.slides.map((s, i) => (i === si ? { ...s, ...patch } : s)) } : d,
     );
@@ -83,29 +116,55 @@ export default function PresetEditor() {
           }
         : d,
     );
+  const removeComponent = (si: number, ci: number) =>
+    setDeck((d) =>
+      d
+        ? {
+            ...d,
+            slides: d.slides.map((s, i) =>
+              i === si ? { ...s, components: s.components.filter((_, j) => j !== ci) } : s,
+            ),
+          }
+        : d,
+    );
+  const addComponent = (si: number, kind: SlideComponent['type']) =>
+    setDeck((d) =>
+      d
+        ? {
+            ...d,
+            slides: d.slides.map((s, i) =>
+              i === si
+                ? { ...s, components: [...s.components, newComponent(kind, d.imageStyle)] }
+                : s,
+            ),
+          }
+        : d,
+    );
+  const addSlide = () => setDeck((d) => (d ? { ...d, slides: [...d.slides, blankSlide()] } : d));
+  const removeSlide = (si: number) =>
+    setDeck((d) =>
+      d && d.slides.length > 1 ? { ...d, slides: d.slides.filter((_, i) => i !== si) } : d,
+    );
+  const addQuiz = (si: number) =>
+    patchSlide(si, {
+      quiz: { kind: 'mcq', question: '', options: ['', '', '', ''], correctIndex: 0, explanation: '' },
+    });
 
   if (repoQ.isLoading || presetQ.isLoading) {
-    return <div className="mx-auto max-w-content px-4 py-10 text-center text-ink-faint">Loading the preset…</div>;
+    return <div className="mx-auto max-w-content px-4 py-10 text-center text-ink-faint">Loading…</div>;
   }
-  if (!presetQ.data || !deck) {
+  if (!isOwner) {
     return (
       <div className="mx-auto max-w-content px-4 py-10 text-center">
-        <p className="text-ink-soft">No saved preset to edit here.</p>
+        <p className="text-ink-soft">Only the repo's owner or an admin can build this presentation.</p>
         <Link to={`/repos/${slug}`} className="mt-3 inline-block font-heading font-bold text-blue underline">
           Back to repo
         </Link>
       </div>
     );
   }
-  if (!isOwner) {
-    return (
-      <div className="mx-auto max-w-content px-4 py-10 text-center">
-        <p className="text-ink-soft">Only the repo's owner or an admin can edit this preset.</p>
-        <Link to={`/repos/${slug}/play/${lessonSeq}`} className="mt-3 inline-block font-heading font-bold text-blue underline">
-          Watch it instead
-        </Link>
-      </div>
-    );
+  if (!deck) {
+    return <div className="mx-auto max-w-content px-4 py-10 text-center text-ink-faint">Preparing the builder…</div>;
   }
 
   return (
@@ -117,49 +176,64 @@ export default function PresetEditor() {
         >
           <ArrowLeft className="h-4 w-4" /> Repo
         </Link>
-        <h2 className="font-display text-3xl font-bold text-ink">Edit preset</h2>
-        <span className="micro text-ink-faint">{deck.slides.length} slides · level {deck.level}</span>
+        <h2 className="font-display text-3xl font-bold text-ink">
+          {isNew ? 'Build presentation' : 'Edit preset'}
+        </h2>
+        <label className="flex items-center gap-1.5">
+          <span className="micro text-[0.6rem] text-ink-faint">Level</span>
+          <select
+            value={deck.level}
+            onChange={(e) => patchDeck({ level: e.target.value as Level })}
+            className="rounded-wobble-sm border-2 border-ink bg-paper px-2 py-1 text-sm font-bold text-ink shadow-offset outline-none"
+          >
+            {LEVELS.map((lv) => (
+              <option key={lv} value={lv}>
+                {lv}
+              </option>
+            ))}
+          </select>
+        </label>
+        <span className="micro text-ink-faint">{deck.slides.length} slides</span>
         <div className="ml-auto flex items-center gap-2">
-          {confirmDelete ? (
-            <>
-              <span className="micro text-[0.7rem] font-bold text-red">delete preset?</span>
-              <SketchButton
-                variant="danger"
-                size="sm"
-                loading={del.isPending}
-                onClick={() => del.mutate({ repoSlug: slug!, lessonSeq })}
-              >
+          {!isNew &&
+            (confirmDelete ? (
+              <>
+                <span className="micro text-[0.7rem] font-bold text-red">delete preset?</span>
+                <SketchButton
+                  variant="danger"
+                  size="sm"
+                  loading={del.isPending}
+                  onClick={() => del.mutate({ repoSlug: slug!, lessonSeq })}
+                >
+                  <Trash2 className="h-4 w-4" /> Delete
+                </SketchButton>
+                <SketchButton variant="ghost" size="sm" onClick={() => setConfirmDelete(false)}>
+                  Cancel
+                </SketchButton>
+              </>
+            ) : (
+              <SketchButton variant="ghost" size="sm" onClick={() => setConfirmDelete(true)}>
                 <Trash2 className="h-4 w-4" /> Delete
               </SketchButton>
-              <SketchButton variant="ghost" size="sm" onClick={() => setConfirmDelete(false)}>
-                Cancel
-              </SketchButton>
-            </>
-          ) : (
-            <SketchButton variant="ghost" size="sm" onClick={() => setConfirmDelete(true)}>
-              <Trash2 className="h-4 w-4" /> Delete
-            </SketchButton>
-          )}
+            ))}
           <SketchButton
             variant="accent"
             size="sm"
             loading={save.isPending}
             onClick={() => save.mutate({ repoSlug: slug!, lessonSeq, deck })}
           >
-            <Save className="h-4 w-4" /> Save changes
+            <Save className="h-4 w-4" /> {isNew ? 'Publish' : 'Save changes'}
           </SketchButton>
         </div>
       </div>
       <p className="-mt-2 text-sm text-ink-soft">
-        Everything with a field is editable. Changes only affect the saved free preset — students who
-        customize with a ticket still generate their own version.
+        {isNew
+          ? 'Build the slides by hand — add text, images, tables and a multiple-choice question. No AI is used, so it stays free for anyone to play once you publish.'
+          : 'Everything with a field is editable. Changes only affect the saved free preset — students who customize with a ticket still generate their own version.'}
       </p>
 
       {deck.slides.map((slide, si) => (
-        <section
-          key={si}
-          className="rounded-wobble-2 border-2 border-ink bg-paper-3 p-5 shadow-offset"
-        >
+        <section key={si} className="rounded-wobble-2 border-2 border-ink bg-paper-3 p-5 shadow-offset">
           <div className="mb-3 flex items-center gap-2">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-yellow-soft font-display text-sm font-bold text-ink">
               {si + 1}
@@ -170,24 +244,75 @@ export default function PresetEditor() {
               onChange={(e) => patchSlide(si, { title: e.target.value })}
               placeholder="Slide title"
             />
+            {deck.slides.length > 1 && (
+              <button
+                type="button"
+                onClick={() => removeSlide(si)}
+                title="Remove slide"
+                aria-label="Remove slide"
+                className="rounded-wobble-sm border-2 border-transparent p-1.5 text-ink-faint transition-colors hover:border-dashed hover:border-red hover:text-red"
+              >
+                <Trash2 className="h-4 w-4" strokeWidth={2} />
+              </button>
+            )}
           </div>
 
           <div className="flex flex-col gap-3">
             {slide.components.map((comp, ci) => (
-              <ComponentEditor
-                key={ci}
-                comp={comp}
-                deckStyle={deck.imageStyle}
-                onChange={(next) => patchComponent(si, ci, next)}
-              />
+              <div key={ci} className="relative">
+                <button
+                  type="button"
+                  onClick={() => removeComponent(si, ci)}
+                  title="Remove this block"
+                  aria-label="Remove block"
+                  className="absolute right-2 top-2 z-10 rounded-wobble-sm border-2 border-transparent bg-paper-3/80 p-1 text-ink-faint transition-colors hover:border-dashed hover:border-red hover:text-red"
+                >
+                  <X className="h-3.5 w-3.5" strokeWidth={2} />
+                </button>
+                <ComponentEditor
+                  comp={comp}
+                  deckStyle={deck.imageStyle}
+                  onChange={(next) => patchComponent(si, ci, next)}
+                />
+              </div>
             ))}
           </div>
 
           {slide.quiz && (slide.quiz.kind === 'mcq' || slide.quiz.kind === 'mcq2' || !slide.quiz.kind) && (
-            <QuizEditor quiz={slide.quiz} onChange={(q) => patchSlide(si, { quiz: q })} />
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => patchSlide(si, { quiz: undefined })}
+                title="Remove the question"
+                aria-label="Remove question"
+                className="absolute right-2 top-2 z-10 rounded-wobble-sm border-2 border-transparent bg-paper-3/80 p-1 text-ink-faint transition-colors hover:border-dashed hover:border-red hover:text-red"
+              >
+                <X className="h-3.5 w-3.5" strokeWidth={2} />
+              </button>
+              <QuizEditor quiz={slide.quiz} onChange={(q) => patchSlide(si, { quiz: q })} />
+            </div>
           )}
+
+          {/* add-component palette */}
+          <div className="mt-3 flex flex-wrap gap-2 border-t-2 border-dashed border-pencil pt-3">
+            <AddChip icon={Type} label="Text" onClick={() => addComponent(si, 'prose')} />
+            <AddChip icon={ImageIcon} label="Image" onClick={() => addComponent(si, 'image')} />
+            <AddChip icon={TableIcon} label="Table" onClick={() => addComponent(si, 'table')} />
+            <AddChip icon={StickyNote} label="Sticky" onClick={() => addComponent(si, 'stickynote')} />
+            {!slide.quiz && (
+              <AddChip icon={ListChecks} label="Multiple choice" onClick={() => addQuiz(si)} />
+            )}
+          </div>
         </section>
       ))}
+
+      <button
+        type="button"
+        onClick={addSlide}
+        className="flex items-center justify-center gap-1.5 rounded-wobble-2 border-2 border-dashed border-pencil bg-paper-2/40 px-3 py-3 font-heading font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink"
+      >
+        <Plus className="h-4 w-4" strokeWidth={2} /> Add slide
+      </button>
 
       <div className="flex justify-end">
         <SketchButton
@@ -195,10 +320,30 @@ export default function PresetEditor() {
           loading={save.isPending}
           onClick={() => save.mutate({ repoSlug: slug!, lessonSeq, deck })}
         >
-          <Save className="h-4 w-4" /> Save changes
+          <Save className="h-4 w-4" /> {isNew ? 'Publish' : 'Save changes'}
         </SketchButton>
       </div>
     </div>
+  );
+}
+
+function AddChip({
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  icon: typeof Type;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-1.5 rounded-wobble-sm border-2 border-dashed border-pencil px-2.5 py-1.5 font-heading text-xs font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink"
+    >
+      <Icon className="h-3.5 w-3.5" strokeWidth={2} /> {label}
+    </button>
   );
 }
 

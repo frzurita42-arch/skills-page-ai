@@ -150,6 +150,37 @@ describe.runIf(HAS_DB)("full coins ↔ tickets cycle", () => {
     expect(after!.deck.slides[0].title).toBe("EDITED BY OWNER");
   });
 
+  it("2c) manual build: publishing a hand-made deck on a lesson with no preset", async () => {
+    const repoSlug = (globalThis as Record<string, unknown>).__repoSlug as string;
+    const detail = await call(moderator).repos.getBySlug({ slug: repoSlug });
+    const unit = detail!.units[0];
+    // a fresh lesson with no preset
+    await call(moderator).lessons.create({ unitId: unit.id, title: "Hand-made lesson", objective: "By hand" });
+    const fresh = (await call(moderator).repos.getBySlug({ slug: repoSlug }))!
+      .units.flatMap((u) => u.lessons)
+      .find((l) => l.title === "Hand-made lesson")!;
+    expect(fresh.hasPreset).toBe(false);
+
+    const manualDeck = {
+      level: "B1",
+      imageStyle: "none",
+      topic: "manual",
+      slides: [{ title: "Made by hand", components: [{ type: "prose", paragraphs: ["Typed it myself"] }] }],
+    };
+    await call(moderator).repos.updateLessonPreset({
+      repoSlug,
+      lessonSeq: fresh.globalSeq,
+      deck: manualDeck,
+    });
+    // it becomes a free preset anyone can play
+    const preset = await call().repos.lessonPreset({ repoSlug, lessonSeq: fresh.globalSeq });
+    expect(preset!.deck.slides[0].title).toBe("Made by hand");
+    const after = (await call(moderator).repos.getBySlug({ slug: repoSlug }))!
+      .units.flatMap((u) => u.lessons)
+      .find((l) => l.globalSeq === fresh.globalSeq)!;
+    expect(after.hasPreset).toBe(true);
+  });
+
   it("3) a free user plays the preset with no credits and no tickets", async () => {
     const repoSlug = (globalThis as Record<string, unknown>).__repoSlug as string;
     const lessonSeq = (globalThis as Record<string, unknown>).__lessonSeq as number;
