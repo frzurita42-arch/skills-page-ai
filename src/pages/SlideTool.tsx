@@ -196,6 +196,7 @@ function ToolStudio({
 }) {
   const { user, isGuest, role } = useAuth();
   const utils = trpc.useUtils();
+  const navigate = useNavigate();
   const [presetSaved, setPresetSaved] = useState(false);
   const setPreset = trpc.repos.setLessonPreset.useMutation();
 
@@ -407,6 +408,34 @@ function ToolStudio({
     );
   };
 
+  // When the owner came in via "Set", generating the deck IS the act of
+  // publishing the free preset — so once it's ready we save it and go straight
+  // back to the repo (the item's button flips Set → Play/Study). We never drop
+  // the owner into the player. The saved deck has its AI-graded evaluations
+  // stripped server-side (prepPresetDeck), so it's free for anyone to watch.
+  const finishGeneration = () => {
+    if (!result) return;
+    if (canSetPreset && seed) {
+      setPreset.mutate(
+        { repoSlug: seed.repoSlug, lessonSeq: seed.lessonSeq, deck: result.deck },
+        {
+          onSuccess: () => {
+            void utils.repos.getBySlug.invalidate({ slug: seed.repoSlug });
+            toast.success('Preset saved — now free for anyone to play ✓');
+            navigate(`/repos/${seed.repoSlug}`);
+          },
+          onError: (e) => {
+            // Saving failed — fall back to the player so the deck isn't lost.
+            toast.error(e.message);
+            enterPlayer();
+          },
+        },
+      );
+      return;
+    }
+    enterPlayer();
+  };
+
   if (mode === 'player' && result) {
     return (
       <DeckPlayer
@@ -437,7 +466,7 @@ function ToolStudio({
         slideCount={isGuest ? Math.min(slideCount, 6) : slideCount}
         topic={topic.trim() || tool.topic || tool.name}
         done={theaterDone}
-        onComplete={enterPlayer}
+        onComplete={finishGeneration}
         onCancel={() => {
           canceledRef.current = true;
           setMode('config');
@@ -916,8 +945,14 @@ function ToolStudio({
             loading={generate.isPending}
             onClick={runGenerate}
           >
-            Generate presentation
+            {canSetPreset ? 'Generate & set preset' : 'Generate presentation'}
           </SketchButton>
+          {canSetPreset && (
+            <p className="text-center text-xs text-ink-faint">
+              Saves the free version and returns to the repo — no AI-graded activities are included,
+              so anyone can play it for free.
+            </p>
+          )}
           {isGuest && (
             <p className="text-center text-xs text-ink-faint">
               Guests generate for free (6 slides max) —{' '}
