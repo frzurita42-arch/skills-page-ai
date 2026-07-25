@@ -361,6 +361,13 @@ describe.runIf(HAS_DB)("full coins ↔ tickets cycle", () => {
     await expect(
       call(student).slideTools.saveDeck({ slug, deck }),
     ).rejects.toThrow(/Only the owner/);
+    // editing does NOT change classification — a hand-built tool stays "human",
+    // and (the rule) merely editing never turns an "ai" tool "human".
+    await call(moderator).slideTools.saveDeck({
+      slug,
+      deck: { ...deck, slides: [{ title: "edited", components: [] }] },
+    });
+    expect((await call().slideTools.getBySlug({ slug })).source).toBe("human");
   });
 
   it("8d) hand-laid repo is marked source \"human\"; generator repo is \"ai\"", async () => {

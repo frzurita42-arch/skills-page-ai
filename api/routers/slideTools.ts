@@ -149,7 +149,11 @@ export const slideToolsRouter = createRouter({
       return { slug };
     }),
 
-  /** Owner/admin saves the hand-built deck for a tool (marks it human-authored). */
+  /**
+   * Owner/admin saves the hand-built deck for a tool. Source is NOT changed on
+   * edit — a thing is "human" only if it was HAND-BUILT from scratch (see
+   * createManual); merely editing an AI deck keeps it "ai".
+   */
   saveDeck: authedProcedure
     .input(z.object({ slug: z.string().min(1), deck: z.unknown() }))
     .mutation(async ({ ctx, input }): Promise<{ ok: true }> => {
@@ -161,7 +165,7 @@ export const slideToolsRouter = createRouter({
       }
       await db
         .update(slideTools)
-        .set({ deckJson: input.deck as SlideDeck, source: "human", updatedAt: new Date() })
+        .set({ deckJson: input.deck as SlideDeck, updatedAt: new Date() })
         .where(eq(slideTools.id, tool.id));
       return { ok: true };
     }),

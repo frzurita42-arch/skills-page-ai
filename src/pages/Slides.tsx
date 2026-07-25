@@ -599,6 +599,21 @@ export default function Slides() {
                               </SketchButton>
                             </Link>
                           </>
+                        ) : tool.runCount === 0 ? (
+                          // Configured but never generated — a green call-to-action.
+                          <>
+                            <Link to={`/slides/${tool.slug}`} className="flex-1 no-underline">
+                              <span className="flex w-full items-center justify-center gap-1.5 rounded-wobble-sm border-2 border-ink bg-green px-3 py-1.5 text-sm font-bold text-paper-3 shadow-offset transition-colors hover:bg-[#3f8850]">
+                                <Sparkles className="h-3.5 w-3.5" strokeWidth={2.5} />
+                                Generate a slide
+                              </span>
+                            </Link>
+                            <Link to={`/slides/${tool.slug}`}>
+                              <SketchButton variant="ghost" size="sm">
+                                Open
+                              </SketchButton>
+                            </Link>
+                          </>
                         ) : (
                           <>
                             <Link to={`/slides/${tool.slug}`} className="flex-1">
