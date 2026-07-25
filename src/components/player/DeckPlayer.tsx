@@ -352,6 +352,8 @@ export default function DeckPlayer({
                       ci={ci}
                       current={readAloud.currentKey}
                       showcase={!!commercial}
+                      provider={deck.provider}
+                      imageProvider={deck.imageProvider}
                     />
                   ))}
                 </motion.div>
@@ -389,6 +391,7 @@ export default function DeckPlayer({
                       onSolved={inReview ? () => undefined : handleSolved}
                       review={inReview}
                       current={readAloud.currentKey}
+                      provider={deck.provider}
                       scratchpad={scratchpadEnabled}
                       scratchPages={scratch[viewingIdx]}
                       onScratchChange={(pages) =>

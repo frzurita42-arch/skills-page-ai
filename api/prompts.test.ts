@@ -25,3 +25,19 @@ describe("buildLessonPathPrompt", () => {
     expect(prompt).not.toContain("ATTACHED REFERENCE MATERIAL");
   });
 });
+
+import { buildSlidesSystemPrompt } from "./ai/prompts";
+
+describe("buildSlidesSystemPrompt", () => {
+  it("anchors a commercial deck to the exact product/subject", () => {
+    const prompt = buildSlidesSystemPrompt({
+      level: "B1",
+      imageStyle: "photo",
+      purpose: "commercial",
+      subject: "Aura Ring",
+      previouslyTaught: null,
+    });
+    expect(prompt).toContain('THE ITEM YOU ARE SHOWCASING IS: "Aura Ring"');
+    expect(prompt).toContain("Never introduce, list, or compare other products");
+  });
+});

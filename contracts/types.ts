@@ -153,6 +153,10 @@ export interface SlideDeck {
   level: Level;
   imageStyle: ImageStyle;
   topic: string;
+  /** which model wrote the text (prose / quizzes / structure); null = mock */
+  provider?: AiProvider | null;
+  /** which model makes the images; null = none / mock */
+  imageProvider?: AiProvider | null;
 }
 
 /* ---------------- Lesson seed (repo → slide tool handoff) ---------- */

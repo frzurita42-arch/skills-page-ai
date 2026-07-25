@@ -5,7 +5,7 @@ import { createRouter, publicQuery } from "../middleware";
 import { authedProcedure } from "../procedures";
 import { getDb } from "../queries/connection";
 import { lessons, repos, slideTools, units, users, type Repo } from "@db/schema";
-import { completeText, completeVision, generateImage, userHasKey, type VisionImage } from "../ai/provider";
+import { completeText, completeVision, generateImage, resolveProviderName, userHasKey, type VisionImage } from "../ai/provider";
 import { mockCoachReply, mockDeck, mockLessonPath } from "../ai/mock";
 import {
   buildLessonPathPrompt,
@@ -359,7 +359,9 @@ export const generateRouter = createRouter({
       const slideCount = isGuest ? Math.min(input.slideCount, GUEST_MAX_SLIDES) : input.slideCount;
 
       // Resolve topic/instructions: explicit input > lesson objective (seed) > tool defaults
-      let topic = input.topic ?? tool.topic;
+      // Fall back to the tool's NAME when there's no explicit topic, so a tool
+      // simply titled "Aura Ring" showcases the Aura Ring — not random items.
+      let topic = input.topic?.trim() || tool.topic?.trim() || tool.name;
       let instructions = input.instructions ?? tool.instructions;
       let previouslyTaught: string | null = null;
       // Base purpose from the tool's own category (course = education,
@@ -537,6 +539,7 @@ export const generateRouter = createRouter({
         imageStyle: input.imageStyle,
         tone: input.tone,
         purpose,
+        subject: topic,
         previouslyTaught,
         layoutTemplates,
       });
@@ -557,6 +560,7 @@ export const generateRouter = createRouter({
       let deck: SlideDeck | null = null;
       let lastAttempt: SlideDeck | null = null; // best non-conforming try, as a fallback
       let usedMock = false;
+      let textProvider: import("@contracts/types").AiProvider | null = null;
       // A pinned SLIDE PLAN is an explicit user request, so give the model
       // more chances to honor it exactly before we accept a miss.
       const hasPlan = pinnedPlan.some(Boolean);
@@ -582,6 +586,7 @@ export const generateRouter = createRouter({
               maxTokens: 16384,
             });
             if (!result) break; // no key configured → mock
+            textProvider = result.provider;
             const repaired = repairDeckDraft(JSON.parse(extractJson(result.text)), {
               level: input.level,
               imageStyle: input.imageStyle,
@@ -673,7 +678,18 @@ export const generateRouter = createRouter({
         });
       }
       // Enforce the requested slide count even if the model drifted
-      deck = { ...deck, slides: deck.slides.slice(0, slideCount), level: input.level, imageStyle: input.imageStyle };
+      const imageProvider =
+        !usedMock && input.imageStyle !== "none"
+          ? await resolveProviderName(ctx.user?.id, "image")
+          : null;
+      deck = {
+        ...deck,
+        slides: deck.slides.slice(0, slideCount),
+        level: input.level,
+        imageStyle: input.imageStyle,
+        provider: usedMock ? null : textProvider,
+        imageProvider,
+      };
       // Commercial (menu/service/shop) decks are pure showcases — never carry an
       // evaluation, whatever the model (or the mock) returned.
       if (purpose === "commercial") {

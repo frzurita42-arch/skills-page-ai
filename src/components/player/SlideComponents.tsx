@@ -316,6 +316,23 @@ function CodeView({
 /* Dispatcher                                                          */
 /* ------------------------------------------------------------------ */
 
+/** Human label for an AI provider id. */
+export const PROVIDER_LABEL: Record<string, string> = {
+  gemini: 'Gemini',
+  openai: 'OpenAI',
+  anthropic: 'Anthropic',
+};
+
+/** Tiny "made by <model>" caption shown under a generated section. */
+export function SourceTag({ provider, kind }: { provider?: string | null; kind: string }) {
+  if (!provider) return null;
+  return (
+    <span className="mt-1 block select-none text-[0.58rem] italic text-ink-faint/80">
+      {kind} · {PROVIDER_LABEL[provider] ?? provider}
+    </span>
+  );
+}
+
 export interface SlideComponentViewProps {
   component: SlideComponent;
   /** component index within the slide (drives karaoke keys) */
@@ -324,6 +341,10 @@ export interface SlideComponentViewProps {
   current: string | null;
   /** commercial (menu/service/shop) decks put the image on the main stage */
   showcase?: boolean;
+  /** model that wrote the text (for the tiny attribution caption) */
+  provider?: string | null;
+  /** model that made the images */
+  imageProvider?: string | null;
 }
 
 export default function SlideComponentView({
@@ -331,10 +352,17 @@ export default function SlideComponentView({
   ci,
   current,
   showcase = false,
+  provider,
+  imageProvider,
 }: SlideComponentViewProps) {
   switch (component.type) {
     case 'prose':
-      return <ProseView paragraphs={component.paragraphs} ci={ci} current={current} />;
+      return (
+        <div>
+          <ProseView paragraphs={component.paragraphs} ci={ci} current={current} />
+          <SourceTag provider={provider} kind="text" />
+        </div>
+      );
     case 'latex':
       return (
         <LatexView
@@ -359,7 +387,12 @@ export default function SlideComponentView({
         </StickyNote>
       );
     case 'image':
-      return <ImageView component={component} ci={ci} current={current} showcase={showcase} />;
+      return (
+        <div>
+          <ImageView component={component} ci={ci} current={current} showcase={showcase} />
+          <SourceTag provider={imageProvider} kind="image" />
+        </div>
+      );
     case 'code':
       return <CodeView component={component} ci={ci} current={current} />;
     default:

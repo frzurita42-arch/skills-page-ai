@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Pencil, Plus, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { SlideQuiz, SlideAnnotation } from '@contracts/types';
 import { isFillBlankCorrect } from '@contracts/grade';
+import { SourceTag } from './SlideComponents';
 import { trpc } from '@/providers/trpc';
 import { DoodleCheck } from '../sketch/DoodleIcons';
 import { SquiggleDivider } from '../sketch/Squiggle';
@@ -41,6 +42,8 @@ export interface QuizCardProps {
   onScratchChange?: (pages: SlideAnnotation[][]) => void;
   /** solve worksheets: show the freehand scratchpad (true) or a plain box */
   scratchpad?: boolean;
+  /** model that wrote the question (for the tiny attribution caption) */
+  provider?: string | null;
 }
 
 /** kind defaults to mcq for older decks */
@@ -50,11 +53,20 @@ function quizKind(q: SlideQuiz): NonNullable<SlideQuiz['kind']> {
 
 export default function QuizCard(props: QuizCardProps) {
   const kind = quizKind(props.quiz);
-  if (kind === 'solve') return <SolveCard {...props} />;
-  if (kind === 'fillblank' || kind === 'typed') {
-    return <TextAnswerCard {...props} kind={kind} />;
-  }
-  return <ChoiceCard {...props} />;
+  const inner =
+    kind === 'solve' ? (
+      <SolveCard {...props} />
+    ) : kind === 'fillblank' || kind === 'typed' ? (
+      <TextAnswerCard {...props} kind={kind} />
+    ) : (
+      <ChoiceCard {...props} />
+    );
+  return (
+    <div>
+      {inner}
+      <SourceTag provider={props.provider} kind="question" />
+    </div>
+  );
 }
 
 /* ------------------------------------------------------------------ */

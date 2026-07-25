@@ -655,6 +655,19 @@ async function callOpenAIImage(key: ResolvedKey, prompt: string): Promise<string
  * or null when no image key is configured or the call fails (reason logged
  * server-side). Style directive is prepended to keep the SketchLearn look.
  */
+/**
+ * Which provider WOULD serve a capability for this user (BYOK → platform →
+ * env). Used to attribute generated content ("images by gemini") without
+ * threading provenance through every call.
+ */
+export async function resolveProviderName(
+  userId: number | undefined,
+  capability: AiCapability,
+): Promise<AiProvider | null> {
+  const candidates = await resolveKeyCandidates(userId, capability).catch(() => [] as ResolvedKey[]);
+  return candidates[0]?.provider ?? null;
+}
+
 export async function generateImage(opts: {
   userId?: number;
   prompt: string;

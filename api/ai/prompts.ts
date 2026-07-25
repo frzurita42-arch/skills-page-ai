@@ -190,6 +190,8 @@ export function buildSlidesSystemPrompt(opts: {
   imageStyle: string;
   tone?: string;
   purpose?: "education" | "commercial";
+  /** the exact topic/item this deck is about (e.g. a product name) */
+  subject?: string;
   previouslyTaught: string | null;
   layoutTemplates?: LayoutTemplateForPrompt[];
 }): string {
@@ -236,6 +238,7 @@ ${
   commercial
     ? `
 SHOWCASE MODE — this is a MENU / SERVICE / SHOP listing, NOT a lesson:
+- THE ITEM YOU ARE SHOWCASING IS: "${opts.subject ?? "the given topic"}". EVERY slide must be about THIS EXACT item. Never introduce, list, or compare other products/dishes/services. If the item is a specific real product, present ITS real, known characteristics — do not invent unrelated features or capabilities it doesn't have.
 - Present ONE item and make it appealing: what it is, why it's worth choosing, what makes it special (story, ingredients/materials, craftsmanship, benefits). Write it like great menu or catalog copy, adapted to the chosen tone and level.
 - NO quizzes and NO evaluations — the commercial layout templates have no quiz step, so never add one. Do NOT test the viewer.
 - Keep it tight: usually 3-4 slides. Photos matter — use the image steps for vivid, specific shots of the item. Tables are for ingredients / specs / what's-included.
