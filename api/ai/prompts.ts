@@ -192,6 +192,8 @@ export function buildSlidesSystemPrompt(opts: {
   purpose?: "education" | "commercial" | "walkthrough" | "news";
   /** how much explanatory text each slide carries — biases the paragraph floor */
   textDensity?: "brief" | "standard" | "detailed";
+  /** news decks only: the moment in time the briefing reports from */
+  newsPeriod?: string;
   /** the exact topic/item this deck is about (e.g. a product name) */
   subject?: string;
   previouslyTaught: string | null;
@@ -279,7 +281,11 @@ WALKTHROUGH MODE — this is an EXPLANATION the viewer is guided through, NOT an
 ${
   news
     ? `
-NEWS BRIEFING MODE — this is a slide-format NEWS BRIEFING about "${opts.subject ?? "the given topic"}", read like a newspaper section, NOT a lesson:
+NEWS BRIEFING MODE — this is a slide-format NEWS BRIEFING about "${opts.subject ?? "the given topic"}", read like a newspaper section, NOT a lesson:${
+      opts.newsPeriod
+        ? `\n- TIME PERIOD: report the news AS IT STOOD during "${opts.newsPeriod}". Every story must be from that moment in time — its headline, facts and framing reflect what was happening THEN, not now, and must not include later developments. If you lack specific facts for that period, report the general state of the beat at that time in careful, non-fabricated terms.`
+        : ""
+    }
 - Report, don't teach or sell: each slide is ONE news item / story / development on the topic. Do NOT repeat the same story across slides.
 - EVERY slide is a newspaper clipping with THREE parts, always present together:
   (1) HEADLINE — the slide TITLE.

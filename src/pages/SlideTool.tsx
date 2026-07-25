@@ -63,6 +63,20 @@ const STYLE_PRESETS: Exclude<ImageStyle, 'none'>[] = [
   'photo',
 ];
 
+/** News beats offered when building an "AI time news" briefing — the AI picks
+ *  the actual stories, so the author only chooses the beat + the moment in time. */
+const NEWS_TYPES = [
+  'Top stories',
+  'World',
+  'Politics',
+  'Business',
+  'Technology & AI',
+  'Science',
+  'Sports',
+  'Entertainment',
+  'Health',
+] as const;
+
 const inputCls =
   'w-full rounded-wobble-sm border-2 border-ink bg-paper-3 px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:border-blue focus:shadow-[4px_4px_0_#DDE9FB] focus:outline-none transition-shadow';
 
@@ -256,6 +270,9 @@ function ToolStudio({
   const [slideCount, setSlideCount] = useState(remembered.slideCount);
   const [imageStyle, setImageStyle] = useState<ImageStyle>(remembered.imageStyle);
   const [textDensity, setTextDensity] = useState<TextDensity>(remembered.textDensity);
+  // News "time news" config: the AI picks the stories from the chosen beat + moment.
+  const [newsType, setNewsType] = useState<string>('Top stories');
+  const [newsPeriod, setNewsPeriod] = useState<string>('This week');
   const [voiceURI, setVoiceURI] = useState<string | null>(null);
   const [includeQuiz, setIncludeQuiz] = useState(true);
   const [webSearch, setWebSearch] = useState(false);
@@ -380,10 +397,13 @@ function ToolStudio({
     customizeFlowRef.current = !!seed && !isSet && !isGuest;
     setTheaterDone(false);
     setMode('theater');
+    // "AI time news": for a standalone news briefing the beat becomes the topic
+    // (the AI picks the stories) and the moment in time is passed separately.
+    const newsMode = purpose === 'news' && !seed;
     generate.mutate(
       {
         toolSlug: tool.slug,
-        topic: topic.trim() || undefined,
+        topic: newsMode ? `${newsType} news` : topic.trim() || undefined,
         instructions: instructions.trim() || undefined,
         level,
         slideCount,
@@ -391,6 +411,7 @@ function ToolStudio({
         tone,
         purpose: seed ? undefined : purpose,
         textDensity,
+        newsPeriod: purpose === 'news' ? newsPeriod.trim() || undefined : undefined,
         webSearch,
         templatePlan: templatePlan.some(Boolean)
           ? templatePlan.slice(0, slideCount)
@@ -680,21 +701,72 @@ function ToolStudio({
           </motion.div>
         )}
 
-        <motion.div variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}>
-          <span className="micro mb-1 flex items-center justify-between text-ink-soft">
-            Topic / prompt
-            <span className="font-mono normal-case tracking-normal">
-              {topic.length}/2000
+        {purpose === 'news' && !seed ? (
+          /* AI time news: pick a beat + moment in time, the AI picks the stories */
+          <motion.div variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}>
+            <span className="micro mb-1.5 block text-ink-soft">
+              News beat — the AI picks the stories
             </span>
-          </span>
-          <textarea
-            className={cn(inputCls, 'min-h-[84px] resize-y font-mono')}
-            value={topic}
-            maxLength={2000}
-            onChange={(e) => setTopic(e.target.value)}
-            placeholder="What should this presentation teach?"
-          />
-        </motion.div>
+            <div className="flex flex-wrap gap-2">
+              {NEWS_TYPES.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setNewsType(t)}
+                  aria-pressed={newsType === t}
+                  className={cn(
+                    'rounded-wobble-sm border-2 px-3 py-1.5 text-sm font-bold transition-all',
+                    newsType === t
+                      ? 'border-ink bg-yellow text-ink shadow-offset'
+                      : 'border-dashed border-pencil text-ink-soft hover:border-ink hover:text-ink',
+                  )}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-xs text-ink-faint">
+              You don't write a prompt — pick a beat and a moment in time, and the AI briefs you on
+              that.
+            </p>
+          </motion.div>
+        ) : (
+          <motion.div variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}>
+            <span className="micro mb-1 flex items-center justify-between text-ink-soft">
+              Topic / prompt
+              <span className="font-mono normal-case tracking-normal">{topic.length}/2000</span>
+            </span>
+            <textarea
+              className={cn(inputCls, 'min-h-[84px] resize-y font-mono')}
+              value={topic}
+              maxLength={2000}
+              onChange={(e) => setTopic(e.target.value)}
+              placeholder="What should this presentation teach?"
+            />
+          </motion.div>
+        )}
+
+        {purpose === 'news' && (
+          <motion.div
+            className="mt-4"
+            variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
+          >
+            <span className="micro mb-1 block text-ink-soft">
+              Time period — the moment in time to report from
+            </span>
+            <input
+              className={cn(inputCls)}
+              value={newsPeriod}
+              maxLength={200}
+              onChange={(e) => setNewsPeriod(e.target.value)}
+              placeholder="e.g. This week · July 2020 · the 1990s"
+            />
+            <p className="mt-1 text-xs text-ink-faint">
+              The briefing reports the news as it stood at this time. Turn on “Search the web” for
+              better accuracy.
+            </p>
+          </motion.div>
+        )}
 
         <motion.div
           className="mt-4"

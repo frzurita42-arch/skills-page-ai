@@ -333,6 +333,8 @@ export const generateRouter = createRouter({
         purpose: z.enum(["education", "commercial", "walkthrough", "news"]).optional(),
         // How much explanatory text each slide carries (advanced setting).
         textDensity: z.enum(["brief", "standard", "detailed"]).default("standard"),
+        // News decks only: the moment in time the briefing reports from.
+        newsPeriod: z.string().max(200).optional(),
         // Search the web for current facts about the topic first (accuracy for
         // real products / news / anything time-sensitive).
         webSearch: z.boolean().default(false),
@@ -596,6 +598,7 @@ export const generateRouter = createRouter({
         tone: input.tone,
         purpose,
         textDensity: input.textDensity,
+        newsPeriod: purpose === "news" ? input.newsPeriod?.trim() || undefined : undefined,
         subject: topic,
         previouslyTaught,
         layoutTemplates,
@@ -896,11 +899,11 @@ RULES (non-negotiable):
 - Keep the SAME core idea(s) and the SAME reading level "${input.level}" — do NOT make the language harder or easier, only ${longer ? "longer" : "shorter"}.
 - ${
         longer
-          ? `MAKE IT LONGER: expand the explanation. Prefer adding genuinely useful detail; when there is nothing truly new to add, reinforce the SAME point from a fresh angle, restate it in different words, or bring in a closely-related supporting idea that strengthens understanding — never pad with filler or repeat sentences verbatim. Aim for noticeably more words than the original.`
-          : `MAKE IT SHORTER: compress the explanation to fewer words while preserving the main idea. Cut redundancy and tangents, keep the essential point clear. Aim for noticeably fewer words than the original.`
+          ? `MAKE IT ~20% LONGER — a GENTLE step up, NOT a big jump. Add roughly one-fifth more words than the current text: go a little deeper on the SAME idea, or reference/relate a supporting idea that cements the current point, or restate a key part more fully — never pad with filler or repeat sentences verbatim. Think of it as steeping one notch deeper into the topic, not rewriting it.`
+          : `MAKE IT ~20% SHORTER — a GENTLE step down, NOT a big cut. Remove roughly one-fifth of the words: trim redundancy and the least-essential detail while keeping the core idea and its supporting points intact.`
       }
 - Do NOT add questions, quizzes, headings, markdown, or meta-commentary. Return plain prose paragraphs only.
-- Return between 1 and ${longer ? 4 : Math.max(1, original.length)} paragraphs.`;
+- Keep the paragraph structure close to the current text (a similar number of paragraphs); this is a small adjustment, not a rewrite. Return between 1 and ${longer ? original.length + 1 : Math.max(1, original.length)} paragraphs.`;
 
       const userPrompt = [
         input.slideTitle ? `SLIDE TITLE: ${input.slideTitle}` : null,
@@ -933,6 +936,89 @@ RULES (non-negotiable):
         return { paragraphs: out.slice(0, 6) };
       } catch {
         return { paragraphs: original };
+      }
+    }),
+
+  /**
+   * Admin/moderator, news decks: re-report ONE story as it stood in a different
+   * time period — returns a fresh headline + summary. Web-grounded when a
+   * web-capable key is available. Same charge rules as recalibrateProse.
+   */
+  retimeNewsSlide: moderatorProcedure
+    .input(
+      z.object({
+        title: z.string().max(300),
+        paragraphs: z.array(z.string().max(4000)).min(1).max(12),
+        timePeriod: z.string().min(1).max(200),
+        level: levelSchema,
+        subject: z.string().max(500).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }): Promise<{ title: string; paragraphs: string[] }> => {
+      let charged = 0;
+      if (ctx.user.role === "moderator") {
+        const usingOwnKey = await userHasKey(ctx.user.id, "text");
+        if (!usingOwnKey) {
+          if (ctx.user.tokenBalance < RECALIBRATE_COST) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: `INSUFFICIENT_TOKENS: this needs ${RECALIBRATE_COST} 🪙, you have ${ctx.user.tokenBalance} 🪙`,
+            });
+          }
+          await applyTokenDelta(ctx.user.id, -RECALIBRATE_COST, "news re-time");
+          charged = RECALIBRATE_COST;
+        }
+      }
+
+      // Ground the re-timed story in facts for that period when possible.
+      const web = await webResearch(
+        ctx.user.id,
+        `${input.subject ?? input.title} — news around ${input.timePeriod}`,
+      ).catch(() => null);
+
+      const system = `You are a news editor re-reporting ONE story for a DIFFERENT time period. Output ONLY JSON: {"title": string, "paragraphs": string[]}.
+RULES:
+- Report this beat AS IT STOOD during "${input.timePeriod}" — the headline and a 2-4 sentence summary must reflect what was happening THEN, not now, and must not include later developments.
+- Keep it a factual news brief at CEFR reading level "${input.level}": a headline (the title) + a written summary covering what happened, who is involved, where/when, and why it mattered.
+- If you lack specific facts for that period, describe the general state of this beat at that time in careful, non-committal terms; NEVER invent specific quotes, statistics, outlets, or events you are unsure of.
+- Plain prose only — no markdown, no questions, no meta-commentary.`;
+      const userPrompt = [
+        input.subject ? `BEAT / TOPIC: ${input.subject}` : null,
+        `ORIGINAL HEADLINE: ${input.title}`,
+        `ORIGINAL SUMMARY:\n${input.paragraphs.join("\n\n")}`,
+        web?.text
+          ? `WEB-VERIFIED FACTS for ${input.timePeriod} (use as the source of truth, do not contradict):\n${web.text.slice(0, 3000)}`
+          : null,
+        `Re-report this as a news brief for "${input.timePeriod}". Output JSON {"title": "...", "paragraphs": ["...", ...]}.`,
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+
+      const result = await completeText({
+        userId: ctx.user.id,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: userPrompt },
+        ],
+        maxTokens: 1500,
+      });
+      if (!result) {
+        if (charged) await refundTokens(ctx.user.id, charged, "refund: news re-time");
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: AI_UNAVAILABLE_MSG });
+      }
+      try {
+        const parsed = JSON.parse(extractJson(result.text)) as { title?: unknown; paragraphs?: unknown };
+        const title =
+          typeof parsed.title === "string" && parsed.title.trim() ? parsed.title.trim() : input.title;
+        const paragraphs = Array.isArray(parsed.paragraphs)
+          ? parsed.paragraphs.map((p) => String(p).trim()).filter(Boolean)
+          : [];
+        return {
+          title,
+          paragraphs: paragraphs.length ? paragraphs.slice(0, 6) : input.paragraphs,
+        };
+      } catch {
+        return { title: input.title, paragraphs: input.paragraphs };
       }
     }),
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Flag, Loader2, Minus, Pencil, Plus, Save } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Flag, Loader2, Minus, Pencil, Plus, Save, SlidersHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { trpc } from '@/providers/trpc';
@@ -23,18 +23,44 @@ import { TtsReaderProvider } from './TtsReader';
 
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
-/** Bake admin length-calibration overrides (keyed `${slideIdx}:${compIdx}`)
- *  into a deck, so the edited paragraphs can be persisted to its saved source. */
-function applyProseOverrides(base: SlideDeck, overrides: Record<string, string[]>): SlideDeck {
+/**
+ * Length-calibration history for one prose block: cached versions keyed by an
+ * integer level (0 = baseline) plus the current level. Stepping to a level
+ * that's already cached reuses it (no regeneration) — so contract after extend
+ * returns to the exact original text instead of generating a new shorter one.
+ */
+interface LenEntry {
+  levels: Record<number, string[]>;
+  cur: number;
+}
+type LenHistory = Record<string, LenEntry>;
+
+/** Current paragraphs for a prose block, honoring its length level. The baseline
+ *  (level 0) may be the original text or a re-timed news story. */
+function lenParas(history: LenHistory, key: string, original: string[]): string[] {
+  const h = history[key];
+  if (!h) return original;
+  return h.levels[h.cur] ?? h.levels[0] ?? original;
+}
+
+/** Bake in-player edits (length levels + news re-time headline/summary) into a
+ *  deck so they can be persisted to its saved source. */
+function applyDeckEdits(
+  base: SlideDeck,
+  history: LenHistory,
+  titles: Record<number, string>,
+): SlideDeck {
   return {
     ...base,
-    slides: base.slides.map((s, si) => ({
-      ...s,
-      components: s.components.map((c, ci) => {
-        const ov = overrides[`${si}:${ci}`];
-        return ov && c.type === 'prose' ? { ...c, paragraphs: ov } : c;
-      }),
-    })),
+    slides: base.slides.map((s, si) => {
+      const title = titles[si] ?? s.title;
+      const components = s.components.map((c, ci) => {
+        if (c.type !== 'prose') return c;
+        const paras = lenParas(history, `${si}:${ci}`, c.paragraphs);
+        return paras === c.paragraphs ? c : { ...c, paragraphs: paras };
+      });
+      return title !== s.title || components !== s.components ? { ...s, title, components } : s;
+    }),
   };
 }
 
@@ -196,13 +222,17 @@ export default function DeckPlayer({
     void ensureImage(viewingIdx + 1); // prefetch the next slide's image
   }, [viewingIdx, ensureImage]);
 
-  // admin length-calibration: rewritten prose per `${slideIdx}:${compIdx}`
-  const [proseOverrides, setProseOverrides] = useState<Record<string, string[]>>({});
-  const overridesRef = useRef<Record<string, string[]>>({});
+  // admin/mod in-player edits: length levels (cached) + re-timed news headlines
+  const [lenHistory, setLenHistory] = useState<LenHistory>({});
+  const lenRef = useRef<LenHistory>({});
+  const [titleOverrides, setTitleOverrides] = useState<Record<number, string>>({});
+  const titleRef = useRef<Record<number, string>>({});
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [periodInput, setPeriodInput] = useState('');
 
   const rawSlide = deck.slides[viewingIdx];
   const fetchedUrl = slideImages[viewingIdx];
-  // inject the lazily-fetched image + any admin length overrides into this slide
+  // inject the lazily-fetched image + any in-player edits into this slide
   const slide = useMemo(() => {
     let components = rawSlide.components;
     if (fetchedUrl) {
@@ -212,52 +242,119 @@ export default function DeckPlayer({
     }
     let changed = components !== rawSlide.components;
     components = components.map((c, ci) => {
-      const ov = proseOverrides[`${viewingIdx}:${ci}`];
-      if (ov && c.type === 'prose') {
+      if (c.type !== 'prose') return c;
+      const paras = lenParas(lenHistory, `${viewingIdx}:${ci}`, c.paragraphs);
+      if (paras !== c.paragraphs) {
         changed = true;
-        return { ...c, paragraphs: ov };
+        return { ...c, paragraphs: paras };
       }
       return c;
     });
-    return changed ? { ...rawSlide, components } : rawSlide;
-  }, [rawSlide, fetchedUrl, proseOverrides, viewingIdx]);
+    const title = titleOverrides[viewingIdx] ?? rawSlide.title;
+    if (!changed && title === rawSlide.title) return rawSlide;
+    return { ...rawSlide, title, components };
+  }, [rawSlide, fetchedUrl, lenHistory, titleOverrides, viewingIdx]);
 
   const narration = useMemo(() => buildNarration(slide), [slide]);
   const readAloud = useReadAloud(narration, voiceURI);
 
-  // Admin-only: recalibrate the length of THIS slide's explanation (same idea,
-  // same level) live. Persists to the deck's source when a handler is wired.
+  // Admin/mod: recalibrate the length of THIS slide's explanation (same idea,
+  // same level) live, in gentle ~20% steps. Levels are cached so stepping back
+  // reuses the earlier text (no regeneration). Persists when a handler is wired.
   const recalibrate = trpc.generate.recalibrateProse.useMutation();
-  const proseCompIdx = slide.components.findIndex((c) => c.type === 'prose');
+  const retimeNews = trpc.generate.retimeNewsSlide.useMutation();
+  const proseCompIdx = rawSlide.components.findIndex((c) => c.type === 'prose');
+  const lenKey = `${viewingIdx}:${proseCompIdx}`;
+  const lenLevel = lenHistory[lenKey]?.cur ?? 0;
+
+  const persistEdits = useCallback(
+    (nextLen: LenHistory, nextTitles: Record<number, string>) => {
+      onPersistDeck?.(applyDeckEdits(deck, nextLen, nextTitles));
+    },
+    [deck, onPersistDeck],
+  );
+
   const calibrate = useCallback(
     (direction: 'shorter' | 'longer') => {
-      const comp = proseCompIdx >= 0 ? slide.components[proseCompIdx] : null;
-      if (!comp || comp.type !== 'prose') return;
+      if (proseCompIdx < 0) return;
+      const rawComp = rawSlide.components[proseCompIdx];
+      if (!rawComp || rawComp.type !== 'prose') return;
+      const original = rawComp.paragraphs;
+      const entry = lenRef.current[lenKey] ?? { levels: { 0: original }, cur: 0 };
+      const target = entry.cur + (direction === 'longer' ? 1 : -1);
+      if (target > 6 || target < -4) {
+        toast(`Reached the ${direction === 'longer' ? 'longest' : 'shortest'} length`);
+        return;
+      }
+      // A level we've already generated — just step to it, no regeneration.
+      if (entry.levels[target]) {
+        const next = { ...lenRef.current, [lenKey]: { ...entry, cur: target } };
+        lenRef.current = next;
+        setLenHistory(next);
+        persistEdits(next, titleRef.current);
+        return;
+      }
+      const currentText = entry.levels[entry.cur] ?? entry.levels[0] ?? original;
       recalibrate.mutate(
-        {
-          paragraphs: comp.paragraphs,
-          direction,
-          level: deck.level,
-          subject: deck.topic,
-          slideTitle: slide.title,
-        },
+        { paragraphs: currentText, direction, level: deck.level, subject: deck.topic, slideTitle: slide.title },
         {
           onSuccess: (res) => {
-            const key = `${viewingIdx}:${proseCompIdx}`;
-            const next = { ...overridesRef.current, [key]: res.paragraphs };
-            overridesRef.current = next;
-            setProseOverrides(next);
-            onPersistDeck?.(applyProseOverrides(deck, next));
-            // moderators are charged — refresh their balance
+            const base = lenRef.current[lenKey] ?? entry;
+            const next = {
+              ...lenRef.current,
+              [lenKey]: { levels: { ...base.levels, [target]: res.paragraphs }, cur: target },
+            };
+            lenRef.current = next;
+            setLenHistory(next);
+            persistEdits(next, titleRef.current);
             if (role === 'moderator') void utils.auth.me.invalidate();
-            toast.success(direction === 'longer' ? 'Explanation expanded ✎' : 'Explanation trimmed ✎');
+            toast.success(direction === 'longer' ? 'A little more detail ✎' : 'A little shorter ✎');
           },
           onError: (e) => toast.error(e.message),
         },
       );
     },
-    [slide, proseCompIdx, deck, viewingIdx, recalibrate, onPersistDeck],
+    [proseCompIdx, rawSlide, lenKey, deck, slide.title, recalibrate, persistEdits, role, utils],
   );
+
+  // Admin/mod, news decks: re-report THIS story as it stood in a different time
+  // period — new headline + summary — replacing the slide's baseline text.
+  const retime = useCallback(
+    (timePeriod: string) => {
+      const period = timePeriod.trim();
+      if (!period || proseCompIdx < 0) return;
+      const rawComp = rawSlide.components[proseCompIdx];
+      if (!rawComp || rawComp.type !== 'prose') return;
+      retimeNews.mutate(
+        {
+          title: rawSlide.title,
+          paragraphs: rawComp.paragraphs,
+          timePeriod: period,
+          level: deck.level,
+          subject: deck.topic,
+        },
+        {
+          onSuccess: (res) => {
+            // reset this block's length baseline to the re-timed story
+            const nextLen = { ...lenRef.current, [lenKey]: { levels: { 0: res.paragraphs }, cur: 0 } };
+            const nextTitles = { ...titleRef.current, [viewingIdx]: res.title };
+            lenRef.current = nextLen;
+            titleRef.current = nextTitles;
+            setLenHistory(nextLen);
+            setTitleOverrides(nextTitles);
+            persistEdits(nextLen, nextTitles);
+            if (role === 'moderator') void utils.auth.me.invalidate();
+            toast.success(`Re-timed to ${period} ✎`);
+          },
+          onError: (e) => toast.error(e.message),
+        },
+      );
+    },
+    [proseCompIdx, rawSlide, lenKey, viewingIdx, deck, retimeNews, persistEdits, role, utils],
+  );
+
+  const calibrating = recalibrate.isPending || retimeNews.isPending;
+  const isNews = !!walkthrough && walkthrough.kind === 'news';
 
   const currentAnswer = answers[index];
   const nextUnlocked = !slide.quiz || (currentAnswer?.solved ?? false);
@@ -554,41 +651,89 @@ export default function DeckPlayer({
         </div>
       )}
 
-      {/* admin/moderator: calibrate the length of THIS slide's explanation */}
+      {/* admin/moderator: per-slide settings — length calibration + (news) re-time */}
       {canCalibrate && !finished && !inReview && proseCompIdx >= 0 && (
         <div className="pointer-events-none fixed left-4 top-[58px] z-[70]">
-          <div className="pointer-events-auto flex items-center gap-1 rounded-wobble-sm border-2 border-ink bg-paper-3 px-2 py-1.5 shadow-offset">
-            <span
-              className="micro px-1 text-ink-soft"
-              title={
-                role === 'moderator'
-                  ? "Rewrite this slide's explanation shorter/longer (same idea, same level) — costs 2 🪙 per change"
-                  : "Rewrite this slide's explanation shorter/longer — same idea, same level"
-              }
-            >
-              Length
-            </span>
+          <div className="pointer-events-auto">
             <button
               type="button"
-              onClick={() => calibrate('shorter')}
-              disabled={recalibrate.isPending}
-              title="Shorten this explanation (same idea, same level)"
-              aria-label="Shorten explanation"
-              className="flex h-7 w-7 items-center justify-center rounded-wobble-sm border-2 border-ink bg-paper-3 text-ink transition-transform hover:-translate-y-0.5 disabled:opacity-50"
+              onClick={() => setSettingsOpen((o) => !o)}
+              aria-expanded={settingsOpen}
+              title="Adjust this slide's length (and time period for news)"
+              className="flex items-center gap-1.5 rounded-wobble-sm border-2 border-ink bg-paper-3 px-3 py-1.5 font-heading text-sm font-semibold text-ink shadow-offset transition-transform hover:-translate-y-0.5"
             >
-              <Minus className="h-4 w-4" strokeWidth={2.5} />
+              <SlidersHorizontal className="h-4 w-4" strokeWidth={2} />
+              Length{isNews ? ' & time' : ''}
+              {lenLevel !== 0 && (
+                <span className="rounded-full bg-blue-soft px-1.5 text-[0.6rem] font-bold text-ink">
+                  {lenLevel > 0 ? `+${lenLevel}` : lenLevel}
+                </span>
+              )}
+              {calibrating && <Loader2 className="h-4 w-4 animate-spin text-ink-soft" />}
             </button>
-            <button
-              type="button"
-              onClick={() => calibrate('longer')}
-              disabled={recalibrate.isPending}
-              title="Lengthen this explanation (same idea, same level)"
-              aria-label="Lengthen explanation"
-              className="flex h-7 w-7 items-center justify-center rounded-wobble-sm border-2 border-ink bg-paper-3 text-ink transition-transform hover:-translate-y-0.5 disabled:opacity-50"
-            >
-              <Plus className="h-4 w-4" strokeWidth={2.5} />
-            </button>
-            {recalibrate.isPending && <Loader2 className="h-4 w-4 animate-spin text-ink-soft" />}
+
+            {settingsOpen && (
+              <div className="mt-1.5 w-64 rounded-wobble-sm border-2 border-ink bg-paper-3 p-3 shadow-offset">
+                {/* Length — gentle ~20% steps, cached both ways */}
+                <p className="micro mb-1 font-semibold text-ink-soft">Explanation length</p>
+                <p className="mb-2 text-[0.6rem] leading-tight text-ink-faint">
+                  Steep deeper for more detail, or trim — same idea, ~20% per step.
+                  {role === 'moderator' ? ' 2 🪙 per new step.' : ''}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => calibrate('shorter')}
+                    disabled={calibrating}
+                    aria-label="Shorter"
+                    className="flex h-8 w-8 items-center justify-center rounded-wobble-sm border-2 border-ink bg-paper-3 text-ink transition-transform hover:-translate-y-0.5 disabled:opacity-50"
+                  >
+                    <Minus className="h-4 w-4" strokeWidth={2.5} />
+                  </button>
+                  <span className="flex-1 text-center font-mono text-sm font-bold text-ink">
+                    {lenLevel > 0 ? `+${lenLevel}` : lenLevel}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => calibrate('longer')}
+                    disabled={calibrating}
+                    aria-label="Longer"
+                    className="flex h-8 w-8 items-center justify-center rounded-wobble-sm border-2 border-ink bg-paper-3 text-ink transition-transform hover:-translate-y-0.5 disabled:opacity-50"
+                  >
+                    <Plus className="h-4 w-4" strokeWidth={2.5} />
+                  </button>
+                </div>
+
+                {/* Time period — news decks only */}
+                {isNews && (
+                  <div className="mt-3 border-t-2 border-dashed border-pencil pt-3">
+                    <p className="micro mb-1 font-semibold text-ink-soft">Time period</p>
+                    <p className="mb-2 text-[0.6rem] leading-tight text-ink-faint">
+                      Re-report this story as it stood at another time.
+                      {role === 'moderator' ? ' 2 🪙 per change.' : ''}
+                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        value={periodInput}
+                        onChange={(e) => setPeriodInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && retime(periodInput)}
+                        placeholder="e.g. July 2020"
+                        maxLength={200}
+                        className="min-w-0 flex-1 rounded-wobble-sm border-2 border-ink bg-paper px-2 py-1 text-sm text-ink outline-none focus:border-blue"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => retime(periodInput)}
+                        disabled={calibrating || !periodInput.trim()}
+                        className="shrink-0 rounded-wobble-sm border-2 border-ink bg-yellow px-2.5 py-1 font-heading text-sm font-bold text-ink shadow-offset-sm transition-transform hover:-translate-y-0.5 disabled:opacity-50"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
