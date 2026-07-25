@@ -510,11 +510,24 @@ export const generateRouter = createRouter({
       // conforms to an approved configuration (so text is guaranteed because
       // every template pairs its visuals with a text step).
       const catalog = await loadTemplateCatalog();
-      const allowedTemplates = templatesForContext(catalog, {
+      let allowedTemplates = templatesForContext(catalog, {
         purpose: templateFilterPurpose(purpose),
         stem: isStemTopic(topic),
         level: input.level,
       });
+      // A news briefing reads like a newspaper: give it the image-forward
+      // showcase layouts too (photo + prose + optional table), on top of the
+      // explanatory ones, so every story can be a headline + photo + summary
+      // with the occasional table/chart.
+      if (purpose === "news") {
+        const imageForward = templatesForContext(catalog, {
+          purpose: "commercial",
+          stem: isStemTopic(topic),
+          level: input.level,
+        });
+        const seen = new Set(allowedTemplates.map((t) => t.name));
+        allowedTemplates = [...allowedTemplates, ...imageForward.filter((t) => !seen.has(t.name))];
+      }
       // Minimum distinct body paragraphs a teaching slide must carry at this
       // CEFR band — a C1 deck must not ship slides with a single short line.
       // Mirrors the PARAGRAPH FLOOR stated in the system prompt.
@@ -663,6 +676,14 @@ export const generateRouter = createRouter({
                   (n, c) => n + (c.type === "prose" ? c.paragraphs.length : 0),
                   0,
                 );
+                // A news slide is a newspaper clipping: it must carry a written
+                // summary AND (unless images are off) a photo — never a bare
+                // headline, and never a headline with only a picture.
+                if (purpose === "news") {
+                  const hasImage = s.components.some((c) => c.type === "image");
+                  const needsImage = input.imageStyle !== "none";
+                  return !structOk || paraCount < 1 || (needsImage && !hasImage);
+                }
                 return !structOk || paraCount < paraFloor;
               });
             // The model sometimes under-delivers (e.g. 3 slides when 8 were

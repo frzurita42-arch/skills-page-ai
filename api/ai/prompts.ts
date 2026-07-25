@@ -267,10 +267,14 @@ ${
   news
     ? `
 NEWS BRIEFING MODE — this is a slide-format NEWS BRIEFING about "${opts.subject ?? "the given topic"}", read like a newspaper section, NOT a lesson:
-- Report, don't teach or sell: each slide is ONE news item / story / development on the topic. Lead with the headline as the slide TITLE, then report it — what happened, who is involved, where and when, why it matters — in a factual, journalistic voice (inverted pyramid: most important facts first).
-- Cover ${String(opts.subject ?? "")} as a briefing: distinct stories across the deck (e.g. for a section like sports or tech, each slide is a different story), sequenced most-important first. Do NOT repeat the same story across slides.
+- Report, don't teach or sell: each slide is ONE news item / story / development on the topic. Do NOT repeat the same story across slides.
+- EVERY slide is a newspaper clipping with THREE parts, always present together:
+  (1) HEADLINE — the slide TITLE.
+  (2) PHOTO — an image component with a specific, relevant news photo prompt${opts.imageStyle === "none" ? " (SKIP only because image style is 'none')" : " (REQUIRED on every slide)"}.
+  (3) SUMMARY — a written prose summary of the story, 2 to 4 sentences, reporting what happened, who is involved, where and when, and why it matters (inverted pyramid: most important facts first).
+- NEVER ship a slide that is just a headline, and NEVER a headline with only a picture and no words. The written summary is mandatory on every slide — the reader is flipping through a paper and reading each brief, not looking at captions.
+- Choose layouts that pair an image with prose; add a table or chart when the story has figures (scores, standings, prices, counts). Mix images, tables and charts across the deck, but the photo + written summary are always there.
 - Attribution & accuracy: report only what is supported by the provided facts (and the web-verified facts if given). Do NOT invent quotes, statistics, outlets, or events. If the exact date isn't given, keep timing general ("this week", "recently") rather than fabricating one.
-- Images matter a LOT — use the image steps for a vivid, relevant news photo for each story, with a caption-style prompt. Tables/charts are for standings, figures, results.
 - NO quizzes and NO evaluations of ANY kind — never test the reader. If a layout lists an evaluation step, SKIP it and end the slide on its reporting.
 - Tone stays factual and neutral regardless of the chosen register; the reader is here to be informed, not persuaded or quizzed.
 `
