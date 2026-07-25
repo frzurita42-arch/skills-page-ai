@@ -235,20 +235,28 @@ function ImageView({
   component,
   ci,
   current,
+  showcase = false,
 }: {
   component: Extract<SlideComponent, { type: 'image' }>;
   ci: number;
   current: string | null;
+  /** commercial decks: the image is the main stage, so render it larger */
+  showcase?: boolean;
 }) {
   const style = component.style === 'none' ? 'sketch' : component.style;
   return (
-    <figure className="relative mx-auto w-full max-w-sm rotate-[-1deg] rounded-wobble-sm border-2 border-ink bg-paper-3 p-3 pb-4 shadow-offset">
+    <figure
+      className={cn(
+        'relative mx-auto w-full rotate-[-1deg] rounded-wobble-sm border-2 border-ink bg-paper-3 p-3 pb-4 shadow-offset',
+        showcase ? 'max-w-xl' : 'max-w-sm',
+      )}
+    >
       <WashiTape rotate={-3} className="left-1/2 -translate-x-1/2" />
       <div className="overflow-hidden rounded-sm border-2 border-ink">
         <img
           src={component.imageUrl ?? `/style-${style}.svg`}
           alt={component.alt}
-          className="mx-auto max-h-64 w-full object-cover"
+          className={cn('mx-auto w-full object-cover', showcase ? 'max-h-[26rem]' : 'max-h-64')}
         />
       </div>
       <figcaption className="mt-2 flex items-start gap-1.5 font-display text-base leading-snug text-ink-soft">
@@ -314,12 +322,15 @@ export interface SlideComponentViewProps {
   ci: number;
   /** karaoke key currently spoken, or null */
   current: string | null;
+  /** commercial (menu/service/shop) decks put the image on the main stage */
+  showcase?: boolean;
 }
 
 export default function SlideComponentView({
   component,
   ci,
   current,
+  showcase = false,
 }: SlideComponentViewProps) {
   switch (component.type) {
     case 'prose':
@@ -348,7 +359,7 @@ export default function SlideComponentView({
         </StickyNote>
       );
     case 'image':
-      return <ImageView component={component} ci={ci} current={current} />;
+      return <ImageView component={component} ci={ci} current={current} showcase={showcase} />;
     case 'code':
       return <CodeView component={component} ci={ci} current={current} />;
     default:

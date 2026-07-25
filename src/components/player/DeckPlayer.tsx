@@ -351,6 +351,7 @@ export default function DeckPlayer({
                       component={slide.components[ci]}
                       ci={ci}
                       current={readAloud.currentKey}
+                      showcase={!!commercial}
                     />
                   ))}
                 </motion.div>
