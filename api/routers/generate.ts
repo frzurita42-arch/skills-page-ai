@@ -130,6 +130,13 @@ export const generateRouter = createRouter({
         imageStyle: imageStyleSchema.default("sketch"),
         unitCount: z.number().int().min(1).max(8).default(4),
         lessonsPerUnit: z.number().int().min(1).max(6).default(3),
+        // Uploaded reference material the AI should build the repo from: text
+        // pulled from text files, plus images (menus, catalogs) it reads.
+        referenceText: z.string().max(20000).optional(),
+        referenceImages: z
+          .array(z.object({ mime: z.string().max(120), b64: z.string().max(8_000_000) }))
+          .max(3)
+          .optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -158,11 +165,32 @@ export const generateRouter = createRouter({
       let draft: import("../ai/prompts").LessonPathDraft;
       let usedMock = false;
       try {
+        // Fold any uploaded attachment into reference material: text files
+        // directly, and images (menus, catalogs) read out via vision.
+        let reference = (input.referenceText ?? "").trim();
+        if (input.referenceImages && input.referenceImages.length > 0) {
+          try {
+            const vision = await completeVision({
+              userId: ctx.user.id,
+              system:
+                "You transcribe attached documents (menus, catalogs, syllabi, notes, photos) into plain text so a structured repository can be built from them. List every readable item, section, name, price and detail. No commentary.",
+              userText: `Attachment(s) for: ${input.description.slice(0, 200)}`,
+              images: input.referenceImages,
+              maxTokens: 1500,
+            });
+            if (vision?.text) {
+              reference = `${reference}\n\n[Read from attached image(s)]\n${vision.text}`.trim();
+            }
+          } catch (err) {
+            console.warn("[generate.lessonPath] attachment vision failed:", err);
+          }
+        }
         const prompt = buildLessonPathPrompt({
           description: input.description,
           template: input.template,
           unitCount: input.unitCount,
           lessonsPerUnit: input.lessonsPerUnit,
+          reference: reference || undefined,
         });
         let parsed: import("../ai/prompts").LessonPathDraft | null = null;
         for (let attempt = 0; attempt < 2 && parsed === null; attempt++) {

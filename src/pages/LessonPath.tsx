@@ -4,9 +4,13 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   Check,
   ChevronDown,
+  FileText,
+  ImageIcon,
   NotebookPen,
+  Paperclip,
   Presentation,
   ScrollText,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -46,6 +50,10 @@ function scopeSlidesFor(unitCount: number, lessonsPerUnit: number) {
   return Math.min(MAX_SLIDES, Math.max(3, Math.ceil((unitCount * lessonsPerUnit) / 2)));
 }
 
+type TextAttachment = { name: string; kind: 'text'; text: string };
+type ImageAttachment = { name: string; kind: 'image'; mime: string; b64: string };
+type Attachment = TextAttachment | ImageAttachment;
+
 export default function LessonPath() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -72,8 +80,45 @@ export default function LessonPath() {
   const [imageStyle, setImageStyle] = useState<ImageStyle>('sketch');
   const [language, setLanguage] = useState('English');
   const [instructions, setInstructions] = useState('');
+  // Reference attachments the AI reads when building the repo (menu, catalog,
+  // syllabus, notes). Text files → text; images are read out server-side.
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [authWallOpen, setAuthWallOpen] = useState(false);
   const [theaterStep, setTheaterStep] = useState<number | null>(null);
+
+  const onAttach = (files: FileList | null) => {
+    if (!files) return;
+    Array.from(files).forEach((file) => {
+      const isImage = file.type.startsWith('image/');
+      const isText = file.type.startsWith('text/') || /\.(txt|md|csv|json)$/i.test(file.name);
+      if (isImage) {
+        if (file.size > 4_000_000) {
+          toast.error(`${file.name} is too large (max ~4MB)`);
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+          const b64 = String(reader.result).split(',')[1] ?? '';
+          setAttachments((a) =>
+            a.filter((x) => x.kind === 'image').length >= 3
+              ? (toast.error('Up to 3 images'), a)
+              : [...a, { name: file.name, kind: 'image', mime: file.type || 'image/png', b64 }],
+          );
+        };
+        reader.readAsDataURL(file);
+      } else if (isText) {
+        const reader = new FileReader();
+        reader.onload = () =>
+          setAttachments((a) => [
+            ...a,
+            { name: file.name, kind: 'text', text: String(reader.result).slice(0, 20000) },
+          ]);
+        reader.readAsText(file);
+      } else {
+        toast.error(`${file.name}: upload a text or image file`);
+      }
+    });
+  };
 
   const meta = TEMPLATE_META[template];
   const totalLessons = unitCount * lessonsPerUnit;
@@ -109,6 +154,22 @@ export default function LessonPath() {
 
   const generate = trpc.generate.lessonPath.useMutation();
 
+  const referenceFromAttachments = () => {
+    const text = attachments
+      .filter((a): a is TextAttachment => a.kind === 'text')
+      .map((a) => `--- ${a.name} ---\n${a.text}`)
+      .join('\n\n')
+      .slice(0, 20000);
+    const images = attachments
+      .filter((a): a is ImageAttachment => a.kind === 'image')
+      .slice(0, 3)
+      .map((a) => ({ mime: a.mime, b64: a.b64 }));
+    return {
+      referenceText: text || undefined,
+      referenceImages: images.length ? images : undefined,
+    };
+  };
+
   const composedDescription = () => {
     const parts = [subject.trim()];
     if (audience.trim()) parts.push(`Audience: ${audience.trim()}`);
@@ -136,6 +197,7 @@ export default function LessonPath() {
         imageStyle,
         unitCount,
         lessonsPerUnit,
+        ...referenceFromAttachments(),
       },
       {
         onSuccess: (res) => {
@@ -434,6 +496,51 @@ export default function LessonPath() {
                   placeholder="Anything the AI should always do? e.g. 'Keep it under 5 minutes per deck', 'Always mention allergen info'"
                   className="mt-3 w-full resize-y rounded-wobble-sm border-2 border-ink bg-paper-3 px-3.5 py-3 text-sm text-ink shadow-offset outline-none placeholder:text-ink-faint focus:border-blue focus:shadow-[4px_4px_0_#DDE9FB]"
                 />
+              </section>
+
+              {/* reference attachments — AI reads these when building the repo */}
+              <section>
+                <SectionLabel label="Attachments" />
+                <p className="mt-1 text-xs text-ink-faint">
+                  Upload a menu, service catalog, syllabus, or notes — the AI reads them and builds the
+                  repo from their real items. Text files &amp; images work.
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <label className="flex cursor-pointer items-center gap-1.5 rounded-wobble-sm border-2 border-dashed border-pencil bg-paper-3 px-3 py-2 text-sm font-bold text-ink-soft transition-colors hover:border-ink hover:text-ink">
+                    <Paperclip className="h-4 w-4" strokeWidth={2} /> Add files
+                    <input
+                      type="file"
+                      accept="image/*,text/*,.md,.csv,.json,.txt"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        onAttach(e.target.files);
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                  {attachments.map((a, i) => (
+                    <span
+                      key={`${a.name}-${i}`}
+                      className="flex items-center gap-1.5 rounded-wobble-sm border-2 border-ink bg-paper-2 px-2.5 py-1.5 text-xs font-semibold text-ink"
+                    >
+                      {a.kind === 'image' ? (
+                        <ImageIcon className="h-3.5 w-3.5 text-ink-soft" />
+                      ) : (
+                        <FileText className="h-3.5 w-3.5 text-ink-soft" />
+                      )}
+                      <span className="max-w-[160px] truncate">{a.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setAttachments((list) => list.filter((_, j) => j !== i))}
+                        aria-label={`Remove ${a.name}`}
+                        className="rounded-full p-0.5 text-ink-faint hover:bg-red-soft hover:text-red"
+                      >
+                        <X className="h-3 w-3" strokeWidth={2.5} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
               </section>
 
               {/* memory — baked into the loop, always on */}

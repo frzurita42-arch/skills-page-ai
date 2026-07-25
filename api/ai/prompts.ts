@@ -283,6 +283,8 @@ export function buildLessonPathPrompt(opts: {
   template: string;
   unitCount: number;
   lessonsPerUnit: number;
+  /** text extracted from files the user attached (menu, catalog, syllabus…) */
+  reference?: string;
 }): string {
   const guidance: Record<string, string> = {
     course:
@@ -295,10 +297,13 @@ export function buildLessonPathPrompt(opts: {
     other:
       "A structured collection: units group related lessons; each lesson objective is a presentation prompt.",
   };
+  const reference = opts.reference?.trim()
+    ? `\n\nATTACHED REFERENCE MATERIAL — the user uploaded this; build the units, lessons and objectives FROM IT, staying faithful to its actual items, sections, names and details (do not invent items it doesn't contain):\n"""\n${opts.reference.trim().slice(0, 12000)}\n"""`
+    : "";
   return `You are the SketchLearn lesson-path architect. Draft a complete repository structure.
 
 SUBJECT: ${opts.description}
-TEMPLATE: ${opts.template} — ${guidance[opts.template] ?? guidance.other}
+TEMPLATE: ${opts.template} — ${guidance[opts.template] ?? guidance.other}${reference}
 
 RULES:
 - Exactly ${opts.unitCount} units, each with exactly ${opts.lessonsPerUnit} lessons.
