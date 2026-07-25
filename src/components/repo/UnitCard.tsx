@@ -12,6 +12,7 @@ import {
   Plus,
   Repeat,
   RotateCcw,
+  Sparkles,
   Square,
   Ticket,
   Trash2,
@@ -485,6 +486,7 @@ function LessonCard({
   const setHref = studyToolSlug ? studyUrl(studyToolSlug, seed) : '';
   const playHref = `/repos/${seed.repoSlug}/play/${seed.lessonSeq}`;
   const editHref = `/repos/${seed.repoSlug}/play/${seed.lessonSeq}/edit`;
+  const mineHref = `/repos/${seed.repoSlug}/play/${seed.lessonSeq}/mine`;
 
   // How many customization tickets the signed-in viewer holds for this repo —
   // relevant whenever a non-owner could customize an education repo (whether or
@@ -593,25 +595,18 @@ function LessonCard({
         <ActionBtn label={label} title={title} />
       );
 
-    // A non-owner's ticket-gated "Customize" control.
-    const customizeControl = () => {
-      if (isGuest)
-        return (
-          <span onClick={onGuestStudy}>
-            <SketchButton variant="accent" size="sm">
-              <Ticket className="h-4 w-4" strokeWidth={2} /> Customize
-            </SketchButton>
-          </span>
-        );
-      if (!studyToolSlug) return null;
-      return ticketCount > 0 ? (
+    // A non-owner's ticket-gated customization control. Once they've saved a
+    // customization it splits into two: play their version, or spend a ticket
+    // to generate a new one that replaces it.
+    const ticketAction = (label: string, accent: boolean) =>
+      ticketCount > 0 ? (
         <Link
           to={setHref}
           title={`Generate your own custom version — you have ${ticketCount} ticket${ticketCount === 1 ? '' : 's'} for this repo`}
           className="no-underline"
         >
-          <SketchButton variant="accent" size="sm">
-            <Ticket className="h-4 w-4" strokeWidth={2} /> Customize
+          <SketchButton variant={accent ? 'accent' : 'secondary'} size="sm">
+            <Ticket className="h-4 w-4" strokeWidth={2} /> {label}
             <span className="ml-0.5 rounded-full bg-paper/30 px-1 text-[0.6rem] font-bold">
               {ticketCount}
             </span>
@@ -628,6 +623,31 @@ function LessonCard({
           <Ticket className="h-4 w-4" strokeWidth={2} /> Request ticket
         </button>
       );
+
+    const customizeControl = () => {
+      if (isGuest)
+        return (
+          <span onClick={onGuestStudy}>
+            <SketchButton variant="accent" size="sm">
+              <Ticket className="h-4 w-4" strokeWidth={2} /> Customize
+            </SketchButton>
+          </span>
+        );
+      if (!studyToolSlug) return null;
+      // Already has a saved customization → play it, or generate a new one.
+      if (lesson.myHasCustomization) {
+        return (
+          <>
+            <Link to={mineHref} title="Play the version you generated" className="no-underline">
+              <SketchButton variant="accent" size="sm">
+                <Sparkles className="h-4 w-4" strokeWidth={2} /> My version
+              </SketchButton>
+            </Link>
+            {ticketAction('New', false)}
+          </>
+        );
+      }
+      return ticketAction('Customize', true);
     };
 
     // Owner: build / edit the free preset with their own credits.

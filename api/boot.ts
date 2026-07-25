@@ -11,6 +11,7 @@ import {
   ensureCommercialSchema,
   ensureTicketSchema,
   ensureUserFavoriteType,
+  ensureCustomizationSchema,
 } from "./lib/migrate-annotations";
 
 // Best-effort schema catch-up on boot so an existing database accepts CEFR
@@ -51,6 +52,14 @@ void ensureTicketSchema().catch((err) =>
 void ensureUserFavoriteType().catch((err) =>
   console.warn(
     "[migrate] user-favorite enum auto-migration skipped:",
+    err instanceof Error ? err.message : err,
+  ),
+);
+
+// Best-effort: add the per-user customizations table.
+void ensureCustomizationSchema().catch((err) =>
+  console.warn(
+    "[migrate] customization schema auto-migration skipped:",
     err instanceof Error ? err.message : err,
   ),
 );

@@ -20,7 +20,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { eq } from "drizzle-orm";
 import { appRouter } from "./router";
 import { getDb } from "./queries/connection";
-import { users, slideTools, type User } from "@db/schema";
+import { customizations, users, slideTools, type User } from "@db/schema";
 import { ticketPrice } from "./cost";
 import { consumeOne, countAvailable } from "./tickets";
 import { applyTokenDelta } from "./tokens";
@@ -257,6 +257,43 @@ describe.runIf(HAS_DB)("full coins ↔ tickets cycle", () => {
     expect(await countAvailable(student.id, repoId)).toBe(before + 1);
     // queue is now empty
     expect((await call(moderator).tickets.incoming()).length).toBe(0);
+  });
+
+  it("8b) a student's ticket customization is saved as their own and is per-user", async () => {
+    const db = getDb();
+    const repoSlug = (globalThis as Record<string, unknown>).__repoSlug as string;
+    const lessonSeq = (globalThis as Record<string, unknown>).__lessonSeq as number;
+    const repo = await db.query.repos.findFirst({ where: (r, { eq: e }) => e(r.slug, repoSlug) });
+
+    // no customization yet
+    expect(await call(student).repos.myCustomization({ repoSlug, lessonSeq })).toBeNull();
+
+    // save one (this is what the slide tool does after a ticket generation)
+    const customDeck = { level: "B1", imageStyle: "none", topic: "custom", slides: [{ title: "MY CUSTOM SLIDE", components: [] }] };
+    await call(student).repos.saveMyCustomization({ repoSlug, lessonSeq, deck: customDeck });
+
+    const mine = await call(student).repos.myCustomization({ repoSlug, lessonSeq });
+    expect(mine!.deck.slides[0].title).toBe("MY CUSTOM SLIDE");
+
+    // it shows on the student's repo view but NOT the moderator's (per-user)
+    const stuView = await call(student).repos.getBySlug({ slug: repoSlug });
+    const modView = await call(moderator).repos.getBySlug({ slug: repoSlug });
+    const stuLesson = stuView!.units.flatMap((u) => u.lessons).find((l) => l.globalSeq === lessonSeq);
+    const modLesson = modView!.units.flatMap((u) => u.lessons).find((l) => l.globalSeq === lessonSeq);
+    expect(stuLesson!.myHasCustomization).toBe(true);
+    expect(modLesson!.myHasCustomization).toBe(false);
+
+    // regenerating replaces in place — still exactly one row for this student
+    void repo;
+    const deck2 = { ...customDeck, slides: [{ title: "REPLACED", components: [] }] };
+    await call(student).repos.saveMyCustomization({ repoSlug, lessonSeq, deck: deck2 });
+    const after = await call(student).repos.myCustomization({ repoSlug, lessonSeq });
+    expect(after!.deck.slides[0].title).toBe("REPLACED");
+    const rows = await db
+      .select()
+      .from(customizations)
+      .where(eq(customizations.userId, student.id));
+    expect(rows.length).toBe(1);
   });
 
   it("9) draining a moderator's credits demotes them to a user", async () => {

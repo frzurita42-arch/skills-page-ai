@@ -199,6 +199,7 @@ function ToolStudio({
   const navigate = useNavigate();
   const [presetSaved, setPresetSaved] = useState(false);
   const setPreset = trpc.repos.setLessonPreset.useMutation();
+  const saveCustom = trpc.repos.saveMyCustomization.useMutation();
 
   const [mode, setMode] = useState<'config' | 'theater' | 'player'>('config');
   const [topic, setTopic] = useState(seed?.lessonTitle || tool.topic);
@@ -247,6 +248,9 @@ function ToolStudio({
   // Captured when the owner presses "Generate & set preset" so the completion
   // handoff never depends on repoQuery having re-resolved by then.
   const setFlowRef = useRef(false);
+  // Captured when a non-owner spends a ticket, so we save their generation as
+  // their personal customization once it's ready.
+  const customizeFlowRef = useRef(false);
 
   // repo context for seed prefill + next-lesson handoff
   const repoQuery = trpc.repos.getBySlug.useQuery(
@@ -319,7 +323,9 @@ function ToolStudio({
 
   const runGenerate = () => {
     canceledRef.current = false;
-    setFlowRef.current = canSetPreset && !!seed;
+    const isSet = canSetPreset && !!seed;
+    setFlowRef.current = isSet;
+    customizeFlowRef.current = !!seed && !isSet && !isGuest;
     setTheaterDone(false);
     setMode('theater');
     generate.mutate(
@@ -434,6 +440,19 @@ function ToolStudio({
       toast.success('Preset saved — now free for anyone to play ✓');
       navigate(`/repos/${seed.repoSlug}`);
       return;
+    }
+    // A non-owner spent a ticket → persist this as their personal customization
+    // so they can replay it (free) or regenerate a new one to replace it.
+    if (customizeFlowRef.current && seed && result && !result.usedMock) {
+      saveCustom.mutate(
+        {
+          repoSlug: seed.repoSlug,
+          lessonSeq: seed.lessonSeq,
+          deck: result.deck,
+          toolSlug: tool.slug,
+        },
+        { onSuccess: () => void utils.repos.getBySlug.invalidate({ slug: seed.repoSlug }) },
+      );
     }
     enterPlayer();
   };

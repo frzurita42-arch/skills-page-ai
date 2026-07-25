@@ -5,6 +5,7 @@ import { createRouter, publicQuery } from "../middleware";
 import { authedProcedure } from "../procedures";
 import { getDb } from "../queries/connection";
 import {
+  customizations,
   favorites,
   lessons,
   repos,
@@ -257,6 +258,15 @@ export const reposRouter = createRouter({
       const viewerRuns: RunLite[] = ctx.user
         ? repoRuns.filter((r) => r.userId === ctx.user!.id)
         : [];
+      // Lesson ids the signed-in viewer has a saved personal customization for.
+      const myCustomLessonIds = new Set<number>();
+      if (ctx.user) {
+        const rows = await db
+          .select({ lessonId: customizations.lessonId })
+          .from(customizations)
+          .where(and(eq(customizations.userId, ctx.user.id), eq(customizations.repoId, repo.id)));
+        for (const r of rows) myCustomLessonIds.add(r.lessonId);
+      }
       const unitList: RepoUnit[] = [];
       for (const u of repoUnits) {
         const ls = await db
@@ -273,6 +283,7 @@ export const reposRouter = createRouter({
           parentLessonId: l.parentLessonId,
           runCount: repoRuns.filter((r) => r.lessonId === l.id).length,
           hasPreset: l.presetDeckJson != null,
+          myHasCustomization: myCustomLessonIds.has(l.id),
           ...lessonProgress(l.id, viewerRuns),
         }));
         unitList.push({ id: u.id, title: u.title, orderIndex: u.orderIndex, lessons: lessonList });
@@ -576,6 +587,87 @@ export const reposRouter = createRouter({
         seed,
         toolSlug: repo.studyToolSlug ?? "",
         commercial,
+      };
+    }),
+
+  /* ---------------- per-user saved customizations ---------------- */
+
+  /**
+   * Save (or replace) the signed-in user's personal custom generation of a
+   * lesson — the deck they produced by spending a ticket. One per user+lesson.
+   */
+  saveMyCustomization: authedProcedure
+    .input(
+      z.object({
+        repoSlug: z.string(),
+        lessonSeq: z.number().int(),
+        deck: z.unknown(),
+        toolSlug: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }): Promise<{ ok: true }> => {
+      const db = getDb();
+      const repo = await db.query.repos.findFirst({ where: eq(repos.slug, input.repoSlug) });
+      if (!repo) throw new TRPCError({ code: "NOT_FOUND", message: "Repository not found" });
+      const lesson = await lessonBySeq(repo.id, input.lessonSeq);
+      if (!lesson) throw new TRPCError({ code: "NOT_FOUND", message: "Item not found" });
+      await db
+        .insert(customizations)
+        .values({
+          lessonId: lesson.id,
+          repoId: repo.id,
+          userId: ctx.user.id,
+          toolSlug: input.toolSlug ?? repo.studyToolSlug ?? null,
+          deckJson: input.deck as SlideDeck,
+        })
+        .onConflictDoUpdate({
+          target: [customizations.userId, customizations.lessonId],
+          set: {
+            deckJson: input.deck as SlideDeck,
+            toolSlug: input.toolSlug ?? repo.studyToolSlug ?? null,
+            repoId: repo.id,
+            updatedAt: new Date(),
+          },
+        });
+      return { ok: true };
+    }),
+
+  /** Load the signed-in user's saved customization of a lesson (replay it free). */
+  myCustomization: authedProcedure
+    .input(z.object({ repoSlug: z.string(), lessonSeq: z.number().int() }))
+    .query(async ({ ctx, input }): Promise<import("@contracts/types").LessonPreset | null> => {
+      const db = getDb();
+      const repo = await db.query.repos.findFirst({ where: eq(repos.slug, input.repoSlug) });
+      if (!repo) return null;
+      const lesson = await lessonBySeq(repo.id, input.lessonSeq);
+      if (!lesson) return null;
+      const row = await db.query.customizations.findFirst({
+        where: and(eq(customizations.userId, ctx.user.id), eq(customizations.lessonId, lesson.id)),
+      });
+      if (!row) return null;
+
+      const repoUnits = await db.select().from(units).where(eq(units.repoId, repo.id));
+      const unit = repoUnits.find((u) => u.id === lesson.unitId);
+      const unitLessons = await db.select().from(lessons).where(eq(lessons.unitId, lesson.unitId));
+      let lessonSeqTotal = 0;
+      for (const u of repoUnits) {
+        const c = await db.select({ id: lessons.id }).from(lessons).where(eq(lessons.unitId, u.id));
+        lessonSeqTotal += c.length;
+      }
+      return {
+        deck: row.deckJson as SlideDeck,
+        seed: {
+          repoSlug: repo.slug,
+          repoRef: repo.ref,
+          unitTitle: unit?.title ?? "",
+          lessonTitle: lesson.title,
+          lessonIndex: lesson.orderIndex,
+          lessonCount: unitLessons.length,
+          lessonSeq: lesson.globalSeq,
+          lessonSeqTotal,
+        },
+        toolSlug: row.toolSlug ?? repo.studyToolSlug ?? "",
+        commercial: null,
       };
     }),
 });

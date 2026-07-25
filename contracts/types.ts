@@ -270,6 +270,9 @@ export interface RepoLesson {
   /** true when the owner has saved a preset presentation for this item, so
       viewers can watch it without regenerating (commercial items). */
   hasPreset: boolean;
+  /** true when the SIGNED-IN viewer has saved a personal custom generation of
+      this lesson (spent a ticket). Lets them replay it or regenerate a new one. */
+  myHasCustomization: boolean;
   /* Viewer-scoped progress — computed ONLY from the signed-in viewer's own
      runs, so one user's activity never shows on another user's page.
      Guests always see zeros / "unplayed". */

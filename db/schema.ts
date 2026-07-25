@@ -278,6 +278,28 @@ export const ticketRequests = appSchema.table(
   ],
 );
 
+/**
+ * A user's saved custom generation of a lesson — the deck they produced by
+ * spending a ticket. One per (user, lesson): generating a new one replaces it.
+ * Lets a non-owner replay their own version for free and regenerate it (a new
+ * ticket) to replace it.
+ */
+export const customizations = appSchema.table(
+  "customizations",
+  {
+    id: serial("id").primaryKey(),
+    lessonId: fk("lessonId").notNull(),
+    repoId: fk("repoId").notNull(),
+    userId: fk("userId").notNull(),
+    toolSlug: varchar("toolSlug", { length: 191 }),
+    deckJson: json("deckJson").notNull(),
+    seedJson: json("seedJson"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("customizations_user_lesson").on(t.userId, t.lessonId)],
+);
+
 export const tokenLedger = appSchema.table(
   "tokenLedger",
   {
@@ -339,6 +361,7 @@ export type LessonLog = typeof lessonLogs.$inferSelect;
 export type Order = typeof orders.$inferSelect;
 export type Ticket = typeof tickets.$inferSelect;
 export type TicketRequest = typeof ticketRequests.$inferSelect;
+export type Customization = typeof customizations.$inferSelect;
 export type TokenLedgerEntry = typeof tokenLedger.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
 export type Setting = typeof settings.$inferSelect;

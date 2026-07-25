@@ -153,6 +153,44 @@ export async function ensureTicketSchema(): Promise<void> {
 }
 
 /**
+ * Idempotently add the per-user customizations table (a user's saved custom
+ * generation of a lesson). Best-effort at boot; safe to call repeatedly.
+ */
+export async function ensureCustomizationSchema(): Promise<void> {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) return;
+  const client = new Client({ connectionString });
+  await client.connect();
+  try {
+    const { rows } = await client.query<{ exists: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1 FROM information_schema.tables
+          WHERE table_schema = 'sketchlearn' AND table_name = 'lessons'
+       ) AS exists`,
+    );
+    if (!rows[0]?.exists) return;
+    await client.query(
+      `CREATE TABLE IF NOT EXISTS sketchlearn.customizations (
+         id serial PRIMARY KEY,
+         "lessonId" integer NOT NULL,
+         "repoId" integer NOT NULL,
+         "userId" integer NOT NULL,
+         "toolSlug" varchar(191),
+         "deckJson" json NOT NULL,
+         "seedJson" json,
+         "createdAt" timestamp NOT NULL DEFAULT now(),
+         "updatedAt" timestamp NOT NULL DEFAULT now()
+       )`,
+    );
+    await client.query(
+      `CREATE UNIQUE INDEX IF NOT EXISTS customizations_user_lesson ON sketchlearn.customizations ("userId", "lessonId")`,
+    );
+  } finally {
+    await client.end();
+  }
+}
+
+/**
  * Idempotently allow favoriting users: add the "user" value to the favorites
  * targetType enum on older databases. Best-effort at boot.
  */

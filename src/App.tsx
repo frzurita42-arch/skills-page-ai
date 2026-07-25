@@ -13,6 +13,7 @@ import Runs from './pages/Runs';
 import Replay from './pages/Replay';
 import PresetPlay from './pages/PresetPlay';
 import PresetEditor from './pages/PresetEditor';
+import MyCustomizationPlay from './pages/MyCustomizationPlay';
 import About from './pages/About';
 import Settings from './pages/Settings';
 import Auth from './pages/Auth';
@@ -36,6 +37,7 @@ export default function App() {
         <Route path="/users/:id" element={<UserProfile />} />
         <Route path="/repos/:slug/play/:seq" element={<PresetPlay />} />
         <Route path="/repos/:slug/play/:seq/edit" element={<PresetEditor />} />
+        <Route path="/repos/:slug/play/:seq/mine" element={<MyCustomizationPlay />} />
         <Route path="/slides" element={<Slides />} />
         <Route path="/slides/:slug" element={<SlideTool />} />
         {/* Slide templates are an admin-only management surface */}
