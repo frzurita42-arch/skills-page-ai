@@ -16,10 +16,52 @@ import {
   type User,
 } from "@db/schema";
 import { repoRef, slugify, templateSchema } from "../ai/prompts";
+import { generateImage } from "../ai/provider";
 import { courseMemory } from "../memory";
 import { isPassingScore } from "@contracts/progress";
 import { repoPurpose } from "@contracts/types";
-import type { RepoDetail, RepoLesson, RepoSummary, RepoUnit, LessonRunRow, Level } from "@contracts/types";
+import type { RepoDetail, RepoLesson, RepoSummary, RepoUnit, LessonRunRow, Level, SlideDeck, RepoPurpose } from "@contracts/types";
+
+/**
+ * Prepare a deck for saving as a preset:
+ *  - EDUCATION: drop AI-graded evaluations (typed / solve) so free viewers can
+ *    play it with zero AI cost — only the owner (or a paying student's custom
+ *    generation) incurs those charges.
+ *  - Bake every slide image so the preset is self-contained and never
+ *    regenerates on view.
+ */
+async function prepPresetDeck(
+  deck: SlideDeck,
+  purpose: RepoPurpose,
+  userId: number,
+): Promise<SlideDeck> {
+  let slides = deck.slides.map((s) =>
+    purpose === "education" && (s.quiz?.kind === "typed" || s.quiz?.kind === "solve")
+      ? { ...s, quiz: undefined }
+      : s,
+  );
+  if (deck.imageStyle !== "none") {
+    slides = await Promise.all(
+      slides.map(async (s) => {
+        const components = await Promise.all(
+          s.components.map(async (c) => {
+            if (c.type === "image" && !c.imageUrl) {
+              try {
+                const url = await generateImage({ userId, prompt: c.prompt, style: deck.imageStyle });
+                if (url) return { ...c, imageUrl: url };
+              } catch {
+                /* best-effort — keep the prompt, player will lazy-load */
+              }
+            }
+            return c;
+          }),
+        );
+        return { ...s, components };
+      }),
+    );
+  }
+  return { ...deck, slides };
+}
 
 type RunLite = Pick<
   typeof runs.$inferSelect,
@@ -413,9 +455,12 @@ export const reposRouter = createRouter({
       }
       const lesson = await lessonBySeq(repo.id, input.lessonSeq);
       if (!lesson) throw new TRPCError({ code: "NOT_FOUND", message: "Item not found" });
+      const prepared = input.deck
+        ? await prepPresetDeck(input.deck as SlideDeck, repoPurpose(repo.template), ctx.user.id)
+        : null;
       await db
         .update(lessons)
-        .set({ presetDeckJson: input.deck ?? null, presetAt: new Date() })
+        .set({ presetDeckJson: prepared, presetAt: new Date() })
         .where(eq(lessons.id, lesson.id));
       return { ok: true };
     }),

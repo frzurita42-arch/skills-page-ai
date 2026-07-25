@@ -555,18 +555,70 @@ function LessonCard({
         <ActionBtn label="Set" />
       );
     }
-    // Education: generate on open (unchanged).
-    return isGuest ? (
-      <span onClick={onGuestStudy}>
-        <ActionBtn label="Study" />
-      </span>
-    ) : studyToolSlug ? (
-      <Link to={setHref} title={studyTitle} className="no-underline">
-        <ActionBtn label="Study" />
-      </Link>
-    ) : (
-      <ActionBtn label="Study" />
-    );
+    // Education. Two paths, per the free/paid model:
+    //  • FREE preset (if the owner has set one): anyone — including users with
+    //    no credits — can watch it. AI-graded evaluations were stripped on save,
+    //    so a free play costs nothing.
+    //  • PAID custom generation ("Customize"): a signed-in student generates
+    //    their own version on the spot, charged to them.
+    // Without a preset, generating on open is the only path (paid).
+    const generateLink = (label: string, title?: string) =>
+      isGuest ? (
+        <span onClick={onGuestStudy}>
+          <ActionBtn label={label} title={title} />
+        </span>
+      ) : studyToolSlug ? (
+        <Link to={setHref} title={title ?? studyTitle} className="no-underline">
+          <ActionBtn label={label} title={title} />
+        </Link>
+      ) : (
+        <ActionBtn label={label} title={title} />
+      );
+
+    if (lesson.hasPreset) {
+      return (
+        <span className="flex items-center gap-1.5">
+          <Link to={playHref} className="no-underline">
+            <SketchButton variant="accent" size="sm" title="Watch the free version — no credits needed">
+              <Clapperboard className="h-4 w-4" strokeWidth={2} /> Study
+            </SketchButton>
+          </Link>
+          {!isGuest && studyToolSlug && (
+            <Link
+              to={setHref}
+              title="Generate your own custom version (uses your credits)"
+              className="no-underline"
+            >
+              <button
+                type="button"
+                className="flex items-center gap-1 rounded-wobble-sm border-2 border-pencil px-2 py-1 font-heading text-xs font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink"
+              >
+                <Pencil className="h-3.5 w-3.5" strokeWidth={2} /> Customize
+              </button>
+            </Link>
+          )}
+          {isOwner && (
+            <button
+              type="button"
+              onClick={() =>
+                deletePreset.mutate({ repoSlug: seed.repoSlug, lessonSeq: seed.lessonSeq })
+              }
+              disabled={deletePreset.isPending}
+              title="Clear the free preset"
+              aria-label="Clear preset"
+              className="rounded-wobble-sm border-2 border-transparent p-1.5 text-ink-faint transition-colors hover:border-dashed hover:border-red hover:text-red"
+            >
+              <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
+            </button>
+          )}
+        </span>
+      );
+    }
+    // No preset yet. Owner is nudged to "Set" a free version; everyone can still
+    // generate a paid custom version on open.
+    return isOwner
+      ? generateLink('Set', 'Generate this lesson, then save it as the free preset for everyone')
+      : generateLink('Study');
   };
 
   const saveObjective = () => {

@@ -380,10 +380,12 @@ function ToolStudio({
   };
 
   /* ---------------- State C — player ---------------- */
-  // The owner of a COMMERCIAL repo can save the deck they just generated as
-  // the item's preset, so viewers watch it without regenerating.
+  // The owner can save the deck they just generated as the item's preset, so
+  // viewers watch it without regenerating. Commercial items become the sole
+  // showcase; education presets become the free version (AI-graded evaluations
+  // are stripped on save) alongside the paid "Customize" path.
   const isOwner = !!seed && (repoQuery.data?.ownerId === user?.id || role === 'admin');
-  const canSetPreset = !!seed && purpose === 'commercial' && isOwner;
+  const canSetPreset = !!seed && isOwner;
   const handleSavePreset = () => {
     if (!seed || !result) return;
     setPreset.mutate(
