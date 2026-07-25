@@ -24,6 +24,7 @@ import WashiTape from '@/components/sketch/WashiTape';
 import { DoodleCheck } from '@/components/sketch/DoodleIcons';
 import { trpc } from '@/providers/trpc';
 import type { LessonSeed, RepoLesson, RepoTemplate, RepoUnit } from '@contracts/types';
+import { repoPurpose } from '@contracts/types';
 import { TEMPLATE_META, studyUrl } from './shared';
 
 export interface UnitCardProps {
@@ -73,6 +74,8 @@ export default function UnitCard({
 }: UnitCardProps) {
   const [open, setOpen] = useState(true);
   const meta = TEMPLATE_META[template] ?? TEMPLATE_META.other;
+  // commercial repos (menu/service/shop) "Play" an item; courses "Study" it
+  const studyLabel = repoPurpose(template) === 'commercial' ? 'Play' : 'Study';
   const utils = trpc.useUtils();
 
   const refresh = () => {
@@ -340,6 +343,7 @@ export default function UnitCard({
                     seed={buildSeed(lesson)}
                     objectiveLabel={meta.objectiveNoun}
                     studyToolSlug={studyToolSlug}
+                    studyLabel={studyLabel}
                     isNextUp={lesson.id === nextUpLessonId}
                     playedCount={playedCount}
                     isGuest={isGuest}
@@ -355,6 +359,7 @@ export default function UnitCard({
                         seed={buildSeed(sub)}
                         objectiveLabel={meta.objectiveNoun}
                         studyToolSlug={studyToolSlug}
+                        studyLabel={studyLabel}
                         isNextUp={sub.id === nextUpLessonId}
                         playedCount={playedCount}
                         isGuest={isGuest}
@@ -438,6 +443,7 @@ function LessonCard({
   seed,
   objectiveLabel,
   studyToolSlug,
+  studyLabel,
   isNextUp,
   playedCount,
   isGuest,
@@ -450,6 +456,7 @@ function LessonCard({
   seed: LessonSeed;
   objectiveLabel: string;
   studyToolSlug: string | null;
+  studyLabel: string;
   isNextUp: boolean;
   playedCount: number;
   isGuest: boolean;
@@ -478,7 +485,7 @@ function LessonCard({
       title={studyToolSlug ? studyTitle : 'No slide tool linked to this notebook yet'}
     >
       <Clapperboard className="h-4 w-4" strokeWidth={2} />
-      Study
+      {studyLabel}
     </SketchButton>
   );
 
