@@ -1,5 +1,4 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import app from "./app";
 
 /**
  * Vercel serverless entry. Vercel's Node runtime invokes the default export
@@ -19,6 +18,7 @@ let listenerPromise: Promise<NodeListener> | null = null;
 
 async function buildListener(): Promise<NodeListener> {
   const { getRequestListener } = await import("@hono/node-server");
+  const app = (await import("./app")).default;
   return getRequestListener(app.fetch);
 }
 
