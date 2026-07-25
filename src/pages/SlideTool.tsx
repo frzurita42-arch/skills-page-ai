@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ChevronDown,
+  Pencil,
   Sparkles,
   X,
   Coins,
@@ -40,7 +41,15 @@ import TemplatePicker from '@/components/templates/TemplatePicker';
 
 import { isStemTopic } from '@contracts/stem';
 import { templatesForContext, packetsForPurpose, type LessonPacket } from '@contracts/slide-templates';
-import { repoPurpose } from '@contracts/types';
+import { repoPurpose, type RepoTemplate } from '@contracts/types';
+import { TemplateIcon } from '@/components/repo/shared';
+
+const CATEGORY_OPTS: { id: RepoTemplate; label: string; hint: string }[] = [
+  { id: 'course', label: 'Lesson', hint: 'Teach a topic — quizzes & evaluations allowed' },
+  { id: 'restaurant', label: 'Menu item', hint: 'Showcase a dish — no evaluations' },
+  { id: 'service', label: 'Service', hint: 'Showcase a service — no evaluations' },
+  { id: 'shop', label: 'Product', hint: 'Marketplace display — no evaluations' },
+];
 
 const STYLE_PRESETS: Exclude<ImageStyle, 'none'>[] = [
   'sketch',
@@ -204,6 +213,30 @@ function ToolStudio({
   const [presetSaved, setPresetSaved] = useState(false);
   const setPreset = trpc.repos.setLessonPreset.useMutation();
   const saveCustom = trpc.repos.saveMyCustomization.useMutation();
+  const updateTool = trpc.slideTools.update.useMutation();
+
+  // Standalone tools carry their own category (course = lesson, restaurant/
+  // service/shop = commercial showcase). Editable inline; persists on change.
+  const canEditTool = !isGuest && (role === 'admin' || tool.ownerName === user?.name);
+  const [category, setCategory] = useState<RepoTemplate>(tool.template ?? 'course');
+  const [title, setTitle] = useState(tool.name);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const changeCategory = (c: RepoTemplate) => {
+    setCategory(c);
+    if (canEditTool) updateTool.mutate({ slug: tool.slug, template: c });
+  };
+  const commitTitle = () => {
+    setEditingTitle(false);
+    const next = title.trim();
+    if (next.length >= 3 && next !== tool.name && canEditTool) {
+      updateTool.mutate(
+        { slug: tool.slug, name: next },
+        { onSuccess: () => void utils.slideTools.getBySlug.invalidate({ slug: tool.slug }) },
+      );
+    } else if (next.length < 3) {
+      setTitle(tool.name);
+    }
+  };
 
   const [mode, setMode] = useState<'config' | 'theater' | 'player'>('config');
   const [topic, setTopic] = useState(seed?.lessonTitle || tool.topic);
@@ -270,9 +303,10 @@ function ToolStudio({
   // Advanced options: templates the AI may be pinned to, filtered to this
   // deck's PURPOSE (education vs commercial), subject + level.
   const templatesQuery = trpc.templates.list.useQuery();
+  // Seeded from a repo → the repo's purpose. Standalone → the tool's category.
   const purpose = useMemo(
-    () => repoPurpose(repoQuery.data?.template ?? 'course'),
-    [repoQuery.data],
+    () => repoPurpose(seed ? (repoQuery.data?.template ?? 'course') : category),
+    [seed, repoQuery.data, category],
   );
   const pickableTemplates = useMemo(
     () =>
@@ -342,6 +376,7 @@ function ToolStudio({
         slideCount,
         imageStyle,
         tone,
+        purpose: seed ? undefined : purpose,
         templatePlan: templatePlan.some(Boolean)
           ? templatePlan.slice(0, slideCount)
           : undefined,
@@ -518,11 +553,40 @@ function ToolStudio({
         />
       )}</AnimatePresence>
 
-      {/* tool header */}
+      {/* tool header — title is editable inline for the owner */}
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="font-display text-[32px] font-bold leading-none text-ink">
-          {tool.name}
-        </h1>
+        {editingTitle ? (
+          <input
+            autoFocus
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onBlur={commitTitle}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') commitTitle();
+              if (e.key === 'Escape') {
+                setTitle(tool.name);
+                setEditingTitle(false);
+              }
+            }}
+            aria-label="Tool name"
+            className="min-w-0 flex-1 rounded-wobble-sm border-2 border-blue bg-paper px-2 py-1 font-display text-[30px] font-bold leading-none text-ink outline-none"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => canEditTool && setEditingTitle(true)}
+            title={canEditTool ? 'Click to rename' : undefined}
+            className={cn(
+              'group flex items-center gap-2 font-display text-[32px] font-bold leading-none text-ink',
+              canEditTool && 'cursor-text',
+            )}
+          >
+            {title}
+            {canEditTool && (
+              <Pencil className="h-4 w-4 text-ink-faint opacity-0 transition-opacity group-hover:opacity-100" />
+            )}
+          </button>
+        )}
         <span className="font-mono text-sm text-ink-faint">{tool.slug}</span>
         {seed && <Chip kind="repo-ref">#{seed.repoRef}</Chip>}
       </div>
@@ -539,6 +603,42 @@ function ToolStudio({
       >
         <WashiTape rotate={-3} />
         <WashiTape color="blue" rotate={2} className="left-auto right-8" />
+
+        {/* what kind of presentation — drives templates & whether evaluations
+            are offered. Standalone tools only (a seeded lesson inherits the
+            repo's category). */}
+        {!seed && (
+          <motion.div
+            variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}
+            className="mb-5"
+          >
+            <span className="micro mb-1.5 block text-ink-soft">What is this a presentation of?</span>
+            <div className="flex flex-wrap gap-2">
+              {CATEGORY_OPTS.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => changeCategory(c.id)}
+                  title={c.hint}
+                  className={cn(
+                    'flex items-center gap-1.5 rounded-wobble-sm border-2 px-3 py-1.5 text-sm font-bold transition-all',
+                    category === c.id
+                      ? 'border-ink bg-yellow text-ink shadow-offset'
+                      : 'border-dashed border-pencil text-ink-soft hover:border-ink hover:text-ink',
+                  )}
+                >
+                  <TemplateIcon template={c.id} className="h-4 w-4" />
+                  {c.label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1.5 text-xs text-ink-faint">
+              {purpose === 'commercial'
+                ? 'Showcase mode — no quizzes or AI-graded evaluations; only display templates are offered.'
+                : 'Lesson mode — evaluations and quizzes are available.'}
+            </p>
+          </motion.div>
+        )}
 
         <motion.div variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } }}>
           <span className="micro mb-1 flex items-center justify-between text-ink-soft">
@@ -720,28 +820,31 @@ function ToolStudio({
             </label>
           )}
 
-          <button
-            type="button"
-            role="switch"
-            aria-checked={includeQuiz}
-            onClick={() => setIncludeQuiz((q) => !q)}
-            className="flex items-center gap-2 rounded-wobble-sm border-2 border-dashed border-pencil px-2.5 py-1.5 text-sm font-bold text-ink"
-          >
-            <span
-              className={cn(
-                'relative h-5 w-9 rounded-full border-2 border-ink transition-colors',
-                includeQuiz ? 'bg-green-soft' : 'bg-paper-2',
-              )}
+          {/* Evaluations are a lesson-only thing — hidden in showcase mode. */}
+          {purpose !== 'commercial' && (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={includeQuiz}
+              onClick={() => setIncludeQuiz((q) => !q)}
+              className="flex items-center gap-2 rounded-wobble-sm border-2 border-dashed border-pencil px-2.5 py-1.5 text-sm font-bold text-ink"
             >
-              <motion.span
-                layout
-                className="absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full border-2 border-ink bg-paper-3"
-                animate={{ left: includeQuiz ? 18 : 2 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-              />
-            </span>
-            Include quiz on most slides
-          </button>
+              <span
+                className={cn(
+                  'relative h-5 w-9 rounded-full border-2 border-ink transition-colors',
+                  includeQuiz ? 'bg-green-soft' : 'bg-paper-2',
+                )}
+              >
+                <motion.span
+                  layout
+                  className="absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full border-2 border-ink bg-paper-3"
+                  animate={{ left: includeQuiz ? 18 : 2 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                />
+              </span>
+              Include quiz on most slides
+            </button>
+          )}
 
           {topic.trim() && (
             <Chip kind="neutral" className="border-purple bg-purple-soft">

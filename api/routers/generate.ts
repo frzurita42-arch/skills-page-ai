@@ -319,6 +319,9 @@ export const generateRouter = createRouter({
         // Advanced: teaching tone / voice for the whole deck (register + how
         // much field terminology). Independent of the CEFR reading level.
         tone: toneSchema.default("neutral"),
+        // Purpose override from the tool page's category selector. Commercial =
+        // a product/menu/service showcase (no evaluations).
+        purpose: z.enum(["education", "commercial"]).optional(),
         // Advanced: pin a specific layout template per slide (by template
         // name). null / missing entry = let the AI choose. Index i → slide i+1.
         templatePlan: z.array(z.string().max(120).nullable()).max(MAX_SLIDES).optional(),
@@ -359,7 +362,10 @@ export const generateRouter = createRouter({
       let topic = input.topic ?? tool.topic;
       let instructions = input.instructions ?? tool.instructions;
       let previouslyTaught: string | null = null;
-      let purpose: import("@contracts/types").RepoPurpose = "education";
+      // Base purpose from the tool's own category (course = education,
+      // restaurant/service/shop = commercial); a seed repo or an explicit
+      // override refine it below.
+      let purpose: import("@contracts/types").RepoPurpose = repoPurpose(tool.template);
       let commercial: import("@contracts/types").CommercialInfo | null = null;
       let seedRepo: Repo | null = null;
       if (input.seed) {
@@ -396,6 +402,26 @@ export const generateRouter = createRouter({
             }
           }
           previouslyTaught = await buildPreviouslyTaught(repo.id, input.seed.lessonSeq, ctx.user?.id);
+        }
+      }
+      // The tool page's category selector wins (client is authoritative for a
+      // standalone tool while its saved category catches up).
+      if (input.purpose) purpose = input.purpose;
+      // Standalone commercial tool → contact screen from the tool's owner.
+      if (purpose === "commercial" && !commercial && !input.seed && tool.ownerId) {
+        const owner = await db.query.users.findFirst({ where: eq(users.id, tool.ownerId) });
+        if (owner) {
+          commercial = {
+            owner: {
+              name: owner.name,
+              whatsapp: owner.whatsapp ?? null,
+              socials: Array.isArray(owner.socials) ? (owner.socials as string[]) : [],
+              contactNote: owner.contactNote ?? null,
+            },
+            itemTitle: (input.topic?.trim() || tool.name).slice(0, 255),
+            repoSlug: null,
+            lessonSeq: null,
+          };
         }
       }
 
@@ -648,6 +674,11 @@ export const generateRouter = createRouter({
       }
       // Enforce the requested slide count even if the model drifted
       deck = { ...deck, slides: deck.slides.slice(0, slideCount), level: input.level, imageStyle: input.imageStyle };
+      // Commercial (menu/service/shop) decks are pure showcases — never carry an
+      // evaluation, whatever the model (or the mock) returned.
+      if (purpose === "commercial") {
+        deck = { ...deck, slides: deck.slides.map((s) => ({ ...s, quiz: undefined })) };
+      }
       // Guarantee every slide has explanatory text — no image-only slides ship
       deck = ensureExplanatoryProse(deck);
       // Randomize each quiz's correct-answer position (models almost always

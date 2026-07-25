@@ -132,6 +132,9 @@ export const slideTools = appSchema.table(
     defaultLevel: levelEnum("defaultLevel").notNull().default("A1"),
     defaultSlideCount: integer("defaultSlideCount").notNull().default(8),
     defaultImageStyle: imageStyleEnum("defaultImageStyle").notNull().default("sketch"),
+    // Category/purpose of the tool: course (education) or restaurant/service/
+    // shop (commercial showcase — no evaluations). Drives templates + prompt.
+    template: templateEnum("template").notNull().default("course"),
     // Advanced default: teaching tone applied to generations from this tool.
     defaultTone: varchar("defaultTone", { length: 24 }).notNull().default("neutral"),
     // How this tool's content is authored: "ai" = a reusable AI generator (no

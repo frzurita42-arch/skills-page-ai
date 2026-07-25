@@ -5,9 +5,9 @@ import { createRouter, publicQuery } from "../middleware";
 import { authedProcedure } from "../procedures";
 import { getDb } from "../queries/connection";
 import { favorites, runs, slideTools, users, type SlideTool, type User } from "@db/schema";
-import { imageStyleSchema, levelSchema, slugify } from "../ai/prompts";
+import { imageStyleSchema, levelSchema, slugify, templateSchema } from "../ai/prompts";
 import { TONES } from "@contracts/types";
-import type { SlideDeck, SlideToolSummary, Tone } from "@contracts/types";
+import type { RepoTemplate, SlideDeck, SlideToolSummary, Tone } from "@contracts/types";
 
 const toneSchema = z.string().refine((t) => (TONES as string[]).includes(t), "unknown tone");
 
@@ -39,6 +39,7 @@ export async function toSummary(tool: SlideTool, userId: number | undefined): Pr
     defaultLevel: tool.defaultLevel,
     defaultSlideCount: tool.defaultSlideCount,
     defaultImageStyle: tool.defaultImageStyle,
+    template: (tool.template ?? "course") as RepoTemplate,
     defaultTone: ((tool.defaultTone as Tone) ?? "neutral") as Tone,
     source: tool.source === "human" ? "human" : "ai",
     hasDeck: tool.deckJson != null,
@@ -98,6 +99,7 @@ export const slideToolsRouter = createRouter({
         defaultSlideCount: z.number().int().min(1).max(15).default(8),
         defaultImageStyle: imageStyleSchema.default("sketch"),
         defaultTone: toneSchema.default("neutral"),
+        template: templateSchema.default("course"),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -187,6 +189,7 @@ export const slideToolsRouter = createRouter({
         defaultSlideCount: z.number().int().min(1).max(15).optional(),
         defaultImageStyle: imageStyleSchema.optional(),
         defaultTone: toneSchema.optional(),
+        template: templateSchema.optional(),
         isPublic: z.boolean().optional(),
       }),
     )

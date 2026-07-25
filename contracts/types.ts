@@ -328,6 +328,8 @@ export interface SlideToolSummary {
   defaultLevel: Level;
   defaultSlideCount: number;
   defaultImageStyle: ImageStyle;
+  /** category/purpose: course (education) or restaurant/service/shop (commercial) */
+  template: RepoTemplate;
   /** advanced default teaching tone for generations from this tool */
   defaultTone: Tone;
   /** "ai" = reusable AI generator; "human" = hand-built presentation with a saved deck */

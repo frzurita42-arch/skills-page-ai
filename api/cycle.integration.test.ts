@@ -378,6 +378,30 @@ describe.runIf(HAS_DB)("full coins ↔ tickets cycle", () => {
     expect(aiDetail!.source).toBe("ai");
   });
 
+  it("8e) a slide tool carries a category; commercial generation adds no quiz", async () => {
+    // create a product (shop) tool via the create endpoint
+    const { slug } = await call(moderator).slideTools.create({
+      name: `Aura Ring ${Date.now()}`,
+      template: "shop",
+    });
+    const summary = await call().slideTools.getBySlug({ slug });
+    expect(summary.template).toBe("shop");
+
+    // generating from it (mock deck in the harness) yields a commercial deck
+    // with NO quizzes on any slide
+    const gen = await call(moderator).generate.slides({
+      toolSlug: slug,
+      level: "B1",
+      slideCount: 4,
+      imageStyle: "none",
+    });
+    expect(gen.deck.slides.length).toBeGreaterThan(0);
+    expect(gen.deck.slides.every((s) => s.quiz == null)).toBe(true);
+    // and a standalone commercial deck surfaces the owner's contact screen
+    expect(gen.commercial).not.toBeNull();
+    expect(gen.commercial!.repoSlug).toBeNull();
+  });
+
   it("9) draining a moderator's credits demotes them to a user", async () => {
     const m = await reload(moderator.id);
     expect(m.role).toBe("moderator");

@@ -1,5 +1,5 @@
 {
-  "id": "1daf7f22-aa53-498f-bc92-1cebecc4b100",
+  "id": "a4885a2f-3f0d-4981-8b8c-8384fed380e2",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1156,6 +1156,14 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'sketch'"
+        },
+        "template": {
+          "name": "template",
+          "type": "template",
+          "typeSchema": "sketchlearn",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'course'"
         },
         "defaultTone": {
           "name": "defaultTone",

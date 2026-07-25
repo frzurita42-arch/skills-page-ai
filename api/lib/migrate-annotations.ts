@@ -212,6 +212,9 @@ export async function ensureSlideToolAuthoring(): Promise<void> {
       `ALTER TABLE sketchlearn."slideTools" ADD COLUMN IF NOT EXISTS "defaultTone" varchar(24) NOT NULL DEFAULT 'neutral'`,
     );
     await client.query(
+      `ALTER TABLE sketchlearn."slideTools" ADD COLUMN IF NOT EXISTS "template" sketchlearn."template" NOT NULL DEFAULT 'course'`,
+    );
+    await client.query(
       `ALTER TABLE sketchlearn."slideTools" ADD COLUMN IF NOT EXISTS "source" varchar(16) NOT NULL DEFAULT 'ai'`,
     );
     await client.query(
