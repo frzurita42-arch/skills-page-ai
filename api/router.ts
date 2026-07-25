@@ -1,4 +1,7 @@
+import { sql } from "drizzle-orm";
 import { createRouter, publicQuery } from "./middleware";
+import { env } from "./lib/env";
+import { getDb } from "./queries/connection";
 import { authRouter } from "./routers/auth";
 import { generateRouter, coachChatProcedure } from "./routers/generate";
 import { reposRouter } from "./routers/repos";
@@ -17,6 +20,23 @@ import { ttsRouter } from "./routers/tts";
 
 export const appRouter = createRouter({
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),
+
+  // Deployment diagnostics — open /api/trpc/health in a browser. Tells you
+  // whether the running function can see DATABASE_URL and reach the database,
+  // without leaking any secret (the connection string itself is never returned).
+  health: publicQuery.query(async () => {
+    const hasDatabaseUrl = !!env.databaseUrl;
+    let db: "ok" | "error" = "error";
+    if (hasDatabaseUrl) {
+      try {
+        await getDb().execute(sql`select 1`);
+        db = "ok";
+      } catch {
+        db = "error";
+      }
+    }
+    return { ok: true, hasDatabaseUrl, db, node: process.version };
+  }),
 
   auth: authRouter,
   generate: generateRouter,
