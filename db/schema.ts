@@ -41,6 +41,10 @@ export const users = appSchema.table(
     name: varchar("name", { length: 255 }).notNull(),
     role: roleEnum("role").notNull().default("user"),
     tokenBalance: integer("tokenBalance").notNull().default(50),
+    // Moderators hold a pool of un-gifted customization "tickets" bought from
+    // the admin (paid for in credits). They gift them to users, one ticket =
+    // one paid customization on one of the moderator's repos.
+    ticketBalance: integer("ticketBalance").notNull().default(0),
     // Public contact details a poster shows at the end of a commercial
     // (menu/service/shop) presentation so viewers can reach out to order/hire.
     whatsapp: varchar("whatsapp", { length: 40 }),
@@ -228,6 +232,28 @@ export const orders = appSchema.table(
   ],
 );
 
+/**
+ * Customization tickets. A moderator gifts one to a user for a specific repo;
+ * the user spends it on ONE paid slide customization of that repo (education),
+ * bypassing the credit charge. Once consumed it can't be reused.
+ */
+export const tickets = appSchema.table(
+  "tickets",
+  {
+    id: serial("id").primaryKey(),
+    repoId: fk("repoId").notNull(),
+    holderId: fk("holderId").notNull(), // the user who may spend it
+    issuedById: fk("issuedById").notNull(), // the moderator who gifted it
+    consumed: boolean("consumed").notNull().default(false),
+    consumedAt: timestamp("consumedAt"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("tickets_holder_repo_idx").on(t.holderId, t.repoId, t.consumed),
+    index("tickets_issuer_idx").on(t.issuedById),
+  ],
+);
+
 export const tokenLedger = appSchema.table(
   "tokenLedger",
   {
@@ -287,6 +313,7 @@ export type SlideTool = typeof slideTools.$inferSelect;
 export type Run = typeof runs.$inferSelect;
 export type LessonLog = typeof lessonLogs.$inferSelect;
 export type Order = typeof orders.$inferSelect;
+export type Ticket = typeof tickets.$inferSelect;
 export type TokenLedgerEntry = typeof tokenLedger.$inferSelect;
 export type Payment = typeof payments.$inferSelect;
 export type Setting = typeof settings.$inferSelect;

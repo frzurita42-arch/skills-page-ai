@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { createRouter, publicQuery } from "../middleware";
 import { authedProcedure } from "../procedures";
 import { getDb } from "../queries/connection";
-import { lessons, repos, slideTools, units, users } from "@db/schema";
+import { lessons, repos, slideTools, units, users, type Repo } from "@db/schema";
 import { completeText, completeVision, generateImage, userHasKey, type VisionImage } from "../ai/provider";
 import { mockCoachReply, mockDeck, mockLessonPath } from "../ai/mock";
 import {
@@ -27,6 +27,7 @@ import {
 } from "../ai/prompts";
 import { estimateCost } from "../cost";
 import { applyTokenDelta, refundTokens } from "../tokens";
+import { consumeOne, countAvailable } from "../tickets";
 import { buildPreviouslyTaught } from "../memory";
 import { loadTemplateCatalog } from "./templates";
 import {
@@ -332,9 +333,11 @@ export const generateRouter = createRouter({
       let previouslyTaught: string | null = null;
       let purpose: import("@contracts/types").RepoPurpose = "education";
       let commercial: import("@contracts/types").CommercialInfo | null = null;
+      let seedRepo: Repo | null = null;
       if (input.seed) {
         const repo = await db.query.repos.findFirst({ where: eq(repos.slug, input.seed.repoSlug) });
         if (repo) {
+          seedRepo = repo;
           purpose = repoPurpose(repo.template);
           if (purpose === "commercial" && repo.ownerId) {
             const owner = await db.query.users.findFirst({ where: eq(users.id, repo.ownerId) });
@@ -368,27 +371,52 @@ export const generateRouter = createRouter({
         }
       }
 
-      // Token gate — signed-in users only; guests get the free limited path
+      // Token gate — signed-in users only; guests get the free limited path.
+      // Two paid paths:
+      //  • OWNER builds their own repo (or a standalone tool): charged in
+      //    credits, as usual — owners buy credits from the admin.
+      //  • A NON-OWNER customizing someone's repo spends a customization
+      //    TICKET the owner gifted them; personal credits are never charged
+      //    for repo customization. The ticket is priced to cover the most
+      //    expensive possible deck, so it always fully covers this one.
       let cost = 0;
       let reason = "";
+      let spendTicketOnRepo: number | null = null;
       if (ctx.user) {
-        const usingOwnKey = await userHasKey(ctx.user.id, "text");
-        const estimate = await estimateCost({
-          slideCount,
-          imageStyle: input.imageStyle,
-          withTts: false,
-          level: input.level,
-          usingOwnKey,
-        });
-        if (ctx.user.tokenBalance < estimate.total) {
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message: `INSUFFICIENT_TOKENS: this deck needs ${estimate.total} 🪙, you have ${ctx.user.tokenBalance} 🪙`,
+        const isRepoOwner = seedRepo
+          ? seedRepo.ownerId === ctx.user.id || ctx.user.role === "admin"
+          : false;
+        if (seedRepo && !isRepoOwner) {
+          const available = await countAvailable(ctx.user.id, seedRepo.id);
+          if (available < 1) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message:
+                "NEED_TICKET: customizing this repo needs a ticket from its owner. You can still watch the free version.",
+            });
+          }
+          // Consumed on success (below) so a failed generation costs nothing.
+          spendTicketOnRepo = seedRepo.id;
+          reason = `slides: ${tool.slug} (ticket · ${slideCount} slides)`;
+        } else {
+          const usingOwnKey = await userHasKey(ctx.user.id, "text");
+          const estimate = await estimateCost({
+            slideCount,
+            imageStyle: input.imageStyle,
+            withTts: false,
+            level: input.level,
+            usingOwnKey,
           });
+          if (ctx.user.tokenBalance < estimate.total) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: `INSUFFICIENT_TOKENS: this deck needs ${estimate.total} 🪙, you have ${ctx.user.tokenBalance} 🪙`,
+            });
+          }
+          cost = estimate.total;
+          reason = `slides: ${tool.slug} (${slideCount} slides)`;
+          await applyTokenDelta(ctx.user.id, -cost, reason);
         }
-        cost = estimate.total;
-        reason = `slides: ${tool.slug} (${slideCount} slides)`;
-        await applyTokenDelta(ctx.user.id, -cost, reason);
       }
 
       // Offer the AI only the layouts that fit this topic's subject area AND
@@ -656,6 +684,12 @@ export const generateRouter = createRouter({
           components: realComponents,
         };
       });
+
+      // The customization succeeded — spend the ticket now (skip mock decks,
+      // which cost nothing to make).
+      if (spendTicketOnRepo != null && ctx.user && !usedMock) {
+        await consumeOne(ctx.user.id, spendTicketOnRepo);
+      }
 
       let balance: number | null = null;
       if (ctx.user) {

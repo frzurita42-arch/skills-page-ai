@@ -16,6 +16,7 @@ async function toRow(db: ReturnType<typeof getDb>, u: typeof users.$inferSelect)
     name: u.name,
     role: u.role,
     tokenBalance: u.tokenBalance,
+    ticketBalance: u.ticketBalance,
     runCount: userRuns.length,
     createdAt: u.createdAt,
   };

@@ -26,6 +26,7 @@ import { useAuth } from '@/hooks/useAuth';
 import type { LessonSeed, RepoLesson } from '@contracts/types';
 import CourseMemoryPanel from '@/components/repo/CourseMemoryPanel';
 import RepoLeadsPanel from '@/components/repo/RepoLeadsPanel';
+import RepoTicketsPanel from '@/components/repo/RepoTicketsPanel';
 import { repoPurpose } from '@contracts/types';
 import LessonRunsTable from '@/components/repo/LessonRunsTable';
 import UnitCard from '@/components/repo/UnitCard';
@@ -394,6 +395,15 @@ export default function Repository() {
           <RepoLeadsPanel slug={data.slug} />
         </div>
       )}
+
+      {/* owner ticket dispenser (education repos, moderators/admins only) */}
+      {canEdit &&
+        (role === 'moderator' || role === 'admin') &&
+        repoPurpose(data.template) === 'education' && (
+          <div className="mt-6">
+            <RepoTicketsPanel slug={data.slug} />
+          </div>
+        )}
 
       {/* course memory */}
       <div className="mt-6">

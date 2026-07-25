@@ -89,3 +89,46 @@ export async function ensureCommercialSchema(): Promise<void> {
     await client.end();
   }
 }
+
+/**
+ * Idempotently add the customization-ticket pieces on older databases: the
+ * moderator ticket-pool column on users, and the tickets table. Best-effort at
+ * boot; safe to call repeatedly.
+ */
+export async function ensureTicketSchema(): Promise<void> {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) return;
+  const client = new Client({ connectionString });
+  await client.connect();
+  try {
+    const { rows } = await client.query<{ exists: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1 FROM information_schema.tables
+          WHERE table_schema = 'sketchlearn' AND table_name = 'users'
+       ) AS exists`,
+    );
+    if (!rows[0]?.exists) return;
+    await client.query(
+      `ALTER TABLE sketchlearn.users ADD COLUMN IF NOT EXISTS "ticketBalance" integer NOT NULL DEFAULT 0`,
+    );
+    await client.query(
+      `CREATE TABLE IF NOT EXISTS sketchlearn.tickets (
+         id serial PRIMARY KEY,
+         "repoId" integer NOT NULL,
+         "holderId" integer NOT NULL,
+         "issuedById" integer NOT NULL,
+         consumed boolean NOT NULL DEFAULT false,
+         "consumedAt" timestamp,
+         "createdAt" timestamp NOT NULL DEFAULT now()
+       )`,
+    );
+    await client.query(
+      `CREATE INDEX IF NOT EXISTS tickets_holder_repo_idx ON sketchlearn.tickets ("holderId", "repoId", consumed)`,
+    );
+    await client.query(
+      `CREATE INDEX IF NOT EXISTS tickets_issuer_idx ON sketchlearn.tickets ("issuedById")`,
+    );
+  } finally {
+    await client.end();
+  }
+}

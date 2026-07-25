@@ -15,6 +15,7 @@ function toSessionUser(u: User): SessionUser {
     name: u.name,
     role: u.role,
     tokenBalance: u.tokenBalance,
+    ticketBalance: u.ticketBalance,
     createdAt: u.createdAt,
     whatsapp: u.whatsapp ?? null,
     socials: Array.isArray(u.socials) ? (u.socials as string[]) : [],

@@ -358,6 +358,12 @@ function ToolStudio({
                 'Tokens refunded. Check the server .env AI keys or add your own key in Settings → API Keys, then try again.',
               duration: 12000,
             });
+          } else if (err.message.startsWith('NEED_TICKET')) {
+            toast.error('You need a customization ticket for this repo', {
+              description:
+                "Ask the repo's owner for a ticket to generate your own version. You can still watch the free preset any time.",
+              duration: 12000,
+            });
           } else {
             toast.error(err.message);
           }

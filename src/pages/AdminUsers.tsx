@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { Coins, Search, ShieldCheck, UserCog } from 'lucide-react';
+import { Coins, Search, ShieldCheck, Ticket, UserCog } from 'lucide-react';
 import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/hooks/useAuth';
 import SketchButton from '@/components/sketch/SketchButton';
@@ -115,6 +115,95 @@ function CreditModal({
 }
 
 /* ------------------------------------------------------------------ */
+/* Sell customization tickets to a moderator (admin only)              */
+/* ------------------------------------------------------------------ */
+
+function TicketsModal({
+  target,
+  onClose,
+  onSold,
+}: {
+  target: AdminUserRow;
+  onClose: () => void;
+  onSold: () => void;
+}) {
+  const [count, setCount] = useState(10);
+  const priceQ = trpc.tickets.price.useQuery();
+  const unit = priceQ.data?.price ?? 0;
+  const total = unit * count;
+
+  const sell = trpc.tickets.sellToModerator.useMutation({
+    onSuccess: (r) => {
+      toast.success(
+        `Sold ${count} ticket${count === 1 ? '' : 's'} to ${target.name} — ${r.ticketBalance} in pool, ${r.tokenBalance} 🪙 left`,
+      );
+      onSold();
+      onClose();
+    },
+    onError: (e) => toast.error(errMsg(e)),
+  });
+
+  const tooExpensive = total > target.tokenBalance;
+
+  return (
+    <SketchModal open onClose={onClose} title={`Sell tickets to ${target.name}`} maxWidth="max-w-[440px]">
+      <div className="flex flex-col gap-4">
+        <p className="text-sm text-ink-soft">
+          Each customization ticket costs{' '}
+          <span className="font-bold text-orange">{unit} 🪙</span> — the price of the most expensive
+          slide a customization can produce. The cost is charged to {target.name}'s credit balance
+          ({target.tokenBalance} 🪙) and added to their ticket pool.
+        </p>
+        <LabeledField label="Tickets to sell" helper="They gift these to their students, one per customization.">
+          <div className="flex items-center gap-2">
+            <SketchButton
+              variant="secondary"
+              size="icon"
+              aria-label="Fewer"
+              onClick={() => setCount((c) => Math.max(1, c - 5))}
+            >
+              −
+            </SketchButton>
+            <SketchInput
+              type="number"
+              min={1}
+              max={500}
+              value={count}
+              onChange={(e) => setCount(Math.max(1, Math.min(500, Number(e.target.value) || 1)))}
+              className="text-center font-mono font-bold"
+            />
+            <SketchButton
+              variant="secondary"
+              size="icon"
+              aria-label="More"
+              onClick={() => setCount((c) => Math.min(500, c + 5))}
+            >
+              +
+            </SketchButton>
+          </div>
+        </LabeledField>
+        <p className={tooExpensive ? 'text-sm font-bold text-red' : 'text-sm text-ink-soft'}>
+          Total: {total} 🪙{tooExpensive && ` — more than ${target.name}'s balance`}
+        </p>
+        <div className="flex gap-2">
+          <SketchButton
+            variant="accent"
+            loading={sell.isPending}
+            disabled={tooExpensive || unit === 0}
+            onClick={() => sell.mutate({ userId: target.id, count })}
+          >
+            <Ticket className="h-4 w-4" strokeWidth={2} /> Sell {count} for {total} 🪙
+          </SketchButton>
+          <SketchButton variant="ghost" onClick={onClose}>
+            Cancel
+          </SketchButton>
+        </div>
+      </div>
+    </SketchModal>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Set role (admin only)                                               */
 /* ------------------------------------------------------------------ */
 
@@ -196,9 +285,11 @@ function UserDrawer({
   const detail = trpc.users.detail.useQuery({ userId });
   const [crediting, setCrediting] = useState(false);
   const [roleEditing, setRoleEditing] = useState(false);
+  const [sellingTickets, setSellingTickets] = useState(false);
   const utils = trpc.useUtils();
 
   const u = detail.data;
+  const isModerator = u?.role === 'moderator' || u?.role === 'admin';
 
   return (
     <SketchDrawer open onClose={onClose} title={u ? u.name : 'User'} width={520}>
@@ -228,12 +319,21 @@ function UserDrawer({
               </p>
               <p className="micro text-ink-faint">tokens</p>
             </SketchCard>
-            <SketchCard borderStyle="dashed" index={1} className="p-3 text-center">
-              <p className="font-display text-3xl font-bold text-ink">
-                <CountUp value={u.runCount} />
-              </p>
-              <p className="micro text-ink-faint">runs</p>
-            </SketchCard>
+            {isModerator ? (
+              <SketchCard borderStyle="dashed" index={1} className="p-3 text-center">
+                <p className="font-display text-3xl font-bold text-green">
+                  <CountUp value={u.ticketBalance} />
+                </p>
+                <p className="micro text-ink-faint">tickets</p>
+              </SketchCard>
+            ) : (
+              <SketchCard borderStyle="dashed" index={1} className="p-3 text-center">
+                <p className="font-display text-3xl font-bold text-ink">
+                  <CountUp value={u.runCount} />
+                </p>
+                <p className="micro text-ink-faint">runs</p>
+              </SketchCard>
+            )}
             <SketchCard borderStyle="dashed" index={2} className="p-3 text-center">
               <p className="font-display text-3xl font-bold text-ink">
                 {formatRelative(u.createdAt).replace(' ago', '')}
@@ -246,6 +346,11 @@ function UserDrawer({
             <SketchButton variant="accent" onClick={() => setCrediting(true)}>
               <Coins className="h-4 w-4" strokeWidth={2} /> Credit tokens
             </SketchButton>
+            {isAdmin && isModerator && (
+              <SketchButton variant="secondary" onClick={() => setSellingTickets(true)}>
+                <Ticket className="h-4 w-4" strokeWidth={2} /> Sell tickets
+              </SketchButton>
+            )}
             {isAdmin && (
               <SketchButton variant="secondary" onClick={() => setRoleEditing(true)}>
                 <UserCog className="h-4 w-4" strokeWidth={2} /> Set role
@@ -270,6 +375,17 @@ function UserDrawer({
               onClose={() => setRoleEditing(false)}
               onChanged={() => {
                 void detail.refetch();
+                onChanged();
+              }}
+            />
+          )}
+          {sellingTickets && (
+            <TicketsModal
+              target={u}
+              onClose={() => setSellingTickets(false)}
+              onSold={() => {
+                void detail.refetch();
+                void utils.auth.me.invalidate();
                 onChanged();
               }}
             />

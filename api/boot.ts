@@ -6,7 +6,11 @@ import { appRouter } from "./router";
 import { createContext } from "./context";
 import { env } from "./lib/env";
 import { ensureCefrLevelEnum } from "./lib/migrate-levels";
-import { ensureRunAnnotationsColumn, ensureCommercialSchema } from "./lib/migrate-annotations";
+import {
+  ensureRunAnnotationsColumn,
+  ensureCommercialSchema,
+  ensureTicketSchema,
+} from "./lib/migrate-annotations";
 
 // Best-effort schema catch-up on boot so an existing database accepts CEFR
 // levels (otherwise new runs/decks silently fail to save). Never blocks boot.
@@ -30,6 +34,14 @@ void ensureRunAnnotationsColumn().catch((err) =>
 void ensureCommercialSchema().catch((err) =>
   console.warn(
     "[migrate] commercial schema auto-migration skipped:",
+    err instanceof Error ? err.message : err,
+  ),
+);
+
+// Best-effort: add the moderator ticket-pool column + the tickets table.
+void ensureTicketSchema().catch((err) =>
+  console.warn(
+    "[migrate] ticket schema auto-migration skipped:",
     err instanceof Error ? err.message : err,
   ),
 );

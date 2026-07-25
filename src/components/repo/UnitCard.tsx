@@ -13,6 +13,7 @@ import {
   Repeat,
   RotateCcw,
   Square,
+  Ticket,
   Trash2,
   X,
 } from 'lucide-react';
@@ -484,6 +485,16 @@ function LessonCard({
   const setHref = studyToolSlug ? studyUrl(studyToolSlug, seed) : '';
   const playHref = `/repos/${seed.repoSlug}/play/${seed.lessonSeq}`;
 
+  // How many customization tickets the signed-in viewer holds for this repo —
+  // relevant whenever a non-owner could customize an education repo (whether or
+  // not it has a free preset).
+  const mayCustomize = purpose === 'education' && !isOwner && !isGuest;
+  const ticketQ = trpc.tickets.availableFor.useQuery(
+    { repoSlug: seed.repoSlug },
+    { enabled: mayCustomize },
+  );
+  const ticketCount = ticketQ.data?.count ?? 0;
+
   const studyTitle =
     playedCount > 0
       ? `Opens the slide tool with this lesson's prompt · Builds on ${playedCount} completed lesson${playedCount === 1 ? '' : 's'} ✦`
@@ -559,10 +570,12 @@ function LessonCard({
     //  • FREE preset (if the owner has set one): anyone — including users with
     //    no credits — can watch it. AI-graded evaluations were stripped on save,
     //    so a free play costs nothing.
-    //  • PAID custom generation ("Customize"): a signed-in student generates
-    //    their own version on the spot, charged to them.
-    // Without a preset, generating on open is the only path (paid).
-    const generateLink = (label: string, title?: string) =>
+    //  • PAID custom generation ("Customize"): a signed-in student spends a
+    //    customization TICKET the owner gifted them to generate their own
+    //    version. Personal credits are never charged for repo customization.
+
+    // The owner's own generate link (they build with their own credits).
+    const ownerGenerate = (label: string, title?: string) =>
       isGuest ? (
         <span onClick={onGuestStudy}>
           <ActionBtn label={label} title={title} />
@@ -575,6 +588,80 @@ function LessonCard({
         <ActionBtn label={label} title={title} />
       );
 
+    // A non-owner's ticket-gated "Customize" control.
+    const customizeControl = () => {
+      if (isGuest)
+        return (
+          <span onClick={onGuestStudy}>
+            <SketchButton variant="accent" size="sm">
+              <Ticket className="h-4 w-4" strokeWidth={2} /> Customize
+            </SketchButton>
+          </span>
+        );
+      if (!studyToolSlug) return null;
+      return ticketCount > 0 ? (
+        <Link
+          to={setHref}
+          title={`Generate your own custom version — you have ${ticketCount} ticket${ticketCount === 1 ? '' : 's'} for this repo`}
+          className="no-underline"
+        >
+          <SketchButton variant="accent" size="sm">
+            <Ticket className="h-4 w-4" strokeWidth={2} /> Customize
+            <span className="ml-0.5 rounded-full bg-paper/30 px-1 text-[0.6rem] font-bold">
+              {ticketCount}
+            </span>
+          </SketchButton>
+        </Link>
+      ) : (
+        <span
+          title="Ask the repo's owner for a customization ticket to generate your own version"
+          className="flex cursor-help items-center gap-1 rounded-wobble-sm border-2 border-dashed border-pencil px-2.5 py-1.5 font-heading text-sm font-semibold text-ink-faint"
+        >
+          <Ticket className="h-4 w-4" strokeWidth={2} /> Customize
+        </span>
+      );
+    };
+
+    // Owner: build / edit the free preset with their own credits.
+    if (isOwner) {
+      if (!lesson.hasPreset)
+        return ownerGenerate(
+          'Set',
+          'Generate this lesson, then save it as the free preset for everyone',
+        );
+      return (
+        <span className="flex items-center gap-1.5">
+          <Link to={playHref} className="no-underline">
+            <SketchButton variant="accent" size="sm" title="Watch the free version">
+              <Clapperboard className="h-4 w-4" strokeWidth={2} /> Study
+            </SketchButton>
+          </Link>
+          {studyToolSlug && (
+            <Link to={setHref} title="Edit & regenerate the free preset" className="no-underline">
+              <button
+                type="button"
+                className="rounded-wobble-sm border-2 border-pencil p-1.5 text-ink-soft transition-colors hover:border-ink hover:text-ink"
+                aria-label="Edit preset"
+              >
+                <Pencil className="h-3.5 w-3.5" strokeWidth={2} />
+              </button>
+            </Link>
+          )}
+          <button
+            type="button"
+            onClick={() => deletePreset.mutate({ repoSlug: seed.repoSlug, lessonSeq: seed.lessonSeq })}
+            disabled={deletePreset.isPending}
+            title="Clear the free preset"
+            aria-label="Clear preset"
+            className="rounded-wobble-sm border-2 border-transparent p-1.5 text-ink-faint transition-colors hover:border-dashed hover:border-red hover:text-red"
+          >
+            <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
+          </button>
+        </span>
+      );
+    }
+
+    // Non-owner with a free preset: watch it free, or spend a ticket to customize.
     if (lesson.hasPreset) {
       return (
         <span className="flex items-center gap-1.5">
@@ -583,42 +670,12 @@ function LessonCard({
               <Clapperboard className="h-4 w-4" strokeWidth={2} /> Study
             </SketchButton>
           </Link>
-          {!isGuest && studyToolSlug && (
-            <Link
-              to={setHref}
-              title="Generate your own custom version (uses your credits)"
-              className="no-underline"
-            >
-              <button
-                type="button"
-                className="flex items-center gap-1 rounded-wobble-sm border-2 border-pencil px-2 py-1 font-heading text-xs font-semibold text-ink-soft transition-colors hover:border-ink hover:text-ink"
-              >
-                <Pencil className="h-3.5 w-3.5" strokeWidth={2} /> Customize
-              </button>
-            </Link>
-          )}
-          {isOwner && (
-            <button
-              type="button"
-              onClick={() =>
-                deletePreset.mutate({ repoSlug: seed.repoSlug, lessonSeq: seed.lessonSeq })
-              }
-              disabled={deletePreset.isPending}
-              title="Clear the free preset"
-              aria-label="Clear preset"
-              className="rounded-wobble-sm border-2 border-transparent p-1.5 text-ink-faint transition-colors hover:border-dashed hover:border-red hover:text-red"
-            >
-              <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
-            </button>
-          )}
+          {customizeControl()}
         </span>
       );
     }
-    // No preset yet. Owner is nudged to "Set" a free version; everyone can still
-    // generate a paid custom version on open.
-    return isOwner
-      ? generateLink('Set', 'Generate this lesson, then save it as the free preset for everyone')
-      : generateLink('Study');
+    // Non-owner, no free preset: the only path is a ticket-gated customization.
+    return customizeControl();
   };
 
   const saveObjective = () => {

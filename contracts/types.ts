@@ -180,11 +180,20 @@ export interface SessionUser {
   name: string;
   role: Role;
   tokenBalance: number;
+  /** moderator's pool of un-gifted customization tickets */
+  ticketBalance: number;
   createdAt: Date;
   /** public contact shown at the end of a commercial showcase */
   whatsapp: string | null;
   socials: string[];
   contactNote: string | null;
+}
+
+/** One repo the signed-in user holds unused customization tickets for. */
+export interface MyTicketGroup {
+  repoSlug: string;
+  repoTitle: string;
+  count: number;
 }
 
 /* ---------------- Repos / slide tools ------------------------------ */
@@ -551,6 +560,7 @@ export interface AdminUserRow {
   name: string;
   role: Role;
   tokenBalance: number;
+  ticketBalance: number;
   runCount: number;
   createdAt: Date;
 }

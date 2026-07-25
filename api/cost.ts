@@ -2,6 +2,28 @@ import type { CostEstimate, ImageStyle, Level } from "@contracts/types";
 import { getSettings } from "./settings";
 
 /**
+ * The largest number of slides a single customization can request (mirrors
+ * MAX_SLIDES in the generate router). A ticket is priced to cover the most
+ * expensive customization possible, so it always fully covers any in-bounds
+ * generation — a cheaper deck simply uses less of that ceiling.
+ */
+export const TICKET_MAX_SLIDES = 15;
+
+/**
+ * Credit price of ONE customization ticket: the cost of the most expensive
+ * customization — MAX_SLIDES slides, an image on every slide, at the highest
+ * level multiplier. Moderators pay this (in credits) to the admin per ticket.
+ * Computed from live settings so it tracks any price change.
+ */
+export async function ticketPrice(): Promise<number> {
+  const { prices } = await getSettings();
+  const mults = Object.values(prices.levelMultiplier);
+  const maxMult = mults.length ? Math.max(...mults) : 1;
+  const perSlide = prices.perSlideBase + prices.perImageSlide;
+  return Math.max(1, Math.ceil(perSlide * TICKET_MAX_SLIDES * maxMult));
+}
+
+/**
  * Token cost estimate (design.md §8):
  * base perSlideBase × count (text portion — zeroed with a BYOK text key)
  * + perImageSlide per slide when an image style is active
