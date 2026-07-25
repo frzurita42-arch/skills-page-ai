@@ -5,6 +5,7 @@ import {
   Check,
   ChevronDown,
   FileText,
+  Globe,
   ImageIcon,
   NotebookPen,
   Paperclip,
@@ -83,6 +84,7 @@ export default function LessonPath() {
   // Reference attachments the AI reads when building the repo (menu, catalog,
   // syllabus, notes). Text files → text; images are read out server-side.
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [webSearch, setWebSearch] = useState(false);
   const [authWallOpen, setAuthWallOpen] = useState(false);
   const [theaterStep, setTheaterStep] = useState<number | null>(null);
 
@@ -197,6 +199,7 @@ export default function LessonPath() {
         imageStyle,
         unitCount,
         lessonsPerUnit,
+        webSearch,
         ...referenceFromAttachments(),
       },
       {
@@ -505,6 +508,29 @@ export default function LessonPath() {
                   Upload a menu, service catalog, syllabus, or notes — the AI reads them and builds the
                   repo from their real items. Text files &amp; images work.
                 </p>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={webSearch}
+                  onClick={() => setWebSearch((w) => !w)}
+                  title="Look up current facts on the web before building — for real products, news, anything time-sensitive"
+                  className="mt-3 flex items-center gap-2 rounded-wobble-sm border-2 border-dashed border-pencil px-2.5 py-1.5 text-sm font-bold text-ink"
+                >
+                  <span
+                    className={cn(
+                      'relative h-5 w-9 rounded-full border-2 border-ink transition-colors',
+                      webSearch ? 'bg-blue-soft' : 'bg-paper-2',
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full border-2 border-ink bg-paper-3 transition-all',
+                        webSearch ? 'left-[18px]' : 'left-0.5',
+                      )}
+                    />
+                  </span>
+                  <Globe className="h-4 w-4" strokeWidth={2} /> Search the web for current info
+                </button>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <label className="flex cursor-pointer items-center gap-1.5 rounded-wobble-sm border-2 border-dashed border-pencil bg-paper-3 px-3 py-2 text-sm font-bold text-ink-soft transition-colors hover:border-ink hover:text-ink">
                     <Paperclip className="h-4 w-4" strokeWidth={2} /> Add files

@@ -5,7 +5,7 @@ import { createRouter, publicQuery } from "../middleware";
 import { authedProcedure } from "../procedures";
 import { getDb } from "../queries/connection";
 import { lessons, repos, slideTools, units, users, type Repo } from "@db/schema";
-import { completeText, completeVision, generateImage, resolveProviderName, userHasKey, type VisionImage } from "../ai/provider";
+import { completeText, completeVision, generateImage, resolveProviderName, userHasKey, webResearch, type VisionImage } from "../ai/provider";
 import { mockCoachReply, mockDeck, mockLessonPath } from "../ai/mock";
 import {
   buildLessonPathPrompt,
@@ -137,6 +137,8 @@ export const generateRouter = createRouter({
           .array(z.object({ mime: z.string().max(120), b64: z.string().max(8_000_000) }))
           .max(3)
           .optional(),
+        // Search the web for current facts about the subject first.
+        webSearch: z.boolean().default(false),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -168,6 +170,10 @@ export const generateRouter = createRouter({
         // Fold any uploaded attachment into reference material: text files
         // directly, and images (menus, catalogs) read out via vision.
         let reference = (input.referenceText ?? "").trim();
+        if (input.webSearch) {
+          const r = await webResearch(ctx.user.id, input.description);
+          if (r?.text) reference = `${reference}\n\n[Current web-verified facts]\n${r.text}`.trim();
+        }
         if (input.referenceImages && input.referenceImages.length > 0) {
           try {
             const vision = await completeVision({
@@ -322,6 +328,9 @@ export const generateRouter = createRouter({
         // Purpose override from the tool page's category selector. Commercial =
         // a product/menu/service showcase (no evaluations).
         purpose: z.enum(["education", "commercial"]).optional(),
+        // Search the web for current facts about the topic first (accuracy for
+        // real products / news / anything time-sensitive).
+        webSearch: z.boolean().default(false),
         // Advanced: pin a specific layout template per slide (by template
         // name). null / missing entry = let the AI choose. Index i → slide i+1.
         templatePlan: z.array(z.string().max(120).nullable()).max(MAX_SLIDES).optional(),
@@ -543,9 +552,18 @@ export const generateRouter = createRouter({
         previouslyTaught,
         layoutTemplates,
       });
+      // Optional web search first, so the deck is built on current facts.
+      let webNotes: string | null = null;
+      if (input.webSearch) {
+        const r = await webResearch(ctx.user?.id, `${topic}${instructions && instructions !== topic ? ` — ${instructions}` : ""}`);
+        webNotes = r?.text ?? null;
+      }
       const userPrompt = [
         `TOPIC: ${topic}`,
         instructions && instructions !== topic ? `INSTRUCTIONS: ${instructions}` : null,
+        webNotes
+          ? `CURRENT, WEB-VERIFIED FACTS (use these as the source of truth; do NOT contradict them or invent capabilities beyond them):\n${webNotes.slice(0, 4000)}`
+          : null,
         `Write exactly ${slideCount} slides.`,
         planLines.length > 0
           ? `SLIDE PLAN (MANDATORY) — the user has PINNED an exact layout for the slides listed below. This overrides your own layout choice for those slides: you MUST build each listed slide with exactly the component types shown, including every table/chart/image/code/formula/diagram called for (with real content about the topic — e.g. a topic-relevant table even if the layout name mentions grammar). For any slide number NOT listed, choose a fitting layout from the catalog.\n${planLines.join("\n")}`

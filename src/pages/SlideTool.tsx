@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ChevronDown,
+  Globe,
   Pencil,
   Sparkles,
   X,
@@ -249,6 +250,7 @@ function ToolStudio({
   const [imageStyle, setImageStyle] = useState<ImageStyle>(tool.defaultImageStyle);
   const [voiceURI, setVoiceURI] = useState<string | null>(null);
   const [includeQuiz, setIncludeQuiz] = useState(true);
+  const [webSearch, setWebSearch] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   // Advanced: teaching tone / voice for the whole deck (register + jargon).
   // Seeded from the tool's saved default tone.
@@ -377,6 +379,7 @@ function ToolStudio({
         imageStyle,
         tone,
         purpose: seed ? undefined : purpose,
+        webSearch,
         templatePlan: templatePlan.some(Boolean)
           ? templatePlan.slice(0, slideCount)
           : undefined,
@@ -845,6 +848,30 @@ function ToolStudio({
               Include quiz on most slides
             </button>
           )}
+
+          <button
+            type="button"
+            role="switch"
+            aria-checked={webSearch}
+            onClick={() => setWebSearch((w) => !w)}
+            title="Look up current facts on the web before writing — great for real products, news, anything time-sensitive"
+            className="flex items-center gap-2 rounded-wobble-sm border-2 border-dashed border-pencil px-2.5 py-1.5 text-sm font-bold text-ink"
+          >
+            <span
+              className={cn(
+                'relative h-5 w-9 rounded-full border-2 border-ink transition-colors',
+                webSearch ? 'bg-blue-soft' : 'bg-paper-2',
+              )}
+            >
+              <motion.span
+                layout
+                className="absolute top-1/2 h-3.5 w-3.5 -translate-y-1/2 rounded-full border-2 border-ink bg-paper-3"
+                animate={{ left: webSearch ? 18 : 2 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+              />
+            </span>
+            <Globe className="h-4 w-4" strokeWidth={2} /> Search the web for current info
+          </button>
 
           {topic.trim() && (
             <Chip kind="neutral" className="border-purple bg-purple-soft">

@@ -327,6 +327,101 @@ export async function completeText(opts: {
 }
 
 /* ------------------------------------------------------------------ */
+/* Web search: fetch CURRENT facts so generations about real products,  */
+/* news, etc. are accurate. Uses Gemini's Google-Search grounding or an  */
+/* OpenRouter ":online" model — providers without a web path are skipped.*/
+
+async function callGeminiGrounded(key: ResolvedKey, prompt: string): Promise<string> {
+  const base = (key.baseUrl || DEFAULT_BASE_URLS.gemini).replace(/\/$/, "");
+  const models = key.model
+    ? [key.model, ...GEMINI_TEXT_MODELS.filter((m) => m !== key.model)]
+    : GEMINI_TEXT_MODELS;
+  let notFound: Error | null = null;
+  for (const model of models) {
+    const res = await fetch(
+      `${base}/models/${model}:generateContent?key=${encodeURIComponent(key.apiKey)}`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          tools: [{ google_search: {} }],
+          generationConfig: { maxOutputTokens: 1200 },
+        }),
+        signal: AbortSignal.timeout(60_000),
+      },
+    );
+    if (res.status === 404) {
+      notFound = new Error(`Gemini model ${model} not found`);
+      continue;
+    }
+    if (!res.ok) throw new Error(`Gemini grounding ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const data = (await res.json()) as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
+    };
+    const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("");
+    if (text) return text;
+    throw new Error("Gemini grounding returned no content");
+  }
+  throw notFound ?? new Error("No Gemini model available for grounding");
+}
+
+async function callOpenRouterOnline(key: ResolvedKey, prompt: string): Promise<string> {
+  const base = (key.baseUrl || DEFAULT_BASE_URLS.openai).replace(/\/$/, "");
+  const model = `${key.model || "openai/gpt-4o-mini"}:online`;
+  const res = await fetch(`${base}/chat/completions`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${key.apiKey}` },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 1200,
+      temperature: 0.3,
+    }),
+    signal: AbortSignal.timeout(60_000),
+  });
+  if (!res.ok) throw new Error(`OpenRouter online ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) throw new Error("OpenRouter online returned no content");
+  return text;
+}
+
+/**
+ * Search the web for current facts about `query` and return concise notes, or
+ * null when no web-capable provider is configured (a Gemini key or an
+ * OpenRouter key). The notes are meant to be injected as reference material
+ * into a normal (JSON) generation — search never runs on the JSON call itself.
+ */
+export async function webResearch(
+  userId: number | undefined,
+  query: string,
+): Promise<{ text: string; provider: AiProvider } | null> {
+  const candidates = await resolveKeyCandidates(userId, "text").catch(() => [] as ResolvedKey[]);
+  const prompt = `Search the web for CURRENT, ACCURATE information about: ${query}
+
+Return concise factual notes an author can rely on for an accurate presentation: real specifications, genuine features, what it CAN and CANNOT do, price range if relevant, release date, and common misconceptions to correct. Plain-text bullet points only. Omit anything you cannot verify.`;
+  for (const key of candidates) {
+    try {
+      if (key.provider === "gemini") {
+        const text = await callGeminiGrounded(key, prompt);
+        if (text.trim()) return { text: text.trim(), provider: "gemini" };
+      } else if (key.provider === "openai" && /openrouter\.ai/.test(key.baseUrl ?? "")) {
+        const text = await callOpenRouterOnline(key, prompt);
+        if (text.trim()) return { text: text.trim(), provider: "openai" };
+      }
+      // providers without a web-search path are skipped
+    } catch (err) {
+      console.warn(
+        `[ai/web] ${key.provider} search failed, trying next:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
+  return null;
+}
+
+/* ------------------------------------------------------------------ */
 /* Vision: read image(s) + a prompt and return text. Used to grade a    */
 /* handwritten worked solution on the scratchpad. Uses the TEXT keys     */
 /* (the same models accept images); providers without vision are skipped */
