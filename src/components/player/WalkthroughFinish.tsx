@@ -22,6 +22,16 @@ export default function WalkthroughFinish({
 }) {
   const ownerName = walkthrough?.ownerName;
   const ownerId = walkthrough?.ownerId ?? null;
+  const isNews = walkthrough?.kind === 'news';
+
+  const heading = isNews ? "That's the briefing ✦" : "That's the walkthrough ✦";
+  const body = walkthrough?.itemTitle
+    ? isNews
+      ? `You're caught up on ${walkthrough.itemTitle}.`
+      : `You've been walked through ${walkthrough.itemTitle}.`
+    : isNews
+      ? "You're all caught up."
+      : "You've reached the end — hope it made things clearer.";
 
   return (
     <div className="mx-auto w-full max-w-[560px] px-5 py-14 text-center">
@@ -32,12 +42,10 @@ export default function WalkthroughFinish({
       >
         <WashiTape rotate={-3} className="left-1/2 -translate-x-1/2" />
         <DoodleSparkle className="mx-auto h-9 w-9 text-purple" />
-        <h1 className="mt-2 font-display text-4xl font-bold text-ink">That's the walkthrough ✦</h1>
+        <h1 className="mt-2 font-display text-4xl font-bold text-ink">{heading}</h1>
         <p className="mt-2 text-ink-soft">
-          {walkthrough?.itemTitle
-            ? `You've been walked through ${walkthrough.itemTitle}.`
-            : "You've reached the end — hope it made things clearer."}
-          {ownerName ? ` Put together by ${ownerName}.` : ''}
+          {body}
+          {ownerName ? ` ${isNews ? 'Reported' : 'Put together'} by ${ownerName}.` : ''}
         </p>
 
         <div className="mt-7 flex flex-col items-stretch gap-2.5">

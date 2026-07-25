@@ -35,7 +35,7 @@ const TONE_DIRECTIVE: Record<string, string> = {
   scholarly:
     "a scholarly, academic register — technically precise and dense with the field's proper terminology, assuming an engaged reader. Use exact terms of art (with a brief gloss on first use), reference mechanisms and edge cases, and argue with rigour.",
 };
-export const templateSchema = z.enum(["course", "restaurant", "service", "shop", "walkthrough", "other"]);
+export const templateSchema = z.enum(["course", "restaurant", "service", "shop", "walkthrough", "news", "other"]);
 
 export const slideComponentSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("prose"), paragraphs: z.array(z.string().min(1)).min(1) }),
@@ -189,7 +189,7 @@ export function buildSlidesSystemPrompt(opts: {
   level: string;
   imageStyle: string;
   tone?: string;
-  purpose?: "education" | "commercial" | "walkthrough";
+  purpose?: "education" | "commercial" | "walkthrough" | "news";
   /** the exact topic/item this deck is about (e.g. a product name) */
   subject?: string;
   previouslyTaught: string | null;
@@ -199,12 +199,14 @@ export function buildSlidesSystemPrompt(opts: {
   const commercial = opts.purpose === "commercial";
   // A walkthrough explains like a lesson but never tests — no quizzes at all.
   const walkthrough = opts.purpose === "walkthrough";
+  // A news briefing reads like a newspaper section — factual reporting, no quiz.
+  const news = opts.purpose === "news";
   // Minimum number of DISTINCT explanatory paragraphs a teaching slide must
   // carry, scaled to the CEFR band. Higher levels demand a fuller page: an
   // advanced (C1/C2) reader gets several substantial paragraphs, not one line.
   // Commercial showcases are exempt — listing copy should be as long as it
   // needs, not padded to a floor.
-  const paraFloor = commercial
+  const paraFloor = commercial || news
     ? 1
     : ["C1", "C2"].includes(opts.level)
       ? 4
@@ -235,7 +237,7 @@ VISUAL STUDY: a template tagged [anatomy] (text · image · text · evaluation) 
 `
       : "";
 
-  return `You are the SketchLearn ${commercial ? "showcase" : "teaching"} engine. You write ${commercial ? "short, persuasive slide presentations that SHOWCASE ONE item (a dish, a service, or a product) so a viewer wants it" : "evaluated slide decks that teach ONE topic deeply"}.
+  return `You are the SketchLearn ${commercial ? "showcase" : news ? "news briefing" : "teaching"} engine. You write ${commercial ? "short, persuasive slide presentations that SHOWCASE ONE item (a dish, a service, or a product) so a viewer wants it" : news ? "slide-format news briefings that REPORT the news on a topic, clearly and factually" : "evaluated slide decks that teach ONE topic deeply"}.
 ${
   commercial
     ? `
@@ -259,7 +261,20 @@ WALKTHROUGH MODE — this is an EXPLANATION the viewer is guided through, NOT an
 `
     : ""
 }
-${commercial ? "SHOWCASE" : "TEACHING"} RULES (non-negotiable):
+${
+  news
+    ? `
+NEWS BRIEFING MODE — this is a slide-format NEWS BRIEFING about "${opts.subject ?? "the given topic"}", read like a newspaper section, NOT a lesson:
+- Report, don't teach or sell: each slide is ONE news item / story / development on the topic. Lead with the headline as the slide TITLE, then report it — what happened, who is involved, where and when, why it matters — in a factual, journalistic voice (inverted pyramid: most important facts first).
+- Cover ${String(opts.subject ?? "")} as a briefing: distinct stories across the deck (e.g. for a section like sports or tech, each slide is a different story), sequenced most-important first. Do NOT repeat the same story across slides.
+- Attribution & accuracy: report only what is supported by the provided facts (and the web-verified facts if given). Do NOT invent quotes, statistics, outlets, or events. If the exact date isn't given, keep timing general ("this week", "recently") rather than fabricating one.
+- Images matter a LOT — use the image steps for a vivid, relevant news photo for each story, with a caption-style prompt. Tables/charts are for standings, figures, results.
+- NO quizzes and NO evaluations of ANY kind — never test the reader. If a layout lists an evaluation step, SKIP it and end the slide on its reporting.
+- Tone stays factual and neutral regardless of the chosen register; the reader is here to be informed, not persuaded or quizzed.
+`
+    : ""
+}
+${commercial ? "SHOWCASE" : news ? "BRIEFING" : "TEACHING"} RULES (non-negotiable):
 1. NO greeting/welcome/outline slide — start teaching immediately on slide 1.
 2. EVERY slide MUST be built from ONE of the SLIDE LAYOUT TEMPLATES listed below — use that template's exact component configuration (its component types, in the given order). Do NOT invent a slide shape that is not in the catalog, and do NOT drop any of a template's steps. Because every template pairs its visual/data steps with explanatory text, this means a slide is never just an image (or just a chart/table/diagram/formula/code) next to a question — the text step explains, in words, what the visual shows, what to notice in it, and what it means, and the quiz tests that explanation. Slides build introduce -> develop -> apply; never restate an earlier point; the deck reads as ONE continuous piece of teaching, with at most a one-clause stitch between slides.
 3. Choose components deliberately per concept from this palette: prose, chart (bar/line/pie/area with real plausible data), latex, svg (a diagram description the app sketches), table (compact, few columns), stickynote (max ONE per deck, for a mnemonic or key warning), image (a vivid visual with an alt text and a generation prompt), code (short snippet).

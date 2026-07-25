@@ -327,7 +327,7 @@ export const generateRouter = createRouter({
         tone: toneSchema.default("neutral"),
         // Purpose override from the tool page's category selector. Commercial =
         // a product/menu/service showcase (no evaluations).
-        purpose: z.enum(["education", "commercial", "walkthrough"]).optional(),
+        purpose: z.enum(["education", "commercial", "walkthrough", "news"]).optional(),
         // Search the web for current facts about the topic first (accuracy for
         // real products / news / anything time-sensitive).
         webSearch: z.boolean().default(false),
@@ -437,21 +437,21 @@ export const generateRouter = createRouter({
           };
         }
       }
-      // Walkthrough decks end on an author/back screen — resolve the author
-      // (the seed repo's owner, or the standalone tool's owner) so the finish
-      // can link their profile. A null owner just omits the profile link.
-      if (purpose === "walkthrough") {
+      // Walkthrough and news decks read straight through and end on an
+      // author/back screen — resolve the author (the seed repo's owner, or the
+      // standalone tool's owner) so the finish can link their profile. A null
+      // owner just omits the profile link.
+      if (purpose === "walkthrough" || purpose === "news") {
         const ownerId = seedRepo?.ownerId ?? (!input.seed ? tool.ownerId : null);
-        if (ownerId) {
-          const owner = await db.query.users.findFirst({ where: eq(users.id, ownerId) });
-          if (owner) {
-            walkthrough = {
-              ownerId: owner.id,
-              ownerName: owner.name,
-              itemTitle: (input.seed?.lessonTitle || input.topic?.trim() || tool.name).slice(0, 255),
-            };
-          }
-        }
+        const owner = ownerId
+          ? await db.query.users.findFirst({ where: eq(users.id, ownerId) })
+          : null;
+        walkthrough = {
+          ownerId: owner?.id ?? null,
+          ownerName: owner?.name ?? "",
+          itemTitle: (input.seed?.lessonTitle || input.topic?.trim() || tool.name).slice(0, 255),
+          kind: purpose === "news" ? "news" : "walkthrough",
+        };
       }
 
       // Token gate — signed-in users only; guests get the free limited path.

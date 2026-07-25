@@ -217,6 +217,7 @@ export function mockLessonPath(opts: {
     service: ["Diagnostics", "Standard Jobs", "Advanced Repairs", "Customer Care", "Safety"],
     shop: ["New Arrivals", "Bestsellers", "Collections", "Care & Materials", "Gift Picks"],
     walkthrough: ["Overview", "How It Works", "Step by Step", "In Practice", "Wrapping Up"],
+    news: ["Top Stories", "World", "Business & Tech", "Sports", "In Brief"],
     other: ["Part One", "Part Two", "Part Three", "Part Four", "Part Five"],
   };
   const names = unitNames[template] ?? unitNames.other;
@@ -228,11 +229,15 @@ export function mockLessonPath(opts: {
       const title =
         template === "restaurant"
           ? `${titleCase(k)} ${["Classics", "Special", "Delight", "Favorites", "Signature"][l % 5]}`
-          : `${titleCase(k)} — ${["Basics", "In Practice", "Deep Dive", "Worked Example", "Common Mistakes", "Next Level"][Math.floor(rand() * 6)]}`;
+          : template === "news"
+            ? `${titleCase(k)}: ${["What Happened", "The Latest", "Key Development", "By the Numbers", "What's Next"][l % 5]}`
+            : `${titleCase(k)} — ${["Basics", "In Practice", "Deep Dive", "Worked Example", "Common Mistakes", "Next Level"][Math.floor(rand() * 6)]}`;
       const objective =
         template === "restaurant"
           ? `Present the story of this dish: where it comes from, what goes into it, how the kitchen prepares it, and how it is best enjoyed. Make the learner smell it through the screen.`
-          : `Teach ${k} within ${subject}: introduce the idea with a concrete example, develop how it works step by step, and finish with a realistic application the learner can try.`;
+          : template === "news"
+            ? `Report the news on ${k} within ${subject}: lead with the headline, then cover what happened, who is involved, where and when, and why it matters — factual and photo-forward, no quiz.`
+            : `Teach ${k} within ${subject}: introduce the idea with a concrete example, develop how it works step by step, and finish with a realistic application the learner can try.`;
       return { title, objective };
     });
     return { title: unitTitle, lessons };
@@ -259,6 +264,8 @@ export function mockCoachReply(userText: string): CoachReply {
     template = "service";
   else if (/(shop|store|product|candle|collection|merch|inventory|boutique|etsy)/.test(t))
     template = "shop";
+  else if (/(news|briefing|headline|breaking|bulletin|gazette|dispatch|report(ing)?)/.test(t))
+    template = "news";
 
   const title = titleCase(words(userText).slice(0, 6).join(" ") || userText.slice(0, 32));
   const units = template === "course" ? 4 : 3;
@@ -274,6 +281,8 @@ export function mockCoachReply(userText: string): CoachReply {
     shop: "A shop collection! Each category becomes a unit and each product a lesson-card that presents itself — perfect for training staff or showing customers around.",
     walkthrough:
       "A guided walkthrough! Each section becomes a unit and each topic an explanation-only deck — the viewer is walked through it with no quizzes, and can visit your profile or step back when they're done.",
+    news:
+      "A news briefing! Each beat becomes a section and each story its own briefing slide-deck — reported factually with headlines and photos, no quizzes, so readers just get caught up.",
     course:
       "A proper little course! I'll break it into units and lessons, and each lesson's objective becomes the prompt for an evaluated slide deck. Lesson 2 reads Lesson 1's log, so it never re-teaches what you already covered.",
   };

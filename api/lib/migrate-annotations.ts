@@ -226,9 +226,9 @@ export async function ensureSlideToolAuthoring(): Promise<void> {
 }
 
 /**
- * Idempotently allow the "walkthrough" repo/tool template (explanation decks
- * with no quiz) by adding it to the template enum on older databases.
- * Best-effort at boot.
+ * Idempotently allow the "walkthrough" and "news" repo/tool templates
+ * (read-through decks with no quiz) by adding them to the template enum on
+ * older databases. Best-effort at boot.
  */
 export async function ensureWalkthroughTemplate(): Promise<void> {
   const connectionString = process.env.DATABASE_URL;
@@ -245,6 +245,7 @@ export async function ensureWalkthroughTemplate(): Promise<void> {
     );
     if (!rows[0]?.exists) return;
     await client.query(`ALTER TYPE sketchlearn."template" ADD VALUE IF NOT EXISTS 'walkthrough'`);
+    await client.query(`ALTER TYPE sketchlearn."template" ADD VALUE IF NOT EXISTS 'news'`);
   } finally {
     await client.end();
   }

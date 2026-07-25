@@ -570,9 +570,9 @@ export const reposRouter = createRouter({
       const purpose = repoPurpose(repo.template);
       let commercial: import("@contracts/types").CommercialInfo | null = null;
       let walkthrough: import("@contracts/types").WalkthroughInfo | null = null;
-      if (repo.ownerId && (purpose === "commercial" || purpose === "walkthrough")) {
+      if (repo.ownerId && purpose === "commercial") {
         const owner = await db.query.users.findFirst({ where: eq(users.id, repo.ownerId) });
-        if (owner && purpose === "commercial") {
+        if (owner) {
           commercial = {
             owner: {
               name: owner.name,
@@ -584,9 +584,17 @@ export const reposRouter = createRouter({
             repoSlug: repo.slug,
             lessonSeq: lesson.globalSeq,
           };
-        } else if (owner && purpose === "walkthrough") {
-          walkthrough = { ownerId: owner.id, ownerName: owner.name, itemTitle: lesson.title };
         }
+      } else if (purpose === "walkthrough" || purpose === "news") {
+        const owner = repo.ownerId
+          ? await db.query.users.findFirst({ where: eq(users.id, repo.ownerId) })
+          : null;
+        walkthrough = {
+          ownerId: owner?.id ?? null,
+          ownerName: owner?.name ?? "",
+          itemTitle: lesson.title,
+          kind: purpose === "news" ? "news" : "walkthrough",
+        };
       }
 
       return {

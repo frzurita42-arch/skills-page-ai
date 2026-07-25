@@ -49,6 +49,7 @@ import { TemplateIcon } from '@/components/repo/shared';
 const CATEGORY_OPTS: { id: RepoTemplate; label: string; hint: string }[] = [
   { id: 'course', label: 'Lesson', hint: 'Teach a topic — quizzes & evaluations allowed' },
   { id: 'walkthrough', label: 'Walkthrough', hint: 'Explain a topic — no quizzes, just a guided walkthrough' },
+  { id: 'news', label: 'News briefing', hint: 'Report the news on a topic — headlines, factual, no quizzes' },
   { id: 'restaurant', label: 'Menu item', hint: 'Showcase a dish — no evaluations' },
   { id: 'service', label: 'Service', hint: 'Showcase a service — no evaluations' },
   { id: 'shop', label: 'Product', hint: 'Marketplace display — no evaluations' },
@@ -649,7 +650,9 @@ function ToolStudio({
                 ? 'Showcase mode — no quizzes or AI-graded evaluations; only display templates are offered.'
                 : purpose === 'walkthrough'
                   ? 'Walkthrough mode — the AI explains and guides only; no quizzes, ends on a "visit author / go back" step.'
-                  : 'Lesson mode — evaluations and quizzes are available.'}
+                  : purpose === 'news'
+                    ? 'News briefing mode — the AI reports the news factually (headlines, dateline, images); no quizzes, ends on a "visit author / go back" step.'
+                    : 'Lesson mode — evaluations and quizzes are available.'}
             </p>
           </motion.div>
         )}

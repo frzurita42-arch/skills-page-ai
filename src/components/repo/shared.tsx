@@ -7,6 +7,7 @@ import {
   ShoppingBag,
   BookOpen,
   Compass,
+  Newspaper,
 } from 'lucide-react';
 import { Toaster } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -84,6 +85,17 @@ export const TEMPLATE_META: Record<RepoTemplate, TemplateMeta> = {
     subjectLabel: 'What to walk through',
     subjectPlaceholder: 'e.g. How our onboarding works, explained end to end',
     audiencePlaceholder: 'e.g. brand-new users',
+  },
+  news: {
+    label: 'News',
+    icon: Newspaper,
+    caption: 'Sections → Stories → Briefings',
+    unitNoun: 'Section',
+    lessonNoun: 'Story',
+    objectiveNoun: 'Briefing',
+    subjectLabel: 'News beat',
+    subjectPlaceholder: 'e.g. This week in tech & AI — the biggest stories',
+    audiencePlaceholder: 'e.g. busy readers who want the gist',
   },
   other: {
     label: 'Other',

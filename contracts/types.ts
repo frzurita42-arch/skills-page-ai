@@ -10,7 +10,7 @@ export type Level = "A0" | "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
 /** Coarse difficulty tier used for template filtering & cost. */
 export type LevelTier = "light" | "mid" | "dense";
 export type ImageStyle = "sketch" | "watercolor" | "flat" | "photo" | "none";
-export type RepoTemplate = "course" | "restaurant" | "service" | "shop" | "walkthrough" | "other";
+export type RepoTemplate = "course" | "restaurant" | "service" | "shop" | "walkthrough" | "news" | "other";
 export type AiProvider = "openai" | "anthropic" | "gemini" | "elevenlabs";
 export type AiCapability = "text" | "image" | "tts";
 
@@ -35,7 +35,7 @@ export function levelTier(level: Level): LevelTier {
 }
 
 export const IMAGE_STYLES: ImageStyle[] = ["sketch", "watercolor", "flat", "photo", "none"];
-export const REPO_TEMPLATES: RepoTemplate[] = ["course", "restaurant", "service", "shop", "walkthrough", "other"];
+export const REPO_TEMPLATES: RepoTemplate[] = ["course", "restaurant", "service", "shop", "walkthrough", "news", "other"];
 
 /**
  * What a repo is FOR — teaching, showcasing something to buy/hire, or simply
@@ -43,20 +43,29 @@ export const REPO_TEMPLATES: RepoTemplate[] = ["course", "restaurant", "service"
  * "commercial" repos (restaurant menus, service offers, shop items) present a
  * product and end on a contact/order step; "education" repos (courses) teach
  * AND evaluate with quizzes; "walkthrough" repos explain WITHOUT any quiz and
- * end on a simple "visit the author / go back" step. Drives which packets and
- * templates are offered, whether quizzes appear, and the finish screen.
+ * end on a simple "visit the author / go back" step; "news" repos read like a
+ * news briefing (headlines, datelines, factual reporting) with no quiz. Drives
+ * which packets/templates are offered, whether quizzes appear, how the AI
+ * expresses itself, and the finish screen.
  */
-export type RepoPurpose = "education" | "commercial" | "walkthrough";
+export type RepoPurpose = "education" | "commercial" | "walkthrough" | "news";
 export function repoPurpose(template: RepoTemplate): RepoPurpose {
   if (template === "restaurant" || template === "service" || template === "shop") return "commercial";
   if (template === "walkthrough") return "walkthrough";
+  if (template === "news") return "news";
   return "education";
 }
 
-/** Purpose used for template/packet filtering — a walkthrough draws from the
- *  same explanatory (education) layouts, it just omits the quiz step. */
+/** Purpose used for template/packet filtering — walkthrough and news both draw
+ *  from the same explanatory (education) layouts, they just omit the quiz. */
 export function templateFilterPurpose(purpose: RepoPurpose): "education" | "commercial" {
   return purpose === "commercial" ? "commercial" : "education";
+}
+
+/** Purposes that read straight through with no quiz and close on the simple
+ *  author/back screen instead of a score or an order step. */
+export function isBriefingPurpose(purpose: RepoPurpose): boolean {
+  return purpose === "walkthrough" || purpose === "news";
 }
 
 /* ---------------- Teaching tone (voice/register of the deck) --------
@@ -445,13 +454,15 @@ export interface CommercialInfo {
   lessonSeq: number | null;
 }
 
-/** Info the player needs to end a WALKTHROUGH (explanation) presentation: no
- *  score and no order step — just a link to the author's profile and a way
- *  back to where the viewer started. Null for other decks. */
+/** Info the player needs to end a read-through presentation (walkthrough or
+ *  news briefing): no score and no order step — just a link to the author's
+ *  profile and a way back to where the viewer started. Null for other decks.
+ *  `kind` only tweaks the closing copy. */
 export interface WalkthroughInfo {
   ownerId: number | null;
   ownerName: string;
   itemTitle: string;
+  kind: "walkthrough" | "news";
 }
 
 /** A saved preset presentation the owner generated once, for viewers to watch

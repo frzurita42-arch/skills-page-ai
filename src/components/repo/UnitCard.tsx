@@ -484,9 +484,10 @@ function LessonCard({
   });
 
   const isOwner = !!controls;
-  // Commercial showcases AND walkthroughs share the "generate once, everyone
-  // watches the free preset" model — no quizzes, no per-viewer customization.
-  const presetOnly = purpose === 'commercial' || purpose === 'walkthrough';
+  // Commercial showcases, walkthroughs AND news briefings share the "generate
+  // once, everyone watches the free preset" model — no quizzes, no per-viewer
+  // customization.
+  const presetOnly = purpose !== 'education';
   const setHref = studyToolSlug ? studyUrl(studyToolSlug, seed) : '';
   const playHref = `/repos/${seed.repoSlug}/play/${seed.lessonSeq}`;
   const editHref = `/repos/${seed.repoSlug}/play/${seed.lessonSeq}/edit`;
