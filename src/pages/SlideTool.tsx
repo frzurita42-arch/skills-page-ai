@@ -216,12 +216,20 @@ function ToolStudio({
   const [useScratchpad, setUseScratchpad] = useState(true);
   // Advanced: pinned layout template per slide (name | null = auto). Index i → slide i+1.
   const [templatePlan, setTemplatePlan] = useState<(string | null)[]>([]);
-  // Apply a lesson packet: pin its templates onto the first slides (growing
-  // the slide count if the packet needs more), leaving the rest on Auto.
+  // Apply a lesson packet: pour its templates into the NEXT OPEN (Auto) slots,
+  // in order, up to the chosen slide count. Overflow beyond the slide count is
+  // discarded, so stacking packets fills the deck sequentially — packet 1 fills
+  // slides 1-4, packet 2 fills 5-6, etc. — and any leftover slots stay on Auto
+  // for the AI to fill. The slide count is respected, never grown.
   const applyPacket = (p: LessonPacket) => {
-    const n = Math.max(slideCount, p.templates.length);
-    setSlideCount(n);
-    setTemplatePlan(Array.from({ length: n }, (_, i) => p.templates[i] ?? null));
+    setTemplatePlan((prev) => {
+      const plan = Array.from({ length: slideCount }, (_, i) => prev[i] ?? null);
+      let ti = 0;
+      for (let i = 0; i < slideCount && ti < p.templates.length; i++) {
+        if (plan[i] == null) plan[i] = p.templates[ti++];
+      }
+      return plan;
+    });
     setAdvancedOpen(true);
   };
   const [theaterDone, setTheaterDone] = useState(false);
@@ -736,7 +744,9 @@ function ToolStudio({
                     ))}
                   </div>
                   <p className="micro mt-1.5 text-ink-faint">
-                    Applying a packet pins its slides below — you can still tweak any of them.
+                    Each packet fills the next open slides, in order, up to your slide count — stack
+                    several and any extra slides are left for the AI. Overflow past your count is
+                    dropped. You can still tweak any pinned slide.
                   </p>
                 </div>
 
