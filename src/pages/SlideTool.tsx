@@ -42,7 +42,7 @@ import TemplateBar from '@/components/templates/TemplateBar';
 import TemplatePicker from '@/components/templates/TemplatePicker';
 
 import { isStemTopic } from '@contracts/stem';
-import { loadGenDefaults, saveGenDefaults } from '@/lib/genDefaults';
+import { loadGenDefaults, saveGenDefaults, type TextDensity } from '@/lib/genDefaults';
 import { templatesForContext, packetsForPurpose, type LessonPacket } from '@contracts/slide-templates';
 import { repoPurpose, templateFilterPurpose, type RepoTemplate } from '@contracts/types';
 import { TemplateIcon } from '@/components/repo/shared';
@@ -255,6 +255,7 @@ function ToolStudio({
   const [level, setLevel] = useState<Level>(remembered.level);
   const [slideCount, setSlideCount] = useState(remembered.slideCount);
   const [imageStyle, setImageStyle] = useState<ImageStyle>(remembered.imageStyle);
+  const [textDensity, setTextDensity] = useState<TextDensity>(remembered.textDensity);
   const [voiceURI, setVoiceURI] = useState<string | null>(null);
   const [includeQuiz, setIncludeQuiz] = useState(true);
   const [webSearch, setWebSearch] = useState(false);
@@ -373,7 +374,7 @@ function ToolStudio({
   const runGenerate = () => {
     canceledRef.current = false;
     // Remember this user's choices so they become the defaults next time.
-    saveGenDefaults(user?.id, { slideCount, level, imageStyle });
+    saveGenDefaults(user?.id, { slideCount, level, imageStyle, textDensity });
     const isSet = canPublishPreset && !!seed;
     setFlowRef.current = isSet;
     customizeFlowRef.current = !!seed && !isSet && !isGuest;
@@ -389,6 +390,7 @@ function ToolStudio({
         imageStyle,
         tone,
         purpose: seed ? undefined : purpose,
+        textDensity,
         webSearch,
         templatePlan: templatePlan.some(Boolean)
           ? templatePlan.slice(0, slideCount)
@@ -972,6 +974,45 @@ function ToolStudio({
                     ))}
                   </div>
                   <p className="micro mt-1.5 text-ink-faint">{TONE_HINT[tone]}</p>
+                </div>
+
+                <div className="mb-3 border-t-2 border-dashed border-pencil" />
+
+                {/* Text amount — how much explanation each slide carries */}
+                <div className="mb-4">
+                  <span className="micro mb-1 block font-semibold text-ink-soft">
+                    Text amount — how much explanation each slide carries
+                  </span>
+                  <p className="micro mb-2 text-ink-faint">
+                    Same ideas, more or fewer words. Detailed builds each point out further (or
+                    reinforces it from another angle); brief trims to the essentials. Every type
+                    still shows a real explanation.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {(
+                      [
+                        { id: 'brief', label: 'Brief', hint: 'Fewer words, same idea' },
+                        { id: 'standard', label: 'Standard', hint: 'A balanced amount (default)' },
+                        { id: 'detailed', label: 'Detailed', hint: 'Fuller explanations, more detail' },
+                      ] as { id: TextDensity; label: string; hint: string }[]
+                    ).map((d) => (
+                      <button
+                        key={d.id}
+                        type="button"
+                        onClick={() => setTextDensity(d.id)}
+                        aria-pressed={textDensity === d.id}
+                        title={d.hint}
+                        className={cn(
+                          'rounded-wobble-sm border-2 px-3.5 py-1.5 text-sm font-bold transition-all',
+                          textDensity === d.id
+                            ? 'border-ink bg-blue-soft text-ink shadow-offset'
+                            : 'border-dashed border-pencil text-ink-soft hover:border-ink hover:text-ink',
+                        )}
+                      >
+                        {d.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="mb-3 border-t-2 border-dashed border-pencil" />

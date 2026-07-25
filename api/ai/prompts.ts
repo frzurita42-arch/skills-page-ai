@@ -190,6 +190,8 @@ export function buildSlidesSystemPrompt(opts: {
   imageStyle: string;
   tone?: string;
   purpose?: "education" | "commercial" | "walkthrough" | "news";
+  /** how much explanatory text each slide carries — biases the paragraph floor */
+  textDensity?: "brief" | "standard" | "detailed";
   /** the exact topic/item this deck is about (e.g. a product name) */
   subject?: string;
   previouslyTaught: string | null;
@@ -215,7 +217,18 @@ export function buildSlidesSystemPrompt(opts: {
       : ["A2"].includes(opts.level)
         ? 2
         : 1;
-  const paraFloor = commercial || news ? 1 : walkthrough ? Math.max(2, baseFloor) : baseFloor;
+  const purposeFloor = commercial || news ? 1 : walkthrough ? Math.max(2, baseFloor) : baseFloor;
+  // Author-chosen text amount shifts the floor up or down (same idea, more/less
+  // words). "detailed" adds substantially; "brief" trims to essentials.
+  const density = opts.textDensity ?? "standard";
+  const densityDelta = density === "brief" ? -1 : density === "detailed" ? 2 : 0;
+  const paraFloor = Math.max(1, purposeFloor + densityDelta);
+  const textAmountDirective =
+    density === "brief"
+      ? "TEXT AMOUNT — BRIEF: keep every explanation concise. Convey the idea in as few words as it needs, cut filler and tangents, but never drop the explanation entirely."
+      : density === "detailed"
+        ? "TEXT AMOUNT — DETAILED: write fuller explanations. Go into more depth with examples and consequences; when there is nothing genuinely new to add, reinforce the SAME point from a fresh angle or a closely-related supporting idea, so each slide carries substantial reading."
+        : "TEXT AMOUNT — STANDARD: a balanced amount of explanatory text per slide.";
 
   const memory = opts.previouslyTaught
     ? `
@@ -280,6 +293,7 @@ NEWS BRIEFING MODE — this is a slide-format NEWS BRIEFING about "${opts.subjec
 `
     : ""
 }
+${textAmountDirective}
 ${commercial ? "SHOWCASE" : news ? "BRIEFING" : "TEACHING"} RULES (non-negotiable):
 1. NO greeting/welcome/outline slide — start teaching immediately on slide 1.
 2. EVERY slide MUST be built from ONE of the SLIDE LAYOUT TEMPLATES listed below — use that template's exact component configuration (its component types, in the given order). Do NOT invent a slide shape that is not in the catalog, and do NOT drop any of a template's steps. Because every template pairs its visual/data steps with explanatory text, this means a slide is never just an image (or just a chart/table/diagram/formula/code) next to a question — the text step explains, in words, what the visual shows, what to notice in it, and what it means, and the quiz tests that explanation. Slides build introduce -> develop -> apply; never restate an earlier point; the deck reads as ONE continuous piece of teaching, with at most a one-clause stitch between slides.

@@ -9,16 +9,20 @@ import type { ImageStyle, Level } from '@contracts/types';
  * Base defaults when a user has no history yet: 4 slides, A1 (the simplest
  * level — right for walkthroughs, news briefings and showcases), sketch style.
  */
+export type TextDensity = 'brief' | 'standard' | 'detailed';
+
 export interface GenDefaults {
   slideCount: number;
   level: Level;
   imageStyle: ImageStyle;
+  textDensity: TextDensity;
 }
 
 export const BASE_GEN_DEFAULTS: GenDefaults = {
   slideCount: 4,
   level: 'A1',
   imageStyle: 'sketch',
+  textDensity: 'standard',
 };
 
 function storageKey(userId?: number | null): string {
@@ -38,6 +42,7 @@ export function loadGenDefaults(userId?: number | null): GenDefaults {
           : BASE_GEN_DEFAULTS.slideCount,
       level: (parsed.level as Level) ?? BASE_GEN_DEFAULTS.level,
       imageStyle: (parsed.imageStyle as ImageStyle) ?? BASE_GEN_DEFAULTS.imageStyle,
+      textDensity: (parsed.textDensity as TextDensity) ?? BASE_GEN_DEFAULTS.textDensity,
     };
   } catch {
     return { ...BASE_GEN_DEFAULTS };

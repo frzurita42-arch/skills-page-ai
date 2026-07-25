@@ -95,6 +95,9 @@ export default function DeckPlayer({
   const reduced = useReducedMotion();
   const { role, user } = useAuth();
   const isAdmin = role === 'admin';
+  // Admins and moderators can recalibrate a slide's explanation length in-player
+  // (moderators are charged a small fee per edit; admins are not).
+  const canCalibrate = role === 'admin' || role === 'moderator';
   const [index, setIndex] = useState(0);
   const [dir, setDir] = useState(1);
   const [answers, setAnswers] = useState<Record<number, QuizAnswer>>({});
@@ -245,6 +248,8 @@ export default function DeckPlayer({
             overridesRef.current = next;
             setProseOverrides(next);
             onPersistDeck?.(applyProseOverrides(deck, next));
+            // moderators are charged — refresh their balance
+            if (role === 'moderator') void utils.auth.me.invalidate();
             toast.success(direction === 'longer' ? 'Explanation expanded ✎' : 'Explanation trimmed ✎');
           },
           onError: (e) => toast.error(e.message),
@@ -549,11 +554,18 @@ export default function DeckPlayer({
         </div>
       )}
 
-      {/* admin-only: calibrate the length of THIS slide's explanation */}
-      {isAdmin && !finished && !inReview && proseCompIdx >= 0 && (
+      {/* admin/moderator: calibrate the length of THIS slide's explanation */}
+      {canCalibrate && !finished && !inReview && proseCompIdx >= 0 && (
         <div className="pointer-events-none fixed left-4 top-[58px] z-[70]">
           <div className="pointer-events-auto flex items-center gap-1 rounded-wobble-sm border-2 border-ink bg-paper-3 px-2 py-1.5 shadow-offset">
-            <span className="micro px-1 text-ink-soft" title="Rewrite this slide's explanation shorter/longer — same idea, same level">
+            <span
+              className="micro px-1 text-ink-soft"
+              title={
+                role === 'moderator'
+                  ? "Rewrite this slide's explanation shorter/longer (same idea, same level) — costs 2 🪙 per change"
+                  : "Rewrite this slide's explanation shorter/longer — same idea, same level"
+              }
+            >
               Length
             </span>
             <button

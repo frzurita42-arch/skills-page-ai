@@ -2,7 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 import { createRouter, publicQuery } from "../middleware";
-import { authedProcedure, adminProcedure } from "../procedures";
+import { authedProcedure, moderatorProcedure } from "../procedures";
 import { getDb } from "../queries/connection";
 import { lessons, repos, slideTools, units, users, type Repo } from "@db/schema";
 import { completeText, completeVision, generateImage, resolveProviderName, userHasKey, webResearch, type VisionImage } from "../ai/provider";
@@ -46,6 +46,9 @@ const GUEST_MAX_SLIDES = 6;
 const MAX_SLIDES = 15;
 /** Token fee for one AI vision review of a handwritten worked solution. */
 const VISION_GRADE_COST = 6;
+/** Token fee a moderator pays to recalibrate one slide's explanation length
+ *  (admins are not charged; bringing your own text key makes it free). */
+const RECALIBRATE_COST = 2;
 
 /**
  * Offline demo content (mock decks/lesson paths) is opt-in. By default a
@@ -328,6 +331,8 @@ export const generateRouter = createRouter({
         // Purpose override from the tool page's category selector. Commercial =
         // a product/menu/service showcase (no evaluations).
         purpose: z.enum(["education", "commercial", "walkthrough", "news"]).optional(),
+        // How much explanatory text each slide carries (advanced setting).
+        textDensity: z.enum(["brief", "standard", "detailed"]).default("standard"),
         // Search the web for current facts about the topic first (accuracy for
         // real products / news / anything time-sensitive).
         webSearch: z.boolean().default(false),
@@ -540,7 +545,13 @@ export const generateRouter = createRouter({
             : 1;
       // A walkthrough is an explanation, so it must carry written text even at
       // low levels — at least two paragraphs per content slide.
-      const paraFloor = purpose === "walkthrough" ? Math.max(2, baseParaFloor) : baseParaFloor;
+      const purposeParaFloor = purpose === "walkthrough" ? Math.max(2, baseParaFloor) : baseParaFloor;
+      // The advanced "text amount" setting shifts the floor up or down.
+      const densityDelta =
+        input.textDensity === "brief" ? -1 : input.textDensity === "detailed" ? 2 : 0;
+      const paraFloor = Math.max(1, purposeParaFloor + densityDelta);
+      // News summaries stay concise unless "detailed" is chosen.
+      const newsMinParas = input.textDensity === "detailed" ? 2 : 1;
       const layoutTemplates = allowedTemplates.map((t) => ({
         name: t.name,
         tags: t.tags,
@@ -584,6 +595,7 @@ export const generateRouter = createRouter({
         imageStyle: input.imageStyle,
         tone: input.tone,
         purpose,
+        textDensity: input.textDensity,
         subject: topic,
         previouslyTaught,
         layoutTemplates,
@@ -682,7 +694,7 @@ export const generateRouter = createRouter({
                 if (purpose === "news") {
                   const hasImage = s.components.some((c) => c.type === "image");
                   const needsImage = input.imageStyle !== "none";
-                  return !structOk || paraCount < 1 || (needsImage && !hasImage);
+                  return !structOk || paraCount < newsMinParas || (needsImage && !hasImage);
                 }
                 return !structOk || paraCount < paraFloor;
               });
@@ -838,14 +850,15 @@ export const generateRouter = createRouter({
     }),
 
   /**
-   * Admin-only: recalibrate the LENGTH of one slide's explanation without
+   * Admin/moderator: recalibrate the LENGTH of one slide's explanation without
    * changing its meaning or reading level. "longer" expands the same point
    * (reinforcing it from a fresh angle or a closely-related supporting idea
    * when there's nothing genuinely new to add); "shorter" compresses it to
    * fewer words while keeping the core idea. Returns the rewritten paragraphs.
-   * Not token-charged — it's an authoring tweak on an existing deck.
+   * Admins use it free; moderators are charged a small fee (waived when they
+   * bring their own text key).
    */
-  recalibrateProse: adminProcedure
+  recalibrateProse: moderatorProcedure
     .input(
       z.object({
         paragraphs: z.array(z.string().max(4000)).min(1).max(12),
@@ -858,6 +871,23 @@ export const generateRouter = createRouter({
     .mutation(async ({ ctx, input }): Promise<{ paragraphs: string[] }> => {
       const original = input.paragraphs.map((p) => p.trim()).filter(Boolean);
       if (original.length === 0) return { paragraphs: input.paragraphs };
+
+      // Moderators pay a small fee for this AI edit; admins don't, and a BYOK
+      // text key waives it. Refunded below if the provider produced nothing.
+      let charged = 0;
+      if (ctx.user.role === "moderator") {
+        const usingOwnKey = await userHasKey(ctx.user.id, "text");
+        if (!usingOwnKey) {
+          if (ctx.user.tokenBalance < RECALIBRATE_COST) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: `INSUFFICIENT_TOKENS: this needs ${RECALIBRATE_COST} 🪙, you have ${ctx.user.tokenBalance} 🪙`,
+            });
+          }
+          await applyTokenDelta(ctx.user.id, -RECALIBRATE_COST, "slide text recalibration");
+          charged = RECALIBRATE_COST;
+        }
+      }
 
       const longer = input.direction === "longer";
       const system = `You are an editor recalibrating the LENGTH of one slide's explanation for a CEFR level "${input.level}" reader. You output ONLY JSON: {"paragraphs": string[]}.
@@ -891,6 +921,7 @@ RULES (non-negotiable):
         maxTokens: longer ? 2000 : 1200,
       });
       if (!result) {
+        if (charged) await refundTokens(ctx.user.id, charged, "refund: slide text recalibration");
         throw new TRPCError({ code: "PRECONDITION_FAILED", message: AI_UNAVAILABLE_MSG });
       }
       try {
