@@ -4,6 +4,7 @@ import Home from './pages/Home';
 import LessonPath from './pages/LessonPath';
 import Repos from './pages/Repos';
 import Repository from './pages/Repository';
+import RepoBuilder from './pages/RepoBuilder';
 import Users from './pages/Users';
 import UserProfile from './pages/UserProfile';
 import Slides from './pages/Slides';
@@ -34,6 +35,7 @@ export default function App() {
         <Route path="/chat" element={<Home />} />
         <Route path="/lesson-path" element={<LessonPath />} />
         <Route path="/repos" element={<Repos />} />
+        <Route path="/repos/new/manual" element={<RepoBuilder />} />
         <Route path="/repos/:slug" element={<Repository />} />
         <Route path="/users" element={<Users />} />
         <Route path="/users/:id" element={<UserProfile />} />

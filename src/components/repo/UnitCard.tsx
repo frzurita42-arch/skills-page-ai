@@ -630,25 +630,25 @@ function LessonCard({
         return (
           <span onClick={onGuestStudy}>
             <SketchButton variant="accent" size="sm">
-              <Ticket className="h-4 w-4" strokeWidth={2} /> Customize
+              <Ticket className="h-4 w-4" strokeWidth={2} /> Configure
             </SketchButton>
           </span>
         );
       if (!studyToolSlug) return null;
-      // Already has a saved customization → play it, or generate a new one.
+      // Already has a saved configuration → play it, or configure a new one.
       if (lesson.myHasCustomization) {
         return (
           <>
-            <Link to={mineHref} title="Play the version you generated" className="no-underline">
+            <Link to={mineHref} title="Play the version you configured" className="no-underline">
               <SketchButton variant="accent" size="sm">
-                <Sparkles className="h-4 w-4" strokeWidth={2} /> My version
+                <Sparkles className="h-4 w-4" strokeWidth={2} /> Play yours
               </SketchButton>
             </Link>
-            {ticketAction('New', false)}
+            {ticketAction('Configure', false)}
           </>
         );
       }
-      return ticketAction('Customize', true);
+      return ticketAction('Configure', true);
     };
 
     // Owner: build / edit the free preset with their own credits.

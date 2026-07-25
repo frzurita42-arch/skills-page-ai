@@ -311,6 +311,8 @@ export const reposRouter = createRouter({
         description: z.string().max(4000).default(""),
         template: templateSchema.default("course"),
         studyToolSlug: z.string().max(191).optional(),
+        // "ai" (default) for generator-built repos, "human" for hand-laid ones.
+        source: z.enum(["ai", "human"]).default("ai"),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -328,6 +330,7 @@ export const reposRouter = createRouter({
         template: input.template,
         ownerId: ctx.user.id,
         studyToolSlug: input.studyToolSlug ?? null,
+        source: input.source,
         isPublic: true,
       });
       return { slug, ref: repoRef(slug) };

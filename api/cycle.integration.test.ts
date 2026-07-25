@@ -355,6 +355,21 @@ describe.runIf(HAS_DB)("full coins ↔ tickets cycle", () => {
     ).rejects.toThrow(/Only the owner/);
   });
 
+  it("8d) hand-laid repo is marked source \"human\"; generator repo is \"ai\"", async () => {
+    const human = await call(moderator).repos.create({
+      title: `Hand Repo ${Date.now()}`,
+      description: "by hand",
+      template: "course",
+      source: "human",
+    });
+    const humanDetail = await call(moderator).repos.getBySlug({ slug: human.slug });
+    expect(humanDetail!.source).toBe("human");
+    // the earlier AI-built repo defaults to "ai"
+    const aiSlug = (globalThis as Record<string, unknown>).__repoSlug as string;
+    const aiDetail = await call(moderator).repos.getBySlug({ slug: aiSlug });
+    expect(aiDetail!.source).toBe("ai");
+  });
+
   it("9) draining a moderator's credits demotes them to a user", async () => {
     const m = await reload(moderator.id);
     expect(m.role).toBe("moderator");

@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   LayoutGrid,
+  PencilRuler,
   Plus,
   Search,
   Sparkles,
@@ -336,13 +337,21 @@ export default function Repos() {
           ))}
         </div>
 
-        {/* new repository */}
-        <Link to="/lesson-path" className="ml-auto no-underline">
-          <SketchButton variant="accent" size="sm">
-            <Plus className="h-4 w-4" strokeWidth={2.5} />
-            New repository
-          </SketchButton>
-        </Link>
+        {/* new repository — AI (lesson path) or by hand */}
+        <div className="ml-auto flex items-center gap-2">
+          <Link to="/repos/new/manual" className="no-underline">
+            <SketchButton variant="secondary" size="sm" title="Lay out a repo by hand — no AI">
+              <PencilRuler className="h-4 w-4" strokeWidth={2.5} />
+              By hand
+            </SketchButton>
+          </Link>
+          <Link to="/lesson-path" className="no-underline">
+            <SketchButton variant="accent" size="sm">
+              <Plus className="h-4 w-4" strokeWidth={2.5} />
+              New repository
+            </SketchButton>
+          </Link>
+        </div>
 
         {/* template filter chips */}
         <div className="flex w-full flex-wrap items-center gap-1.5 border-t-2 border-dashed border-pencil pt-2.5">
