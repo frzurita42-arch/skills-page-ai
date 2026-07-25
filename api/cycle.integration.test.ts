@@ -265,10 +265,18 @@ describe.runIf(HAS_DB)("full coins ↔ tickets cycle", () => {
     expect(entry!.repoCount).toBeGreaterThanOrEqual(1);
     expect(entry!.favorite).toBe(true);
 
-    // profile returns their public repo (savable/browsable catalog)
+    // profile returns their public repo (savable/browsable catalog) + slide tools
     const prof = await call(student).users.profile({ userId: moderator.id });
     expect(prof.favorite).toBe(true);
     expect(prof.repos.some((r) => r.slug === repoSlug)).toBe(true);
+    expect(Array.isArray(prof.slideTools)).toBe(true);
+
+    // the directory lists EVERY user now — including the student (0 repos)
+    const stu = dir.find((u) => u.id === student.id);
+    expect(stu).toBeTruthy();
+    expect(stu!.repoCount).toBe(0);
+    // and the creator's entry carries its repo categories for topic filtering
+    expect(entry!.templates).toContain("course");
   });
 
   it("8) a student requests tickets and the owner grants from the request queue", async () => {

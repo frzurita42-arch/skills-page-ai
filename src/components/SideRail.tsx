@@ -30,8 +30,8 @@ const ROLE_CHIP: Record<string, string> = {
 // on the Repos page (the repo builder). The /lesson-path route still exists.
 const NAV_ITEMS = [
   { to: '/', label: 'Repos', icon: LibraryBig, end: true },
-  { to: '/users', label: 'Users', icon: Users },
   { to: '/slides', label: 'Slides', icon: Presentation },
+  { to: '/users', label: 'Users', icon: Users },
   { to: '/chat', label: 'Chat', icon: MessageCircle },
   { to: '/about', label: 'About', icon: Info },
 ];

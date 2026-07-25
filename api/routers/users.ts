@@ -4,10 +4,11 @@ import { and, desc, eq, like, or } from "drizzle-orm";
 import { createRouter, publicQuery } from "../middleware";
 import { adminProcedure, authedProcedure, moderatorProcedure } from "../procedures";
 import { getDb } from "../queries/connection";
-import { favorites, repos, runs, users } from "@db/schema";
+import { favorites, repos, runs, slideTools, users } from "@db/schema";
 import { applyTokenDelta } from "../tokens";
 import { favoriteSlugs, repoSummaries } from "./repos";
-import type { AdminUserRow, DirectoryUser, UserProfile } from "@contracts/types";
+import { toSummary as slideToolSummary } from "./slideTools";
+import type { AdminUserRow, DirectoryUser, RepoTemplate, UserProfile } from "@contracts/types";
 
 async function toRow(db: ReturnType<typeof getDb>, u: typeof users.$inferSelect): Promise<AdminUserRow> {
   const userRuns = await db.select({ id: runs.id }).from(runs).where(eq(runs.userId, u.id));
@@ -25,34 +26,38 @@ async function toRow(db: ReturnType<typeof getDb>, u: typeof users.$inferSelect)
 
 export const usersRouter = createRouter({
   /**
-   * Public creator directory — anyone (including guests) can browse the people
-   * who have published repos, favorite them, and open their profile. Only
-   * creators with at least one public repo are listed.
+   * Public user directory — anyone (including guests) can browse EVERY user,
+   * favorite them, and open their profile. Each entry carries a repo count and
+   * the categories of their public repos for filtering.
    */
   directory: publicQuery
     .input(z.object({ q: z.string().max(200).optional() }).optional())
     .query(async ({ ctx, input }): Promise<DirectoryUser[]> => {
       const db = getDb();
       const publicRepos = await db
-        .select({ ownerId: repos.ownerId })
+        .select({ ownerId: repos.ownerId, template: repos.template })
         .from(repos)
         .where(eq(repos.isPublic, true));
       const counts = new Map<number, number>();
+      const cats = new Map<number, Set<string>>();
       for (const r of publicRepos) {
-        if (r.ownerId != null) counts.set(r.ownerId, (counts.get(r.ownerId) ?? 0) + 1);
+        if (r.ownerId == null) continue;
+        counts.set(r.ownerId, (counts.get(r.ownerId) ?? 0) + 1);
+        const s = cats.get(r.ownerId) ?? new Set<string>();
+        s.add(r.template);
+        cats.set(r.ownerId, s);
       }
-      if (counts.size === 0) return [];
       const rows = await db.select().from(users);
       const favs = await favoriteSlugs(ctx.user?.id, "user");
       const q = input?.q?.trim().toLowerCase();
       return rows
-        .filter((u) => counts.has(u.id))
         .filter((u) => !q || u.name.toLowerCase().includes(q))
         .map((u) => ({
           id: u.id,
           name: u.name,
           role: u.role,
           repoCount: counts.get(u.id) ?? 0,
+          templates: [...(cats.get(u.id) ?? [])] as RepoTemplate[],
           favorite: favs.has(String(u.id)),
         }))
         .sort(
@@ -63,7 +68,7 @@ export const usersRouter = createRouter({
         );
     }),
 
-  /** A creator's public profile: the public repos they own + public contact. */
+  /** A user's public profile: the public repos + slide tools they own + contact. */
   profile: publicQuery
     .input(z.object({ userId: z.number().int() }))
     .query(async ({ ctx, input }): Promise<UserProfile> => {
@@ -75,7 +80,13 @@ export const usersRouter = createRouter({
         .from(repos)
         .where(and(eq(repos.ownerId, user.id), eq(repos.isPublic, true)))
         .orderBy(desc(repos.createdAt));
+      const ownedTools = await db
+        .select()
+        .from(slideTools)
+        .where(and(eq(slideTools.ownerId, user.id), eq(slideTools.isPublic, true)))
+        .orderBy(desc(slideTools.createdAt));
       const summaries = await repoSummaries(ownedPublic, ctx.user?.id);
+      const toolSummaries = await Promise.all(ownedTools.map((t) => slideToolSummary(t, ctx.user?.id)));
       const favs = await favoriteSlugs(ctx.user?.id, "user");
       return {
         id: user.id,
@@ -87,6 +98,7 @@ export const usersRouter = createRouter({
         contactNote: user.contactNote ?? null,
         favorite: favs.has(String(user.id)),
         repos: summaries,
+        slideTools: toolSummaries,
       };
     }),
 

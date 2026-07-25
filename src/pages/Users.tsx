@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { trpc } from '@/providers/trpc';
 import { useAuth } from '@/hooks/useAuth';
 import Chip from '@/components/sketch/Chip';
-import type { DirectoryUser } from '@contracts/types';
+import type { DirectoryUser, RepoTemplate } from '@contracts/types';
 
 function useDebounced<T>(value: T, ms: number): T {
   const [d, setD] = useState(value);
@@ -27,6 +27,8 @@ export default function Users() {
   const [q, setQ] = useState('');
   const debouncedQ = useDebounced(q, 250);
   const [favsOnly, setFavsOnly] = useState(false);
+  const [creatorsOnly, setCreatorsOnly] = useState(false);
+  const [category, setCategory] = useState<RepoTemplate | 'all'>('all');
   const utils = trpc.useUtils();
 
   const list = trpc.users.directory.useQuery({ q: debouncedQ || undefined });
@@ -48,9 +50,12 @@ export default function Users() {
   });
 
   const rows = useMemo(() => {
-    const all = list.data ?? [];
-    return favsOnly ? all.filter((u) => u.favorite) : all;
-  }, [list.data, favsOnly]);
+    let all = list.data ?? [];
+    if (favsOnly) all = all.filter((u) => u.favorite);
+    if (creatorsOnly) all = all.filter((u) => u.repoCount > 0);
+    if (category !== 'all') all = all.filter((u) => u.templates.includes(category));
+    return all;
+  }, [list.data, favsOnly, creatorsOnly, category]);
 
   const onFav = (u: DirectoryUser) => {
     if (isGuest) {
@@ -63,38 +68,70 @@ export default function Users() {
   return (
     <div className="mx-auto flex w-full max-w-content flex-col gap-6 px-4 py-8 lg:px-8">
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="font-display text-4xl font-bold text-ink">Creators</h2>
+        <h2 className="font-display text-4xl font-bold text-ink">Users</h2>
         <Chip kind="neutral">{rows.length}</Chip>
       </div>
       <p className="-mt-3 max-w-2xl text-ink-soft">
-        Browse the people building on SketchLearn. Open a profile to see everything they've
-        published, and star the ones you want to follow.
+        Browse everyone on SketchLearn. Open a profile to see what they've published, request
+        tickets or coins, and star the ones you want to follow.
       </p>
 
       {/* toolbar */}
-      <div className="flex flex-wrap items-center gap-3 rounded-wobble-2 border-2 border-ink bg-paper-3 p-3 shadow-offset">
-        <div className="relative min-w-[220px] flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" strokeWidth={2} />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search creators…"
-            aria-label="Search creators"
-            className="w-full rounded-wobble-sm border-2 border-ink bg-paper py-2 pl-9 pr-3 text-sm text-ink shadow-offset outline-none placeholder:text-ink-faint focus:border-blue"
-          />
+      <div className="flex flex-col gap-3 rounded-wobble-2 border-2 border-ink bg-paper-3 p-3 shadow-offset">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-[220px] flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" strokeWidth={2} />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search by name…"
+              aria-label="Search users"
+              className="w-full rounded-wobble-sm border-2 border-ink bg-paper py-2 pl-9 pr-3 text-sm text-ink shadow-offset outline-none placeholder:text-ink-faint focus:border-blue"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setCreatorsOnly((c) => !c)}
+            className={cn(
+              'flex items-center gap-1.5 rounded-wobble-sm border-2 px-3 py-2 text-sm font-bold transition-colors',
+              creatorsOnly
+                ? 'border-ink bg-yellow text-ink shadow-offset'
+                : 'border-dashed border-pencil text-ink-soft hover:border-ink hover:text-ink',
+            )}
+          >
+            <LibraryBig className="h-4 w-4" strokeWidth={2} /> Has repos
+          </button>
+          <button
+            type="button"
+            onClick={() => setFavsOnly((f) => !f)}
+            className={cn(
+              'flex items-center gap-1.5 rounded-wobble-sm border-2 px-3 py-2 text-sm font-bold transition-colors',
+              favsOnly
+                ? 'border-ink bg-yellow text-ink shadow-offset'
+                : 'border-dashed border-pencil text-ink-soft hover:border-ink hover:text-ink',
+            )}
+          >
+            <Star className={cn('h-4 w-4', favsOnly && 'fill-ink')} strokeWidth={2} /> Favorites
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => setFavsOnly((f) => !f)}
-          className={cn(
-            'flex items-center gap-1.5 rounded-wobble-sm border-2 px-3 py-2 text-sm font-bold transition-colors',
-            favsOnly
-              ? 'border-ink bg-yellow text-ink shadow-offset'
-              : 'border-dashed border-pencil text-ink-soft hover:border-ink hover:text-ink',
-          )}
-        >
-          <Star className={cn('h-4 w-4', favsOnly && 'fill-ink')} strokeWidth={2} /> Favorites
-        </button>
+        {/* topic (category) chips */}
+        <div className="flex flex-wrap gap-2 border-t-2 border-dashed border-pencil pt-2.5">
+          {(['all', 'course', 'restaurant', 'service', 'shop'] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setCategory(t)}
+              className={cn(
+                'rounded-wobble-sm border-2 px-3 py-1 text-xs font-bold uppercase tracking-wider transition-colors',
+                category === t
+                  ? 'border-ink bg-yellow text-ink shadow-offset'
+                  : 'border-dashed border-pencil text-ink-soft hover:border-ink hover:text-ink',
+              )}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* grid */}
@@ -104,7 +141,7 @@ export default function Users() {
         </div>
       ) : rows.length === 0 ? (
         <div className="rounded-wobble-sm border-2 border-dashed border-pencil bg-paper-2/50 p-10 text-center text-ink-faint">
-          {favsOnly ? 'No favorited creators yet — tap a star to add one ⭐' : 'No creators to show yet.'}
+          {favsOnly ? 'No favorited users yet — tap a star to add one ⭐' : 'No users match these filters.'}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

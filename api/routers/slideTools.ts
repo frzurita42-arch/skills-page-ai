@@ -11,7 +11,7 @@ import type { SlideDeck, SlideToolSummary, Tone } from "@contracts/types";
 
 const toneSchema = z.string().refine((t) => (TONES as string[]).includes(t), "unknown tone");
 
-async function toSummary(tool: SlideTool, userId: number | undefined): Promise<SlideToolSummary> {
+export async function toSummary(tool: SlideTool, userId: number | undefined): Promise<SlideToolSummary> {
   const db = getDb();
   const toolRuns = await db.select({ id: runs.id }).from(runs).where(eq(runs.slideToolId, tool.id));
   let favorite = false;

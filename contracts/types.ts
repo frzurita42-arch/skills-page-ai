@@ -209,16 +209,18 @@ export interface TicketRequestRow {
   createdAt: Date;
 }
 
-/** A creator in the public Users directory. */
+/** A person in the public Users directory (everyone is listed). */
 export interface DirectoryUser {
   id: number;
   name: string;
   role: Role;
   repoCount: number;
+  /** distinct categories of the public repos they own (for topic filtering) */
+  templates: RepoTemplate[];
   favorite: boolean;
 }
 
-/** A creator's public profile: their public repos + public contact details. */
+/** A user's public profile: their public repos + slide tools + contact. */
 export interface UserProfile {
   id: number;
   name: string;
@@ -229,6 +231,7 @@ export interface UserProfile {
   contactNote: string | null;
   favorite: boolean;
   repos: RepoSummary[];
+  slideTools: SlideToolSummary[];
 }
 
 /* ---------------- Repos / slide tools ------------------------------ */
