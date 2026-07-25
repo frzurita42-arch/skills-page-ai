@@ -1,5 +1,5 @@
 {
-  "id": "f645ea1a-843b-4176-8964-b995d908724f",
+  "id": "1daf7f22-aa53-498f-bc92-1cebecc4b100",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1156,6 +1156,26 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'sketch'"
+        },
+        "defaultTone": {
+          "name": "defaultTone",
+          "type": "varchar(24)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'neutral'"
+        },
+        "source": {
+          "name": "source",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'ai'"
+        },
+        "deckJson": {
+          "name": "deckJson",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false
         },
         "isPublic": {
           "name": "isPublic",

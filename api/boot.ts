@@ -12,6 +12,7 @@ import {
   ensureTicketSchema,
   ensureUserFavoriteType,
   ensureCustomizationSchema,
+  ensureSlideToolAuthoring,
 } from "./lib/migrate-annotations";
 
 // Best-effort schema catch-up on boot so an existing database accepts CEFR
@@ -60,6 +61,14 @@ void ensureUserFavoriteType().catch((err) =>
 void ensureCustomizationSchema().catch((err) =>
   console.warn(
     "[migrate] customization schema auto-migration skipped:",
+    err instanceof Error ? err.message : err,
+  ),
+);
+
+// Best-effort: add slide-tool authoring columns (defaultTone, source, deckJson).
+void ensureSlideToolAuthoring().catch((err) =>
+  console.warn(
+    "[migrate] slide-tool authoring auto-migration skipped:",
     err instanceof Error ? err.message : err,
   ),
 );

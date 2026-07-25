@@ -214,7 +214,8 @@ function ToolStudio({
   const [includeQuiz, setIncludeQuiz] = useState(true);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   // Advanced: teaching tone / voice for the whole deck (register + jargon).
-  const [tone, setTone] = useState<Tone>('neutral');
+  // Seeded from the tool's saved default tone.
+  const [tone, setTone] = useState<Tone>(tool.defaultTone ?? 'neutral');
   // Advanced: solve slides use the freehand scratchpad (on) or a plain answer
   // box (off) as the way to submit a worked solution.
   const [useScratchpad, setUseScratchpad] = useState(true);

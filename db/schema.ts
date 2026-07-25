@@ -132,6 +132,13 @@ export const slideTools = appSchema.table(
     defaultLevel: levelEnum("defaultLevel").notNull().default("A1"),
     defaultSlideCount: integer("defaultSlideCount").notNull().default(8),
     defaultImageStyle: imageStyleEnum("defaultImageStyle").notNull().default("sketch"),
+    // Advanced default: teaching tone applied to generations from this tool.
+    defaultTone: varchar("defaultTone", { length: 24 }).notNull().default("neutral"),
+    // How this tool's content is authored: "ai" = a reusable AI generator (no
+    // saved deck), "human" = a hand-built / customized presentation whose deck
+    // lives in deckJson and plays directly (no generation).
+    source: varchar("source", { length: 16 }).notNull().default("ai"),
+    deckJson: json("deckJson"),
     isPublic: boolean("isPublic").notNull().default(true),
     createdAt: createdAt(),
     updatedAt: updatedAt(),

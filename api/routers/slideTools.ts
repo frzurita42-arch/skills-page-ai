@@ -6,7 +6,10 @@ import { authedProcedure } from "../procedures";
 import { getDb } from "../queries/connection";
 import { favorites, runs, slideTools, users, type SlideTool, type User } from "@db/schema";
 import { imageStyleSchema, levelSchema, slugify } from "../ai/prompts";
-import type { SlideToolSummary } from "@contracts/types";
+import { TONES } from "@contracts/types";
+import type { SlideDeck, SlideToolSummary, Tone } from "@contracts/types";
+
+const toneSchema = z.string().refine((t) => (TONES as string[]).includes(t), "unknown tone");
 
 async function toSummary(tool: SlideTool, userId: number | undefined): Promise<SlideToolSummary> {
   const db = getDb();
@@ -36,6 +39,9 @@ async function toSummary(tool: SlideTool, userId: number | undefined): Promise<S
     defaultLevel: tool.defaultLevel,
     defaultSlideCount: tool.defaultSlideCount,
     defaultImageStyle: tool.defaultImageStyle,
+    defaultTone: ((tool.defaultTone as Tone) ?? "neutral") as Tone,
+    source: tool.source === "human" ? "human" : "ai",
+    hasDeck: tool.deckJson != null,
     isPublic: tool.isPublic,
     favorite,
     runCount: toolRuns.length,
@@ -91,6 +97,7 @@ export const slideToolsRouter = createRouter({
         defaultLevel: levelSchema.default("A1"),
         defaultSlideCount: z.number().int().min(1).max(15).default(8),
         defaultImageStyle: imageStyleSchema.default("sketch"),
+        defaultTone: toneSchema.default("neutral"),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -104,6 +111,70 @@ export const slideToolsRouter = createRouter({
       return { slug };
     }),
 
+  /**
+   * Create a HAND-BUILT presentation (source = "human"). Stores the deck the
+   * user built by hand; its card plays directly with no AI generation.
+   */
+  createManual: authedProcedure
+    .input(
+      z.object({
+        name: z.string().min(3).max(255),
+        description: z.string().max(4000).default(""),
+        deck: z.unknown(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const db = getDb();
+      const base = slugify(input.name);
+      let slug = base;
+      for (let i = 2; await db.query.slideTools.findFirst({ where: eq(slideTools.slug, slug) }); i++) {
+        slug = `${base}-${i}`;
+      }
+      const deck = input.deck as SlideDeck;
+      await db.insert(slideTools).values({
+        slug,
+        name: input.name,
+        description: input.description,
+        topic: deck?.topic ?? input.name,
+        instructions: "",
+        ownerId: ctx.user.id,
+        isPublic: true,
+        source: "human",
+        deckJson: deck,
+        defaultLevel: deck?.level ?? "B1",
+        defaultImageStyle: deck?.imageStyle ?? "none",
+      });
+      return { slug };
+    }),
+
+  /** Owner/admin saves the hand-built deck for a tool (marks it human-authored). */
+  saveDeck: authedProcedure
+    .input(z.object({ slug: z.string().min(1), deck: z.unknown() }))
+    .mutation(async ({ ctx, input }): Promise<{ ok: true }> => {
+      const db = getDb();
+      const tool = await db.query.slideTools.findFirst({ where: eq(slideTools.slug, input.slug) });
+      if (!tool) throw new TRPCError({ code: "NOT_FOUND", message: "Slide tool not found" });
+      if (!canEdit(tool, ctx.user)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only the owner can edit this presentation" });
+      }
+      await db
+        .update(slideTools)
+        .set({ deckJson: input.deck as SlideDeck, source: "human", updatedAt: new Date() })
+        .where(eq(slideTools.id, tool.id));
+      return { ok: true };
+    }),
+
+  /** Load a tool's saved hand-built deck to play it (no generation, no charge). */
+  deck: publicQuery
+    .input(z.object({ slug: z.string().min(1) }))
+    .query(async ({ ctx, input }): Promise<{ deck: SlideDeck; name: string } | null> => {
+      const db = getDb();
+      const tool = await db.query.slideTools.findFirst({ where: eq(slideTools.slug, input.slug) });
+      if (!tool || tool.deckJson == null) return null;
+      if (!tool.isPublic && (!ctx.user || !canEdit(tool, ctx.user))) return null;
+      return { deck: tool.deckJson as SlideDeck, name: tool.name };
+    }),
+
   update: authedProcedure
     .input(
       z.object({
@@ -115,6 +186,7 @@ export const slideToolsRouter = createRouter({
         defaultLevel: levelSchema.optional(),
         defaultSlideCount: z.number().int().min(1).max(15).optional(),
         defaultImageStyle: imageStyleSchema.optional(),
+        defaultTone: toneSchema.optional(),
         isPublic: z.boolean().optional(),
       }),
     )

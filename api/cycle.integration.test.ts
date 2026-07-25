@@ -327,6 +327,34 @@ describe.runIf(HAS_DB)("full coins ↔ tickets cycle", () => {
     expect(rows.length).toBe(1);
   });
 
+  it("8c) hand-built (human) slide tool: create, play deck, badge source", async () => {
+    const deck = {
+      level: "B1",
+      imageStyle: "none",
+      topic: "By hand",
+      slides: [{ title: "Handmade", components: [{ type: "prose", paragraphs: ["No AI here"] }] }],
+    };
+    const { slug } = await call(moderator).slideTools.createManual({
+      name: `Manual Deck ${Date.now()}`,
+      deck,
+    });
+    // deck plays directly (public, no charge)
+    const played = await call().slideTools.deck({ slug });
+    expect(played!.deck.slides[0].title).toBe("Handmade");
+    // summary marks it human-authored with a saved deck
+    const summary = await call().slideTools.getBySlug({ slug });
+    expect(summary.source).toBe("human");
+    expect(summary.hasDeck).toBe(true);
+    // a plain AI tool reports source "ai" and no deck
+    const aiSummary = await call().slideTools.getBySlug({ slug: toolSlug });
+    expect(aiSummary.source).toBe("ai");
+    expect(aiSummary.hasDeck).toBe(false);
+    // editing the deck is owner-gated
+    await expect(
+      call(student).slideTools.saveDeck({ slug, deck }),
+    ).rejects.toThrow(/Only the owner/);
+  });
+
   it("9) draining a moderator's credits demotes them to a user", async () => {
     const m = await reload(moderator.id);
     expect(m.role).toBe("moderator");

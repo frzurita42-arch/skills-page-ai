@@ -14,6 +14,7 @@ import {
   Trash2,
   Copy,
   Pencil,
+  PencilRuler,
   Route,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -426,7 +427,15 @@ export default function Slides() {
           ))}
         </div>
 
-        <div className="ml-auto">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <SketchButton
+            variant="secondary"
+            onClick={requireAuth(() => navigate('/slides/build'))}
+            title="Build a presentation by hand — no AI"
+          >
+            <PencilRuler className="h-4 w-4" strokeWidth={2.5} />
+            New manual presentation
+          </SketchButton>
           <SketchButton
             variant="accent"
             onClick={requireAuth(() => setCreateOpen(true))}
@@ -505,7 +514,9 @@ export default function Slides() {
                       hover
                       className="relative flex h-full flex-col gap-3 p-5"
                       onMouseEnter={() => prefetch(tool.slug)}
-                      onClick={() => navigate(`/slides/${tool.slug}`)}
+                      onClick={() =>
+                        navigate(tool.hasDeck ? `/slides/show/${tool.slug}` : `/slides/${tool.slug}`)
+                      }
                     >
                       <div className="flex items-start justify-between">
                         <span className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-ink bg-blue-soft text-ink">
@@ -553,6 +564,15 @@ export default function Slides() {
                             Direct
                           </Chip>
                         )}
+                        {tool.source === 'human' ? (
+                          <span className="micro rounded-full border-2 border-ink bg-green-soft px-2 py-0.5 text-[0.58rem] font-bold text-green">
+                            Human
+                          </span>
+                        ) : (
+                          <span className="micro rounded-full border-2 border-ink bg-purple-soft px-2 py-0.5 text-[0.58rem] font-bold text-purple">
+                            Made with AI
+                          </span>
+                        )}
                       </div>
 
                       <p className="micro text-ink-faint">
@@ -564,17 +584,36 @@ export default function Slides() {
                         className="mt-auto flex items-center gap-2 border-t-2 border-dashed border-pencil pt-3"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <Link to={`/slides/${tool.slug}`} className="flex-1">
-                          <SketchButton variant="accent" size="sm" className="w-full">
-                            <Play className="h-3.5 w-3.5" strokeWidth={2.5} />
-                            New presentation
-                          </SketchButton>
-                        </Link>
-                        <Link to={`/slides/${tool.slug}`}>
-                          <SketchButton variant="ghost" size="sm">
-                            Open
-                          </SketchButton>
-                        </Link>
+                        {tool.hasDeck ? (
+                          <>
+                            <Link to={`/slides/show/${tool.slug}`} className="flex-1">
+                              <SketchButton variant="accent" size="sm" className="w-full">
+                                <Play className="h-3.5 w-3.5" strokeWidth={2.5} />
+                                Play
+                              </SketchButton>
+                            </Link>
+                            <Link to={`/slides/build/${tool.slug}`}>
+                              <SketchButton variant="ghost" size="sm">
+                                <Pencil className="h-3.5 w-3.5" strokeWidth={2} />
+                                Edit
+                              </SketchButton>
+                            </Link>
+                          </>
+                        ) : (
+                          <>
+                            <Link to={`/slides/${tool.slug}`} className="flex-1">
+                              <SketchButton variant="accent" size="sm" className="w-full">
+                                <Play className="h-3.5 w-3.5" strokeWidth={2.5} />
+                                New presentation
+                              </SketchButton>
+                            </Link>
+                            <Link to={`/slides/${tool.slug}`}>
+                              <SketchButton variant="ghost" size="sm">
+                                Open
+                              </SketchButton>
+                            </Link>
+                          </>
+                        )}
                       </div>
                     </SketchCard>
                   </motion.div>

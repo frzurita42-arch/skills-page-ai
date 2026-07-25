@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'sonner';
+import { ChevronDown } from 'lucide-react';
 import { trpc } from '@/providers/trpc';
 import { cn } from '@/lib/utils';
-import type { ImageStyle, Level } from '@contracts/types';
-import { LEVELS } from '@contracts/types';
+import type { ImageStyle, Level, Tone } from '@contracts/types';
+import { LEVELS, TONES, TONE_LABEL, TONE_HINT } from '@contracts/types';
 import SketchButton from '../sketch/SketchButton';
 import WashiTape from '../sketch/WashiTape';
 
@@ -34,6 +35,8 @@ export default function CreateToolModal({ open, onClose }: CreateToolModalProps)
   const [level, setLevel] = useState<Level>('A1');
   const [slideCount, setSlideCount] = useState(8);
   const [imageStyle, setImageStyle] = useState<ImageStyle>('sketch');
+  const [tone, setTone] = useState<Tone>('neutral');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const create = trpc.slideTools.create.useMutation({
     onSuccess: async ({ slug }) => {
@@ -58,6 +61,7 @@ export default function CreateToolModal({ open, onClose }: CreateToolModalProps)
       defaultLevel: level,
       defaultSlideCount: slideCount,
       defaultImageStyle: imageStyle,
+      defaultTone: tone,
     });
   };
 
@@ -219,6 +223,46 @@ export default function CreateToolModal({ open, onClose }: CreateToolModalProps)
                     No images
                   </button>
                 </div>
+              </div>
+
+              {/* advanced options */}
+              <div className="rounded-wobble-sm border-2 border-dashed border-pencil">
+                <button
+                  type="button"
+                  onClick={() => setAdvancedOpen((o) => !o)}
+                  aria-expanded={advancedOpen}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left"
+                >
+                  <span className="micro font-bold text-ink">Advanced options</span>
+                  <span className="micro text-[0.58rem] text-ink-faint">tone</span>
+                  <ChevronDown
+                    className={cn('ml-auto h-4 w-4 text-ink-soft transition-transform', advancedOpen && 'rotate-180')}
+                  />
+                </button>
+                {advancedOpen && (
+                  <div className="border-t-2 border-dashed border-pencil p-3">
+                    <span className="micro mb-1.5 block text-ink-soft">Default tone</span>
+                    <div className="flex flex-wrap gap-2">
+                      {TONES.map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setTone(t)}
+                          title={TONE_HINT[t]}
+                          className={cn(
+                            'rounded-wobble-sm border-2 px-3 py-1 text-sm font-bold transition-all',
+                            tone === t
+                              ? 'border-ink bg-yellow text-ink shadow-offset'
+                              : 'border-dashed border-pencil text-ink-soft hover:border-ink hover:text-ink',
+                          )}
+                        >
+                          {TONE_LABEL[t]}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-xs text-ink-faint">{TONE_HINT[tone]}</p>
+                  </div>
+                )}
               </div>
             </div>
 

@@ -325,6 +325,12 @@ export interface SlideToolSummary {
   defaultLevel: Level;
   defaultSlideCount: number;
   defaultImageStyle: ImageStyle;
+  /** advanced default teaching tone for generations from this tool */
+  defaultTone: Tone;
+  /** "ai" = reusable AI generator; "human" = hand-built presentation with a saved deck */
+  source: ContentSource;
+  /** true when this tool carries a saved deck (a human-built presentation) */
+  hasDeck: boolean;
   isPublic: boolean;
   favorite: boolean;
   runCount: number;

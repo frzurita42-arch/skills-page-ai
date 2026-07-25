@@ -191,6 +191,38 @@ export async function ensureCustomizationSchema(): Promise<void> {
 }
 
 /**
+ * Idempotently add the slide-tool authoring columns (defaultTone, source,
+ * deckJson) so tools can be hand-built presentations, not only AI generators.
+ * Best-effort at boot; safe to call repeatedly.
+ */
+export async function ensureSlideToolAuthoring(): Promise<void> {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) return;
+  const client = new Client({ connectionString });
+  await client.connect();
+  try {
+    const { rows } = await client.query<{ exists: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1 FROM information_schema.tables
+          WHERE table_schema = 'sketchlearn' AND table_name = 'slideTools'
+       ) AS exists`,
+    );
+    if (!rows[0]?.exists) return;
+    await client.query(
+      `ALTER TABLE sketchlearn."slideTools" ADD COLUMN IF NOT EXISTS "defaultTone" varchar(24) NOT NULL DEFAULT 'neutral'`,
+    );
+    await client.query(
+      `ALTER TABLE sketchlearn."slideTools" ADD COLUMN IF NOT EXISTS "source" varchar(16) NOT NULL DEFAULT 'ai'`,
+    );
+    await client.query(
+      `ALTER TABLE sketchlearn."slideTools" ADD COLUMN IF NOT EXISTS "deckJson" json`,
+    );
+  } finally {
+    await client.end();
+  }
+}
+
+/**
  * Idempotently allow favoriting users: add the "user" value to the favorites
  * targetType enum on older databases. Best-effort at boot.
  */
