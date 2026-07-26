@@ -90,35 +90,41 @@ export const authRouter = createRouter({
       }),
     )
     .mutation(async ({ input }) => {
-      const db = getDb();
-      const identifier = input.email.trim();
-      const lowered = identifier.toLowerCase();
-      let user: User | undefined;
-      if (identifier.includes("@")) {
-        user = await withTimeout(
-          db.query.users.findFirst({ where: eq(users.email, lowered) }),
-          8000,
-          "Sign-in is taking too long. Please try again.",
-        );
-      } else if (lowered === "admin") {
-        user = await withTimeout(
-          db.query.users.findFirst({ where: eq(users.email, "admin@sketchlearn.app") }),
-          8000,
-          "Sign-in is taking too long. Please try again.",
-        );
-      } else {
-        user = await withTimeout(
-          db.query.users.findFirst({
-            where: sql`LOWER(${users.name}) = ${lowered}`,
-          }),
-          8000,
-          "Sign-in is taking too long. Please try again.",
-        );
-      }
-      if (!user || !verifyPassword(input.password, user.passwordHash)) {
-        throw new TRPCError({ code: "UNAUTHORIZED", message: "Email or password doesn't match" });
-      }
-      return { token: signAuthToken({ sub: user.id, email: user.email }), user: toSessionUser(user) };
+      return withTimeout(
+        (async () => {
+          const db = getDb();
+          const identifier = input.email.trim();
+          const lowered = identifier.toLowerCase();
+          let user: User | undefined;
+          if (identifier.includes("@")) {
+            user = await withTimeout(
+              db.query.users.findFirst({ where: eq(users.email, lowered) }),
+              8000,
+              "Sign-in is taking too long. Please try again.",
+            );
+          } else if (lowered === "admin") {
+            user = await withTimeout(
+              db.query.users.findFirst({ where: eq(users.email, "admin@sketchlearn.app") }),
+              8000,
+              "Sign-in is taking too long. Please try again.",
+            );
+          } else {
+            user = await withTimeout(
+              db.query.users.findFirst({
+                where: sql`LOWER(${users.name}) = ${lowered}`,
+              }),
+              8000,
+              "Sign-in is taking too long. Please try again.",
+            );
+          }
+          if (!user || !verifyPassword(input.password, user.passwordHash)) {
+            throw new TRPCError({ code: "UNAUTHORIZED", message: "Email or password doesn't match" });
+          }
+          return { token: signAuthToken({ sub: user.id, email: user.email }), user: toSessionUser(user) };
+        })(),
+        10000,
+        "Sign-in is taking too long. Please try again.",
+      );
     }),
 
   me: publicQuery.query(({ ctx }) => {

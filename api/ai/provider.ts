@@ -170,6 +170,7 @@ async function callOpenAICompatible(
   key: ResolvedKey,
   messages: ChatMessage[],
   maxTokens: number,
+  timeoutMs: number,
 ): Promise<string> {
   const base = (key.baseUrl || DEFAULT_BASE_URLS.openai).replace(/\/$/, "");
   // DeepSeek/Moonshot reject max_tokens above 8k; gpt-4o-mini tops out at 16k.
@@ -188,7 +189,7 @@ async function callOpenAICompatible(
       temperature: 0.7,
       response_format: { type: "json_object" },
     }),
-    signal: AbortSignal.timeout(60_000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok) throw new Error(`OpenAI-compatible API ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const data = (await res.json()) as {
@@ -203,6 +204,7 @@ async function callAnthropic(
   key: ResolvedKey,
   messages: ChatMessage[],
   maxTokens: number,
+  timeoutMs: number,
 ): Promise<string> {
   const base = (key.baseUrl || DEFAULT_BASE_URLS.anthropic).replace(/\/$/, "");
   maxTokens = Math.min(maxTokens, 8192); // haiku's per-request output ceiling
@@ -221,7 +223,7 @@ async function callAnthropic(
       system,
       messages: rest.map((m) => ({ role: m.role, content: m.content })),
     }),
-    signal: AbortSignal.timeout(60_000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok) throw new Error(`Anthropic API ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const data = (await res.json()) as { content?: { type: string; text?: string }[] };
@@ -234,6 +236,7 @@ async function callGemini(
   key: ResolvedKey,
   messages: ChatMessage[],
   maxTokens: number,
+  timeoutMs: number,
 ): Promise<string> {
   const base = (key.baseUrl || DEFAULT_BASE_URLS.gemini).replace(/\/$/, "");
   const system = messages.filter((m) => m.role === "system").map((m) => m.content).join("\n\n");
@@ -258,7 +261,7 @@ async function callGemini(
           contents,
           generationConfig: { maxOutputTokens: maxTokens, responseMimeType: "application/json" },
         }),
-        signal: AbortSignal.timeout(60_000),
+        signal: AbortSignal.timeout(timeoutMs),
       },
     );
     if (res.status === 404) {
@@ -293,6 +296,8 @@ export async function completeText(opts: {
   capability?: AiCapability;
   messages: ChatMessage[];
   maxTokens?: number;
+  timeoutMs?: number;
+  maxCandidates?: number;
 }): Promise<CompletionResult | null> {
   const capability = opts.capability ?? "text";
   const candidates = await resolveKeyCandidates(opts.userId, capability);
@@ -302,18 +307,20 @@ export async function completeText(opts: {
   }
 
   const maxTokens = opts.maxTokens ?? 4096;
-  for (const key of candidates) {
+  const timeoutMs = Math.max(2_000, opts.timeoutMs ?? Number(process.env.AI_TEXT_TIMEOUT_MS ?? 25_000));
+  const keys = candidates.slice(0, Math.max(1, opts.maxCandidates ?? candidates.length));
+  for (const key of keys) {
     try {
       let text: string;
       switch (key.provider) {
         case "openai":
-          text = await callOpenAICompatible(key, opts.messages, maxTokens);
+          text = await callOpenAICompatible(key, opts.messages, maxTokens, timeoutMs);
           break;
         case "anthropic":
-          text = await callAnthropic(key, opts.messages, maxTokens);
+          text = await callAnthropic(key, opts.messages, maxTokens, timeoutMs);
           break;
         case "gemini":
-          text = await callGemini(key, opts.messages, maxTokens);
+          text = await callGemini(key, opts.messages, maxTokens, timeoutMs);
           break;
         default:
           continue; // e.g. an elevenlabs (tts-only) key can't do text
@@ -327,7 +334,7 @@ export async function completeText(opts: {
       );
     }
   }
-  console.warn(`[ai/text] all ${candidates.length} ${capability} key candidate(s) failed`);
+  console.warn(`[ai/text] all ${keys.length} ${capability} key candidate(s) failed`);
   return null;
 }
 
@@ -662,13 +669,13 @@ export async function testKey(
   ];
   switch (provider) {
     case "openai":
-      await callOpenAICompatible(key, messages, 16);
+      await callOpenAICompatible(key, messages, 16, 30_000);
       return;
     case "anthropic":
-      await callAnthropic(key, messages, 16);
+      await callAnthropic(key, messages, 16, 30_000);
       return;
     case "gemini":
-      await callGemini(key, messages, 16);
+      await callGemini(key, messages, 16, 30_000);
       return;
     default:
       throw new Error(`Provider ${provider} cannot be tested for ${capability}`);

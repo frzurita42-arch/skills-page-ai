@@ -61,6 +61,22 @@ const mockAiAllowed = () => process.env.SKETCHLEARN_ALLOW_MOCK_AI === "1";
 const AI_UNAVAILABLE_MSG =
   "AI_UNAVAILABLE: no AI provider produced content — nothing was saved and any tokens were refunded. Check the server .env AI keys (e.g. GEMINI_API_KEY) or add your own key in Settings → API Keys, then try again.";
 
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`Timed out after ${ms}ms`)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 /** Naive in-memory rate limiter (per key, per window) — for the public coach. */
 const buckets = new Map<string, { count: number; resetAt: number }>();
 function rateLimit(key: string, limit: number, windowMs: number) {
@@ -1224,11 +1240,16 @@ export const coachChatProcedure = publicQuery
         content: m.content,
       }));
       try {
-        const result = await completeText({
-          userId: ctx.user?.id,
-          messages: [{ role: "system", content: COACH_SYSTEM_PROMPT }, ...history],
-          maxTokens: 1024,
-        });
+        const result = await withTimeout(
+          completeText({
+            userId: ctx.user?.id,
+            messages: [{ role: "system", content: COACH_SYSTEM_PROMPT }, ...history],
+            maxTokens: 1024,
+            timeoutMs: 8_000,
+            maxCandidates: 2,
+          }),
+          12_000,
+        );
         if (result) {
           try {
             return coachResponseSchema.parse(JSON.parse(extractJson(result.text)));

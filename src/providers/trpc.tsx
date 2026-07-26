@@ -9,10 +9,7 @@ import { getAuthHeaders } from "@/lib/auth";
 export const trpc = createTRPCReact<AppRouter>();
 
 const apiOrigin =
-  import.meta.env.VITE_TRPC_ORIGIN?.trim() ||
-  (import.meta.env.PROD
-    ? "https://test-skills-page-ai-git-main-repo-slides-tools.vercel.app"
-    : "");
+  import.meta.env.VITE_TRPC_ORIGIN?.trim() || "";
 const trpcUrl = `${apiOrigin}/api/trpc`;
 
 const queryClient = new QueryClient();
